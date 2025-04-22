@@ -12,9 +12,15 @@ import { CoreModule } from './core/core.module';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI', 'mongodb://localhost:27017/minigame'),
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const uri = configService.get<string>('MONGODB_URI');
+        const dbName = configService.get<string>('MONGODB_DB_NAME');
+
+        return {
+          uri,
+          ...(dbName && { dbName }),
+        };
+      },
     }),
     PromotionModule,
     CoreModule,
