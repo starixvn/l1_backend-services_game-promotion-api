@@ -1,0 +1,22 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# Explicitly declare text files to be normalized
+*.ts text
+*.js text
+*.json text
+*.md text
+*.yml text
+*.yaml text
+*.html text
+*.css text
+*.scss text
+*.less text
+
+# Files that should keep CRLF line endings on checkout (Windows specific)
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Files that should keep LF line endings even on Windows
+*.sh text eol=lf
+.husky/* text eol=lf 

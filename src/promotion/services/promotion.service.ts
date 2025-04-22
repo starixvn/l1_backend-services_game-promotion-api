@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
