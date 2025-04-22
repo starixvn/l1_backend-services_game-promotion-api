@@ -1,6 +1,144 @@
-# Game Promotion Api
+# Game Promotion API
 
+A NestJS API for managing game promotions with MongoDB.
 
+## Description
+
+This API provides CRUD operations for managing game promotions in a minigame database. It follows clean code principles and a modular architecture.
+
+## Features
+
+- Create, read, update, and delete promotions
+- Health check endpoint
+- MongoDB integration via Mongoose
+- Input validation using class-validator
+- Environment variable configuration
+- Swagger API documentation
+- Code formatting with Prettier
+- Linting with ESLint
+- Git hooks for code quality enforcement
+
+## Installation
+
+```bash
+# Install dependencies
+npm install
+```
+
+## Configuration
+
+Create a `.env` file in the root directory with the following variables:
+
+```
+PORT=3000
+MONGODB_URI=mongodb://localhost:27017/minigame
+```
+
+## Running the app
+
+```bash
+# Development mode
+npm run start:dev
+
+# Production build
+npm run build
+npm run start:prod
+```
+
+## Code Quality
+
+The project uses ESLint and Prettier for code quality and formatting.
+
+```bash
+# Format code
+npm run format
+
+# Lint code
+npm run lint
+
+# Check code formatting without modifying files
+npm run format:check
+
+# Check linting without fixing issues
+npm run lint:check
+```
+
+### Git Hooks
+
+This project uses Husky and lint-staged to enforce code quality on each commit:
+
+- **pre-commit**: Runs Prettier and ESLint on staged files before allowing a commit
+
+These hooks are installed automatically when you run `npm install`.
+
+## API Documentation
+
+The API includes Swagger documentation, which can be accessed at:
+
+```
+http://localhost:3000/api
+```
+
+This interactive UI allows you to:
+- View all available endpoints
+- See request/response schemas
+- Test API endpoints directly from the browser
+
+## API Endpoints
+
+### Health Check
+- `GET /`: Check if the API is running
+
+### Promotions
+- `GET /promotions`: Get all promotions (optional query parameter: operatorId)
+- `GET /promotions/:id`: Get promotion by ID
+- `POST /promotions`: Create a new promotion
+- `PUT /promotions/:id`: Update a promotion
+- `DELETE /promotions/:id`: Delete a promotion
+- `GET /promotions/admin/test`: Test endpoint
+
+## Collections
+
+The API uses the following MongoDB collections:
+
+### game_promotions
+
+```javascript
+{
+    name: String,                     // PromotionName
+    code: String,                     // PromotionCode (derived from name)
+    operatorId: String,               // Operator identifier
+    offeredSiteNames: [String],       // Array of site identifiers, empty means offer all
+    currencyGroups: [ObjectId],       // Array of currency groups, not allowed to be empty
+    startDate: Date,                  // Start date and time
+    endDate: Date,                    // End date and time
+    bonusItemCount: Number,           // Number of free spins per player
+    offeredPlayerIds: [String],       // List of eligible player IDs, empty means all
+    gameConfigType: Number,           // 2: "ClassicSlot" | 3: "CascadingSlot"
+    gameIds: [Number],                // List of eligible games, not null
+    betLevels: [{                     // List of bet levels for this promotion
+        currencyGroup: ObjectId, 
+        betLevel: Number
+    }]
+}
+```
+
+### game_player_promotions
+
+```javascript
+{
+    playerId: String,                // Player identifier
+    operatorId: String,              // Operator identifier
+    siteName: String,                // Site identifier
+    promotionId: ObjectId,           // Reference to game_promotions collection
+    promotionCode: String,           // Promotion code for quick reference
+    currencyGroup: ObjectId,         // Currency group ObjectId
+    remainingBonusItems: Number,     // Number of remaining bonus items (0 means completed)
+    lastUsedDate: Date,              // Last time the promotion was used
+    createdAt: Date,                 // Creation timestamp
+    updatedAt: Date                  // Last update timestamp
+}
+```
 
 ## Getting started
 
