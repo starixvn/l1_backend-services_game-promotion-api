@@ -1,0 +1,7 @@
+variables:
+  NODEJS_IMAGE: hub.lumigame.com/base/node:20.9.0-alpine
+
+include:
+  - project: 'ci/core-cicd'
+    ref: main
+    file: 'luminet.gitlab-ci.yml'
