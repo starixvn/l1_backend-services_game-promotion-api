@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
+import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
 
 @Injectable()
 export class PromotionService {
@@ -34,12 +35,42 @@ export class PromotionService {
 
   /**
    * Finds all promotions with optional filtering
-   * @param operatorId - Optional operator ID filter
+   * @param filterDto - Filters for promotions
    * @returns Array of promotions
    */
-  async findAll(operatorId?: string): Promise<Promotion[]> {
-    const filter = operatorId ? { operatorId } : {};
-    return this.promotionModel.find(filter).exec();
+  async findAll(filterDto?: PromotionFilterDto): Promise<Promotion[]> {
+    const query: Record<string, any> = {};
+    const now = new Date();
+
+    if (filterDto) {
+      // Filter by operator IDs
+      if (filterDto.operatorIds && filterDto.operatorIds.length > 0) {
+        query.operatorId = { $in: filterDto.operatorIds };
+      }
+
+      // Filter by promotion code
+      if (filterDto.code) {
+        query.code = filterDto.code;
+      }
+
+      // Filter by status (based on start and end dates)
+      if (filterDto.status) {
+        switch (filterDto.status) {
+          case PromotionStatus.NOT_STARTED:
+            query.startDate = { $gt: now };
+            break;
+          case PromotionStatus.RUNNING:
+            query.startDate = { $lte: now };
+            query.endDate = { $gt: now };
+            break;
+          case PromotionStatus.ENDED:
+            query.endDate = { $lte: now };
+            break;
+        }
+      }
+    }
+
+    return this.promotionModel.find(query).exec();
   }
 
   /**

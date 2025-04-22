@@ -4,6 +4,7 @@ import { PromotionService } from '../services/promotion.service';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { Promotion } from '../schemas/promotion.schema';
+import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
 
 @ApiTags('promotions')
 @Controller('promotions')
@@ -28,25 +29,38 @@ export class PromotionController {
   }
 
   /**
-   * Get all promotions with optional operator filtering
-   * @param operatorId - Optional operator ID filter
+   * Get all promotions with optional filtering
+   * @param filterDto - Filters for promotions
    * @returns Array of promotions
    */
   @Get()
-  @ApiOperation({ summary: 'Get all promotions' })
+  @ApiOperation({ summary: 'Get all promotions with filtering options' })
   @ApiQuery({
-    name: 'operatorId',
+    name: 'operatorIds',
     required: false,
-    description: 'Filter promotions by operator ID',
+    description: 'Filter by operator IDs (comma-separated or multiple parameters)',
+    type: String,
+    isArray: true,
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by promotion status',
+    enum: PromotionStatus,
+  })
+  @ApiQuery({
+    name: 'code',
+    required: false,
+    description: 'Filter by promotion code (exact match)',
     type: String,
   })
   @ApiResponse({
     status: 200,
-    description: 'Returns all promotions, optionally filtered by operator ID',
+    description: 'Returns promotions based on the provided filters',
     type: [Promotion],
   })
-  async findAll(@Query('operatorId') operatorId?: string): Promise<Promotion[]> {
-    return this.promotionService.findAll(operatorId);
+  async findAll(@Query() filterDto: PromotionFilterDto): Promise<Promotion[]> {
+    return this.promotionService.findAll(filterDto);
   }
 
   /**
