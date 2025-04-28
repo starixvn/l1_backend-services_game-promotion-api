@@ -75,6 +75,7 @@ describe('PromotionController', () => {
       const createPromotionDto: CreatePromotionDto = {
         name: 'Test Promotion',
         operatorId: 'op123',
+        code: 'test_promotion',
         currencyGroups: ['currency1'] as any,
         startDate: mockDate,
         endDate: futureDate,

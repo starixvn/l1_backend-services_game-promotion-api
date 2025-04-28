@@ -166,6 +166,7 @@ describe('PromotionModule (Integration)', () => {
     it('should create a new promotion', () => {
       const createPromotionDto = {
         name: 'Test Promotion',
+        code: '1224',
         operatorId: 'op123',
         currencyGroups: ['currency1'],
         startDate: mockDate.toISOString(),

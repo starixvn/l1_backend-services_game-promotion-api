@@ -28,6 +28,14 @@ export class CreatePromotionDto {
   name: string;
 
   @ApiProperty({
+    description: 'Promotion code derived from the name',
+    example: 'summer-classic-free-spins',
+  })
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+
+  @ApiProperty({
     description: 'Operator identifier',
     example: 'op123',
   })

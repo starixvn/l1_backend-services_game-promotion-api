@@ -123,6 +123,7 @@ describe('PromotionService', () => {
     it('should create a new promotion', async () => {
       const createPromotionDto: CreatePromotionDto = {
         name: 'Test Promotion',
+        code: '1234',
         operatorId: 'op123',
         currencyGroups: ['currency1'] as any,
         startDate: mockDate,
@@ -139,6 +140,7 @@ describe('PromotionService', () => {
     it('should generate a code from the name', async () => {
       const createPromotionDto: CreatePromotionDto = {
         name: 'Test Promotion With Spaces!',
+        code: ' 20243',
         operatorId: 'op123',
         currencyGroups: ['currency1'] as any,
         startDate: mockDate,

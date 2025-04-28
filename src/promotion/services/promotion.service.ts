@@ -19,15 +19,8 @@ export class PromotionService {
    * @returns The created promotion
    */
   async createPromotion(createPromotionDto: CreatePromotionDto): Promise<Promotion> {
-    // Generate code from name (e.g., "VIP Classic Free Spins" => "vip-classic-free-spins")
-    const code = createPromotionDto.name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
-      .replace(/\s+/g, '-');
-
     const newPromotion = new this.promotionModel({
       ...createPromotionDto,
-      code,
     });
 
     return newPromotion.save();
