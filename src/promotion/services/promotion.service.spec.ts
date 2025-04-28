@@ -12,7 +12,24 @@ import { NotFoundException } from '@nestjs/common';
 const mockDate = new Date();
 const futureDate = new Date(mockDate.getTime() + 86400000); // tomorrow
 
-const mockPromotion = {
+// Define a test interface for our mock objects
+interface MockPromotionType {
+  _id: string;
+  name: string;
+  code?: string;
+  operatorId?: string;
+  offeredSiteNames?: string[];
+  currencyGroups?: any[];
+  startDate: Date;
+  endDate: Date;
+  bonusItemCount?: number;
+  offeredPlayerIds?: string[];
+  gameConfigType?: number;
+  gameIds?: number[];
+  betLevels?: any[];
+}
+
+const mockPromotion: MockPromotionType = {
   _id: 'a-promotion-id',
   name: 'Test Promotion',
   code: 'test-promotion',
@@ -28,7 +45,7 @@ const mockPromotion = {
   betLevels: [],
 };
 
-const mockPromotionArray = [
+const mockPromotionArray: MockPromotionType[] = [
   mockPromotion,
   {
     ...mockPromotion,
@@ -262,6 +279,130 @@ describe('PromotionService', () => {
         startDate: { $lte: expect.any(Date) },
         endDate: { $gt: expect.any(Date) },
       });
+    });
+  });
+
+  describe('getRunningPromotions', () => {
+    it('should return running promotions for given operator sorted by earliest end date', async () => {
+      // Create fixed dates for testing
+      const testNow = new Date('2023-01-15T12:00:00Z');
+      const testPast = new Date('2023-01-01T12:00:00Z');
+      const testFuture1 = new Date('2023-01-30T12:00:00Z'); // 15 days later
+      const testFuture2 = new Date('2023-02-04T12:00:00Z'); // 20 days later
+      const testFuture3 = new Date('2023-02-14T12:00:00Z'); // 30 days later
+
+      // Create test data with explicit dates
+      const testRunningPromotions = [
+        {
+          _id: 'running-promotion-1',
+          name: 'Running Promotion 1',
+          operatorId: 'op123',
+          startDate: testPast,
+          endDate: testFuture3, // Latest end date
+        },
+        {
+          _id: 'running-promotion-2',
+          name: 'Running Promotion 2',
+          operatorId: 'op123',
+          startDate: testPast,
+          endDate: testFuture2, // Middle end date
+        },
+        {
+          _id: 'running-promotion-3',
+          name: 'Running Promotion 3',
+          operatorId: 'op456',
+          startDate: testPast,
+          endDate: testFuture1, // Earliest end date
+        },
+        {
+          _id: 'not-started-promotion',
+          name: 'Not Started Promotion',
+          operatorId: 'op123',
+          startDate: testFuture1, // Future start date (not running)
+          endDate: testFuture3,
+        },
+        {
+          _id: 'ended-promotion',
+          name: 'Ended Promotion',
+          operatorId: 'op123',
+          startDate: new Date('2022-12-01T12:00:00Z'),
+          endDate: new Date('2022-12-31T12:00:00Z'), // Past end date (not running)
+        },
+      ];
+
+      // Mock Date.now to return our fixed test date
+      jest.spyOn(global.Date, 'now').mockImplementation(() => testNow.getTime());
+
+      // Mock the service to return only running promotions for the given operator
+      const runningPromotions = testRunningPromotions.filter(
+        p => p.startDate <= testNow && p.endDate > testNow && p.operatorId === 'op123',
+      );
+
+      model.find.mockReturnValueOnce({
+        exec: jest.fn().mockResolvedValueOnce(runningPromotions),
+      });
+
+      const result = (await service.getRunningPromotions('op123')) as MockPromotionType[];
+
+      // Should only include the running promotions for operator op123 (2 out of 5)
+      expect(result.length).toBe(2);
+
+      // Should not include non-running promotions
+      expect(result.find(p => p._id === 'not-started-promotion')).toBeUndefined();
+      expect(result.find(p => p._id === 'ended-promotion')).toBeUndefined();
+      expect(result.find(p => p._id === 'running-promotion-3')).toBeUndefined(); // Different operator
+
+      // Should be sorted by earliest end date first
+      expect(result[0]._id).toBe('running-promotion-2'); // Earlier end date
+      expect(result[1]._id).toBe('running-promotion-1'); // Later end date
+    });
+
+    it('should filter by exact operatorId match', async () => {
+      // Create fixed dates for testing
+      const testNow = new Date('2023-01-15T12:00:00Z');
+      const testPast = new Date('2023-01-01T12:00:00Z');
+      const testFuture1 = new Date('2023-01-30T12:00:00Z');
+      const testFuture2 = new Date('2023-02-04T12:00:00Z');
+
+      // Create test data with explicit dates
+      const testRunningPromotions = [
+        {
+          _id: 'running-promotion-1',
+          name: 'Running Promotion 1',
+          operatorId: 'op123',
+          startDate: testPast,
+          endDate: testFuture2,
+        },
+        {
+          _id: 'running-promotion-2',
+          name: 'Running Promotion 2',
+          operatorId: 'op123',
+          startDate: testPast,
+          endDate: testFuture1,
+        },
+      ];
+
+      // Mock Date.now to return our fixed test date
+      jest.spyOn(global.Date, 'now').mockImplementation(() => testNow.getTime());
+
+      model.find.mockReturnValueOnce({
+        exec: jest.fn().mockResolvedValueOnce(testRunningPromotions),
+      });
+
+      const result = (await service.getRunningPromotions('op123')) as MockPromotionType[];
+
+      // Should only include the running promotions for operator op123
+      expect(result.length).toBe(2);
+      expect(result.every(p => p.operatorId === 'op123')).toBe(true);
+      expect(model.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          operatorId: 'op123',
+        }),
+      );
+
+      // Should be sorted by earliest end date first
+      expect(result[0]._id).toBe('running-promotion-2'); // Earlier end date
+      expect(result[1]._id).toBe('running-promotion-1'); // Later end date
     });
   });
 

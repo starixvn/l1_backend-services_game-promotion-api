@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, HttpStatus, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
+  HttpStatus,
+  Query,
+  BadRequestException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { PromotionService } from '../services/promotion.service';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
@@ -61,6 +72,35 @@ export class PromotionController {
   })
   async findAll(@Query() filterDto: PromotionFilterDto): Promise<Promotion[]> {
     return this.promotionService.findAll(filterDto);
+  }
+
+  /**
+   * Get running promotions sorted by priority
+   * @param operatorId - Operator ID to filter by (required for performance)
+   * @returns Array of running promotions sorted by priority rules
+   */
+  @Get('running')
+  @ApiOperation({ summary: 'Get running promotions sorted by priority' })
+  @ApiQuery({
+    name: 'operatorId',
+    required: true,
+    description: 'Filter by operator ID (required for performance)',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns running promotions sorted by priority (earliest end date first)',
+    type: [Promotion],
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - operatorId is required',
+  })
+  async getRunningPromotions(@Query('operatorId') operatorId: string): Promise<Promotion[]> {
+    if (!operatorId) {
+      throw new BadRequestException('operatorId is required for performance reasons');
+    }
+    return this.promotionService.getRunningPromotions(operatorId);
   }
 
   /**

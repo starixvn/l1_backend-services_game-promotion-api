@@ -147,6 +147,16 @@ describe('PromotionModule (Integration)', () => {
     });
   });
 
+  describe('/promotions/running (GET)', () => {
+    it('should return running promotions for a specific operator', () => {
+      return request(app.getHttpServer()).get('/promotions/running?operatorId=op123').expect(200);
+    });
+
+    it('should return 400 if operatorId is not provided', () => {
+      return request(app.getHttpServer()).get('/promotions/running').expect(400);
+    });
+  });
+
   describe('/promotions/:id (GET)', () => {
     it('should return a promotion by ID', () => {
       return request(app.getHttpServer()).get('/promotions/a-promotion-id').expect(200);

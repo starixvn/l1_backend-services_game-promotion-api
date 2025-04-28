@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpStatus } from '@nestjs/common';
+import { HttpStatus, BadRequestException } from '@nestjs/common';
 import { PromotionController } from './promotion.controller';
 import { PromotionService } from '../services/promotion.service';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
@@ -37,6 +37,24 @@ const mockPromotionArray = [
   },
 ];
 
+// Mock for running promotions
+const mockRunningPromotions = [
+  {
+    _id: 'running-promotion-1',
+    name: 'Running Promotion 1',
+    code: 'running-promotion-1',
+    operatorId: 'op123',
+    endDate: new Date(mockDate.getTime() + 86400000 * 30), // 30 days later
+  },
+  {
+    _id: 'running-promotion-2',
+    name: 'Running Promotion 2',
+    code: 'running-promotion-2',
+    operatorId: 'op123',
+    endDate: new Date(mockDate.getTime() + 86400000 * 15), // 15 days later
+  },
+];
+
 describe('PromotionController', () => {
   let controller: PromotionController;
   let service: PromotionService;
@@ -53,6 +71,7 @@ describe('PromotionController', () => {
             createPromotion: jest.fn(),
             update: jest.fn(),
             remove: jest.fn(),
+            getRunningPromotions: jest.fn(),
           },
         },
       ],
@@ -113,6 +132,25 @@ describe('PromotionController', () => {
       const result = await controller.findAll(filterDto);
       expect(result).toEqual([mockPromotion]);
       expect(service.findAll).toHaveBeenCalledWith(filterDto);
+    });
+  });
+
+  describe('getRunningPromotions', () => {
+    it('should return running promotions for a given operator sorted by priority', async () => {
+      const operatorId = 'op123';
+      jest
+        .spyOn(service, 'getRunningPromotions')
+        .mockResolvedValueOnce(mockRunningPromotions as any);
+
+      const result = await controller.getRunningPromotions(operatorId);
+      expect(result).toEqual(mockRunningPromotions);
+      expect(service.getRunningPromotions).toHaveBeenCalledWith(operatorId);
+    });
+
+    it('should throw an error if operatorId is not provided', async () => {
+      await expect(controller.getRunningPromotions(undefined as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
