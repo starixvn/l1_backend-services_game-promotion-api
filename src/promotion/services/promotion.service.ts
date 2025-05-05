@@ -180,15 +180,6 @@ export class PromotionService {
     // If name is updated, update code too
     const update: Record<string, any> = { ...updatePromotionDto };
 
-    if (updatePromotionDto.name) {
-      const code = updatePromotionDto.name
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
-        .replace(/\s+/g, '-');
-
-      update.code = code;
-    }
-
     const updatedPromotion = await this.promotionModel
       .findByIdAndUpdate(id, update, { new: true })
       .exec();

@@ -23,6 +23,14 @@ export class UpdatePromotionDto {
   name?: string;
 
   @ApiPropertyOptional({
+    description: 'Code of the promotion',
+    example: 'summer-class-free-spins',
+  })
+  @IsString()
+  @IsOptional()
+  code?: string;
+
+  @ApiPropertyOptional({
     description: 'Operator identifier',
     example: 'op123',
   })

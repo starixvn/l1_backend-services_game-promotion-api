@@ -430,6 +430,7 @@ describe('PromotionService', () => {
     it('should update a promotion', async () => {
       const updatePromotionDto: UpdatePromotionDto = {
         name: 'Updated Promotion',
+        code: 'updated-promotion',
       };
 
       const updatedPromotion = {
