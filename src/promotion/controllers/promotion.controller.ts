@@ -16,6 +16,7 @@ import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { Promotion } from '../schemas/promotion.schema';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
+import { PROMOTION_NOT_FOUND_DESCRIPTION } from 'src/constants/api-messages';
 
 @ApiTags('promotions')
 @Controller('promotions')
@@ -103,6 +104,34 @@ export class PromotionController {
     return this.promotionService.getRunningPromotions(operatorId);
   }
 
+  @Get('check-code')
+  @ApiOperation({ summary: 'Check if promotion code already exists' })
+  @ApiQuery({
+    name: 'code',
+    required: true,
+    description: 'The promotion code to check',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns whether the promotion code exists',
+    schema: {
+      type: 'object',
+      properties: {
+        exists: { type: 'boolean', example: true },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - code is required' })
+  async checkCodeExists(@Query('code') code: string): Promise<{ exists: boolean }> {
+    if (!code) {
+      throw new BadRequestException('code is required');
+    }
+
+    const exists = await this.promotionService.doesCodeExist(code);
+    return { exists };
+  }
+
   /**
    * Get a single promotion by ID
    * @param id - The promotion ID
@@ -120,7 +149,7 @@ export class PromotionController {
     description: 'Returns the requested promotion',
     type: Promotion,
   })
-  @ApiResponse({ status: 404, description: 'Promotion not found' })
+  @ApiResponse({ status: 404, description: PROMOTION_NOT_FOUND_DESCRIPTION })
   async findOne(@Param('id') id: string): Promise<Promotion> {
     return this.promotionService.findOne(id);
   }
@@ -144,7 +173,7 @@ export class PromotionController {
     type: Promotion,
   })
   @ApiResponse({ status: 400, description: 'Bad request - invalid data' })
-  @ApiResponse({ status: 404, description: 'Promotion not found' })
+  @ApiResponse({ status: 404, description: PROMOTION_NOT_FOUND_DESCRIPTION })
   async update(
     @Param('id') id: string,
     @Body() updatePromotionDto: UpdatePromotionDto,
@@ -178,7 +207,7 @@ export class PromotionController {
       },
     },
   })
-  @ApiResponse({ status: 404, description: 'Promotion not found' })
+  @ApiResponse({ status: 404, description: PROMOTION_NOT_FOUND_DESCRIPTION })
   async remove(@Param('id') id: string): Promise<{ statusCode: number; message: string }> {
     await this.promotionService.remove(id);
     return {

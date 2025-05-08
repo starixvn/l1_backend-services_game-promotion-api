@@ -72,6 +72,7 @@ describe('PromotionController', () => {
             update: jest.fn(),
             remove: jest.fn(),
             getRunningPromotions: jest.fn(),
+            doesCodeExist: jest.fn(),
           },
         },
       ],
@@ -194,6 +195,32 @@ describe('PromotionController', () => {
         message: 'Promotion with ID a-promotion-id deleted successfully',
       });
       expect(service.remove).toHaveBeenCalledWith('a-promotion-id');
+    });
+  });
+
+  describe('checkCodeExists', () => {
+    it('should return true when code exists', async () => {
+      const code = 'existing-code';
+      jest.spyOn(service, 'doesCodeExist').mockResolvedValueOnce(true);
+
+      const result = await controller.checkCodeExists(code);
+      expect(result).toEqual({ exists: true });
+      expect(service.doesCodeExist).toHaveBeenCalledWith(code);
+    });
+
+    it('should return false when code does not exist', async () => {
+      const code = 'new-code';
+      jest.spyOn(service, 'doesCodeExist').mockResolvedValueOnce(false);
+
+      const result = await controller.checkCodeExists(code);
+      expect(result).toEqual({ exists: false });
+      expect(service.doesCodeExist).toHaveBeenCalledWith(code);
+    });
+
+    it('should throw BadRequestException if code is missing', async () => {
+      await expect(controller.checkCodeExists(undefined as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 

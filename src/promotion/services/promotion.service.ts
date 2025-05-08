@@ -203,4 +203,9 @@ export class PromotionService {
     }
     return true;
   }
+
+  async doesCodeExist(code: string): Promise<boolean> {
+    const existing = await this.promotionModel.exists({ code });
+    return !!existing;
+  }
 }

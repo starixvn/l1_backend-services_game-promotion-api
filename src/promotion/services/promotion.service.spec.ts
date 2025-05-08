@@ -83,6 +83,7 @@ const createMockModel = <T>(): MockModel<T> => {
   MockModelClass.findById = jest.fn();
   MockModelClass.findByIdAndUpdate = jest.fn();
   MockModelClass.deleteOne = jest.fn();
+  MockModelClass.exists = jest.fn();
 
   // Add prototype methods
   MockModelClass.prototype = {
@@ -501,6 +502,26 @@ describe('PromotionService', () => {
       });
 
       await expect(service.remove('nonexistent-id')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('doesCodeExist', () => {
+    it('should return true if promotion with code exists', async () => {
+      const code = 'existing-code';
+      model.exists = jest.fn().mockResolvedValueOnce({ _id: 'some-id' });
+
+      const result = await service.doesCodeExist(code);
+      expect(result).toBe(true);
+      expect(model.exists).toHaveBeenCalledWith({ code });
+    });
+
+    it('should return false if promotion with code does not exist', async () => {
+      const code = 'non-existing-code';
+      model.exists = jest.fn().mockResolvedValueOnce(null);
+
+      const result = await service.doesCodeExist(code);
+      expect(result).toBe(false);
+      expect(model.exists).toHaveBeenCalledWith({ code });
     });
   });
 });
