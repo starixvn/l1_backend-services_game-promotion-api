@@ -32,33 +32,25 @@ export class PromotionAnnouncement {
     example: 'Get 50 free spins this summer!',
     description: 'Banner content shown to player',
   })
-  @Prop({ required: true, minlength: 1, maxlength: 270 })
+  @Prop({ required: true })
   bannerContent: string;
 
   @ApiProperty({
     description: 'Promotion rules and terms',
-    example: 'Must be 18+, spins expire in 7 days...',
+    example: 'Spins expire in 7 days...',
   })
-  @Prop({ required: true, minlength: 1, maxlength: 6500 })
+  @Prop({ required: true })
   termsAndConditions: string;
 
   @ApiProperty({
     description: 'Display date range in GMT+7',
-    example: {
-      from: '2025-06-01T00:00:00.000Z',
-      to: '2025-06-30T23:59:59.000Z',
-    },
+    example: '2024-06-01T00:00:00Z',
   })
   @Prop({
-    type: {
-      from: { type: Date, required: true },
-      to: { type: Date, required: true },
-    },
+    type: Date,
+    required: true,
   })
-  displayDate: {
-    from: Date;
-    to: Date;
-  };
+  displayDate: Date;
 
   @ApiProperty({
     type: [OperatorMapping],

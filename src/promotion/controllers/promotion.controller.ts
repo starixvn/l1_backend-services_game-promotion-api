@@ -16,7 +16,7 @@ import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { Promotion } from '../schemas/promotion.schema';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
-import { PROMOTION_NOT_FOUND_DESCRIPTION } from 'src/constants/api-messages';
+import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 
 @ApiTags('promotions')
 @Controller('promotions')
