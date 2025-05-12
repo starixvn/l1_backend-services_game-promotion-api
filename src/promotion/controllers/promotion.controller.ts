@@ -10,13 +10,21 @@ import {
   Query,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { PromotionService } from '../services/promotion.service';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { Promotion } from '../schemas/promotion.schema';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
 import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
+import { PaginationResponse } from '../responses/pagination.response';
 
 @ApiTags('promotions')
 @Controller('promotions')
@@ -63,15 +71,46 @@ export class PromotionController {
   @ApiQuery({
     name: 'code',
     required: false,
-    description: 'Filter by promotion code (exact match)',
+    description: 'Filter by promotion code (partial match)',
     type: String,
+  })
+  @ApiQuery({
+    name: 'pageIndex',
+    required: false,
+    description: 'Page number (1-based)',
+    type: Number,
+    minimum: 1,
+  })
+  @ApiQuery({
+    name: 'pageSize',
+    required: false,
+    description: 'Number of items per page (1-100)',
+    type: Number,
+    minimum: 1,
+    maximum: 100,
   })
   @ApiResponse({
     status: 200,
-    description: 'Returns promotions based on the provided filters',
-    type: [Promotion],
+    description: 'Returns paginated promotions based on the provided filters',
+    schema: {
+      properties: {
+        promotions: {
+          type: 'array',
+          items: { $ref: getSchemaPath(Promotion) },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 100 },
+            pageIndex: { type: 'number', example: 1 },
+            pageSize: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 10 },
+          },
+        },
+      },
+    },
   })
-  async findAll(@Query() filterDto: PromotionFilterDto): Promise<Promotion[]> {
+  async findAll(@Query() filterDto: PromotionFilterDto): Promise<PaginationResponse<Promotion>> {
     return this.promotionService.findAll(filterDto);
   }
 
