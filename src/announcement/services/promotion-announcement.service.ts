@@ -7,6 +7,7 @@ import {
 import { CreatePromotionAnnouncementDto } from '../models/create-promotion-announcement.dto';
 import { UpdatePromotionAnnouncementDto } from '../models/update-promotion-announcement.dto';
 import { Model } from 'mongoose';
+import { ANNOUNCEMENT_NOT_FOUND_DESCRIPTION } from 'src/constants/api-messages';
 
 @Injectable()
 export class PromotionAnnouncementService {
@@ -37,7 +38,7 @@ export class PromotionAnnouncementService {
     });
 
     if (!updated) {
-      throw new NotFoundException('Promotion Announcement not found');
+      throw new NotFoundException(ANNOUNCEMENT_NOT_FOUND_DESCRIPTION);
     }
 
     return updated;
@@ -52,7 +53,7 @@ export class PromotionAnnouncementService {
     const result = await this.promotionAnnouncementModel.deleteOne({ _id: id }).exec();
 
     if (result.deletedCount === 0) {
-      throw new NotFoundException('Promotion Announcement not found');
+      throw new NotFoundException(ANNOUNCEMENT_NOT_FOUND_DESCRIPTION);
     }
 
     return true;
@@ -74,7 +75,7 @@ export class PromotionAnnouncementService {
   async findById(id: string): Promise<PromotionAnnouncement> {
     const announcement = await this.promotionAnnouncementModel.findById(id).exec();
     if (!announcement) {
-      throw new NotFoundException('Promotion Announcement not found');
+      throw new NotFoundException(ANNOUNCEMENT_NOT_FOUND_DESCRIPTION);
     }
     return announcement;
   }

@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class OperatorMappingDto {
+export class OperatorMappingDto {
   @ApiProperty({
     description: 'Operator identifier',
     example: 'op123',

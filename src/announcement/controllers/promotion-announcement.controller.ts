@@ -5,6 +5,12 @@ import { UpdatePromotionAnnouncementDto } from '../models/update-promotion-annou
 import { PromotionAnnouncementService } from '../services/promotion-announcement.service';
 import { PromotionAnnouncement } from '../schemas/promotion-announcement.schema';
 
+const ANNOUNCEMENT_ID_PARAM = {
+  name: 'id',
+  description: 'Announcement ID',
+  type: String,
+};
+
 @ApiTags('promotion-announcements')
 @Controller('promotion-announcements')
 export class PromotionAnnouncementController {
@@ -35,7 +41,7 @@ export class PromotionAnnouncementController {
    */
   @Put(':id')
   @ApiOperation({ summary: 'Update a promotion announcement' })
-  @ApiParam({ name: 'id', description: 'Announcement ID', type: String })
+  @ApiParam(ANNOUNCEMENT_ID_PARAM)
   @ApiResponse({
     status: 200,
     description: 'The announcement has been successfully updated.',
@@ -56,7 +62,7 @@ export class PromotionAnnouncementController {
    */
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a promotion announcement' })
-  @ApiParam({ name: 'id', description: 'Announcement ID', type: String })
+  @ApiParam(ANNOUNCEMENT_ID_PARAM)
   @ApiResponse({
     status: 200,
     description: 'Announcement deleted successfully',
@@ -99,7 +105,7 @@ export class PromotionAnnouncementController {
    */
   @Get(':id')
   @ApiOperation({ summary: 'Get a promotion announcement by ID' })
-  @ApiParam({ name: 'id', description: 'Announcement ID', type: String })
+  @ApiParam(ANNOUNCEMENT_ID_PARAM)
   async findById(@Param('id') id: string): Promise<PromotionAnnouncement> {
     return this.promotionAnnouncementService.findById(id);
   }

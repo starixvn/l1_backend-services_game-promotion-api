@@ -26,6 +26,11 @@ import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.
 import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 import { PaginationResponse } from '../responses/pagination.response';
 
+const PROMOTION_ID_PARAM = {
+  name: 'id',
+  description: 'Promotion ID',
+  type: String,
+};
 @ApiTags('promotions')
 @Controller('promotions')
 export class PromotionController {
@@ -178,11 +183,7 @@ export class PromotionController {
    */
   @Get(':id')
   @ApiOperation({ summary: 'Get promotion by ID' })
-  @ApiParam({
-    name: 'id',
-    description: 'Promotion ID',
-    type: String,
-  })
+  @ApiParam(PROMOTION_ID_PARAM)
   @ApiResponse({
     status: 200,
     description: 'Returns the requested promotion',
@@ -201,11 +202,7 @@ export class PromotionController {
    */
   @Put(':id')
   @ApiOperation({ summary: 'Update promotion by ID' })
-  @ApiParam({
-    name: 'id',
-    description: 'Promotion ID',
-    type: String,
-  })
+  @ApiParam(PROMOTION_ID_PARAM)
   @ApiResponse({
     status: 200,
     description: 'The promotion has been successfully updated',
@@ -227,11 +224,7 @@ export class PromotionController {
    */
   @Delete(':id')
   @ApiOperation({ summary: 'Delete promotion by ID' })
-  @ApiParam({
-    name: 'id',
-    description: 'Promotion ID',
-    type: String,
-  })
+  @ApiParam(PROMOTION_ID_PARAM)
   @ApiResponse({
     status: 200,
     description: 'The promotion has been successfully deleted',
