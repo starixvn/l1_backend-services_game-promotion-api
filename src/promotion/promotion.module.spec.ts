@@ -91,6 +91,10 @@ describe('PromotionModule (Integration)', () => {
     MockPromotionModel.deleteOne = jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
     });
+    MockPromotionModel.aggregate = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue(mockModelPromotion),
+    });
+    MockPromotionModel.countDocuments = jest.fn().mockResolvedValue(1);
 
     // Mock for the Player Promotion model (required by the module)
     mockPlayerPromotionModel = {

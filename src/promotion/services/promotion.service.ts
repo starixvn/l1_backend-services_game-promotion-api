@@ -267,6 +267,11 @@ export class PromotionService {
     return true;
   }
 
+  /**
+   * Checks if a promotion code exists
+   * @param code - The promotion code to check
+   * @returns true if the code exists, false otherwise
+   */
   async doesCodeExist(code: string): Promise<boolean> {
     const existing = await this.promotionModel.exists({ code });
     return !!existing;

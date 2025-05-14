@@ -15,11 +15,22 @@ export class PromotionAnnouncementService {
     private readonly promotionAnnouncementModel: Model<PromotionAnnouncementDocument>,
   ) {}
 
+  /**
+   * Creates a new announcement
+   * @param createPromotionAnnouncementDto - The promotion announcement data
+   * @returns The created promotion
+   */
   async create(dto: CreatePromotionAnnouncementDto): Promise<PromotionAnnouncement> {
     const created = new this.promotionAnnouncementModel(dto);
     return created.save();
   }
 
+  /**
+   * Updates an announcement
+   * @param id - The ID of the announcement to update
+   * @param dto - The updated announcement data
+   * @returns The updated announcement
+   */
   async update(id: string, dto: UpdatePromotionAnnouncementDto): Promise<PromotionAnnouncement> {
     const updated = await this.promotionAnnouncementModel.findByIdAndUpdate(id, dto, {
       new: true,
@@ -32,6 +43,11 @@ export class PromotionAnnouncementService {
     return updated;
   }
 
+  /**
+   * Removes an announcement
+   * @param id - The ID of the announcement to remove
+   * @returns true if the announcement was removed, false otherwise
+   */
   async remove(id: string): Promise<boolean> {
     const result = await this.promotionAnnouncementModel.deleteOne({ _id: id }).exec();
 
@@ -40,5 +56,26 @@ export class PromotionAnnouncementService {
     }
 
     return true;
+  }
+
+  /**
+   * Finds all announcements
+   * @returns All announcements
+   */
+  async findAll(): Promise<PromotionAnnouncement[]> {
+    return this.promotionAnnouncementModel.find().exec();
+  }
+
+  /**
+   * Finds an announcement by ID
+   * @param id - The ID of the announcement to find
+   * @returns The found announcement
+   */
+  async findById(id: string): Promise<PromotionAnnouncement> {
+    const announcement = await this.promotionAnnouncementModel.findById(id).exec();
+    if (!announcement) {
+      throw new NotFoundException('Promotion Announcement not found');
+    }
+    return announcement;
   }
 }

@@ -17,30 +17,41 @@ class OperatorMapping {
   promotionCode: string;
 }
 
+class LocalizedString {
+  [languageCode: string]: string;
+}
+
 @Schema({ timestamps: true, collection: 'promotion_announcements' })
 export class PromotionAnnouncement {
   @ApiProperty({
-    example: 'Super_Free_Spins_2024',
-    description: 'Promotion title shown to client (letters, numbers, underscores only)',
+    example: {
+      'en-US': 'Super_Free_Spins_2024',
+      'vi-VN': 'Vòng quay miễn phí siêu hot 2024',
+    },
+    description: 'Localized promotion titles (key = language code)',
   })
-  @Prop({
-    required: true,
-  })
-  promotionTitle: string;
+  @Prop({ type: Object, required: true })
+  promotionTitle: LocalizedString;
 
   @ApiProperty({
-    example: 'Get 50 free spins this summer!',
-    description: 'Banner content shown to player',
+    example: {
+      'en-US': 'Get 50 free spins this summer!',
+      'vi-VN': 'Nhận 50 lượt quay miễn phí mùa hè này!',
+    },
+    description: 'Localized banner content',
   })
-  @Prop({ required: true })
-  bannerContent: string;
+  @Prop({ type: Object, required: true })
+  bannerContent: LocalizedString;
 
   @ApiProperty({
-    description: 'Promotion rules and terms',
-    example: 'Spins expire in 7 days...',
+    example: {
+      'en-US': 'Spins expire in 7 days...',
+      'vi-VN': 'Lượt quay hết hạn sau 7 ngày...',
+    },
+    description: 'Localized terms and conditions',
   })
-  @Prop({ required: true })
-  termsAndConditions: string;
+  @Prop({ type: Object, required: true })
+  termsAndConditions: LocalizedString;
 
   @ApiProperty({
     description: 'Display date range in GMT+7',
@@ -58,15 +69,18 @@ export class PromotionAnnouncement {
   })
   @Prop({
     type: [OperatorMapping],
-    validate: {
-      validator: (mappings: OperatorMapping[]) => {
-        const unique = new Set(mappings.map(m => m.operatorId));
-        return unique.size === mappings.length;
-      },
-      message: 'Duplicate operatorId found.',
-    },
+    required: true,
   })
   promotionMappings: OperatorMapping[];
+
+  @ApiProperty({
+    example: 'template_1',
+    description: 'Template name offered by announcement',
+  })
+  @Prop({
+    required: true,
+  })
+  imageTemplate: string;
 }
 
 export const PromotionAnnouncementSchema = SchemaFactory.createForClass(PromotionAnnouncement);

@@ -2,10 +2,11 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
   IsDateString,
-  IsNotEmpty,
-  IsString,
   ValidateNested,
   ArrayUnique,
+  IsString,
+  IsNotEmpty,
+  IsOptional,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -27,30 +28,65 @@ class OperatorMappingDto {
   promotionCode: string;
 }
 
+export class LocalizedStringDto {
+  @ApiProperty({ example: 'Hot Slots - Hot Offer Promotion', description: 'English title' })
+  @IsString()
+  @IsNotEmpty()
+  ['en-US']: string;
+
+  @ApiProperty({
+    example: 'Máy đánh bạc siêu hot - Ưu đãi cực chất',
+    description: 'Vietnamese title',
+  })
+  @IsString()
+  @IsOptional()
+  ['vi-VN']?: string;
+
+  @ApiProperty({ example: '热门老虎机 - 热门优惠活动', description: 'Simplified Chinese title' })
+  @IsString()
+  @IsOptional()
+  ['zh-CN']?: string;
+
+  @ApiProperty({ example: '熱門老虎機 - 超值優惠', description: 'Traditional Chinese title' })
+  @IsString()
+  @IsOptional()
+  ['zh-TW']?: string;
+
+  @ApiProperty({ example: 'สล็อตร้อน - โปรโมชั่นสุดฮอต', description: 'Thai title' })
+  @IsString()
+  @IsOptional()
+  ['th-TH']?: string;
+
+  @ApiProperty({ example: 'Slot panas - Promo Menarik', description: 'Indonesian title' })
+  @IsString()
+  @IsOptional()
+  ['id-ID']?: string;
+}
+
 export class CreatePromotionAnnouncementDto {
   @ApiProperty({
-    example: 'Super_Free_Spins_2024',
-    description: 'Promotion title shown to client (letters, numbers, underscores only)',
+    type: LocalizedStringDto,
+    description: 'Promotion title in multiple languages',
   })
-  @IsString()
-  @IsNotEmpty()
-  promotionTitle: string;
+  @ValidateNested()
+  @Type(() => LocalizedStringDto)
+  promotionTitle: LocalizedStringDto;
 
   @ApiProperty({
-    example: 'Get 50 free spins this summer!',
-    description: 'Banner content shown to player',
+    type: LocalizedStringDto,
+    description: 'Banner content in multiple languages',
   })
-  @IsString()
-  @IsNotEmpty()
-  bannerContent: string;
+  @ValidateNested()
+  @Type(() => LocalizedStringDto)
+  bannerContent: LocalizedStringDto;
 
   @ApiProperty({
-    description: 'Promotion rules and terms',
-    example: 'Spins expire in 7 days...',
+    type: LocalizedStringDto,
+    description: 'Terms and conditions in multiple languages',
   })
-  @IsString()
-  @IsNotEmpty()
-  termsAndConditions: string;
+  @ValidateNested()
+  @Type(() => LocalizedStringDto)
+  termsAndConditions: LocalizedStringDto;
 
   @ApiProperty({
     description: 'Display date in GMT+7',
@@ -70,4 +106,12 @@ export class CreatePromotionAnnouncementDto {
   @ValidateNested({ each: true })
   @Type(() => OperatorMappingDto)
   promotionMappings: OperatorMappingDto[];
+
+  @ApiProperty({
+    example: 'template_1',
+    description: 'Template name used by the announcement',
+  })
+  @IsString()
+  @IsNotEmpty()
+  imageTemplate: string;
 }

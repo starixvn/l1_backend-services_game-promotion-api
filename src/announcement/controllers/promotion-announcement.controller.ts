@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Param, Delete, Put, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Param, Delete, Put, HttpStatus, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { CreatePromotionAnnouncementDto } from '../models/create-promotion-announcement.dto';
 import { UpdatePromotionAnnouncementDto } from '../models/update-promotion-announcement.dto';
@@ -10,6 +10,11 @@ import { PromotionAnnouncement } from '../schemas/promotion-announcement.schema'
 export class PromotionAnnouncementController {
   constructor(private readonly promotionAnnouncementService: PromotionAnnouncementService) {}
 
+  /**
+   * Creates a new promotion announcement
+   * @param dto - The promotion announcement data
+   * @returns The created promotion announcement
+   */
   @Post()
   @ApiOperation({ summary: 'Create a new promotion announcement' })
   @ApiResponse({
@@ -22,6 +27,12 @@ export class PromotionAnnouncementController {
     return this.promotionAnnouncementService.create(dto);
   }
 
+  /**
+   * Updates a promotion announcement
+   * @param id - The ID of the announcement to update
+   * @param dto - The updated announcement data
+   * @returns The updated promotion announcement
+   */
   @Put(':id')
   @ApiOperation({ summary: 'Update a promotion announcement' })
   @ApiParam({ name: 'id', description: 'Announcement ID', type: String })
@@ -38,6 +49,11 @@ export class PromotionAnnouncementController {
     return this.promotionAnnouncementService.update(id, dto);
   }
 
+  /**
+   * Deletes a promotion announcement
+   * @param id - The ID of the announcement to delete
+   * @returns The deleted announcement
+   */
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a promotion announcement' })
   @ApiParam({ name: 'id', description: 'Announcement ID', type: String })
@@ -59,5 +75,32 @@ export class PromotionAnnouncementController {
       statusCode: HttpStatus.OK,
       message: 'Deleted successfully',
     };
+  }
+
+  /**
+   * Finds all promotion announcements
+   * @returns All promotion announcements
+   */
+  @Get()
+  @ApiOperation({ summary: 'Get all promotion announcements' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns all promotion announcements',
+    type: [PromotionAnnouncement],
+  })
+  async findAll(): Promise<PromotionAnnouncement[]> {
+    return this.promotionAnnouncementService.findAll();
+  }
+
+  /**
+   * Finds a promotion announcement by ID
+   * @param id - The ID of the announcement to find
+   * @returns The found promotion announcement
+   */
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a promotion announcement by ID' })
+  @ApiParam({ name: 'id', description: 'Announcement ID', type: String })
+  async findById(@Param('id') id: string): Promise<PromotionAnnouncement> {
+    return this.promotionAnnouncementService.findById(id);
   }
 }
