@@ -8,8 +8,7 @@ import {
   IsOptional,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { OperatorMappingDto } from './create-promotion-announcement.dto';
-import { LocalizedStringDto } from './create-promotion-announcement.dto';
+import { OperatorMappingDto, LocalizedStringDto } from './create-promotion-announcement.dto';
 
 export class UpdatePromotionAnnouncementDto {
   @ApiPropertyOptional({ type: LocalizedStringDto })

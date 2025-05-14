@@ -9,8 +9,10 @@ import { EligiblePromotion } from '../responses/eligible-promotion.response';
 @Injectable()
 export class PlayerPromotionService {
   constructor(
-    @InjectModel(PlayerPromotion.name) private playerPromotionModel: Model<PlayerPromotionDocument>,
-    @InjectModel(Promotion.name) private promotionModel: Model<PromotionDocument>,
+    @InjectModel(PlayerPromotion.name)
+    private readonly playerPromotionModel: Model<PlayerPromotionDocument>,
+    @InjectModel(Promotion.name)
+    private readonly promotionModel: Model<PromotionDocument>,
   ) {}
 
   async hasAvailablePromotions(playerDto: PlayerDto): Promise<EligiblePromotion[]> {
