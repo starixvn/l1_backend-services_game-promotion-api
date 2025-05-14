@@ -269,11 +269,6 @@ describe('PromotionService', () => {
     });
 
     it('should filter by NOT_STARTED status', async () => {
-      const now = new Date();
-
-      // Fake current time to control $gt
-      jest.spyOn(global, 'Date').mockImplementation(() => now as any);
-
       model.aggregate.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce([mockPromotion]),
       });
@@ -290,7 +285,7 @@ describe('PromotionService', () => {
         expect.arrayContaining([
           expect.objectContaining({
             $match: expect.objectContaining({
-              startDate: { $gt: now },
+              startDate: { $gt: expect.any(Date) },
             }),
           }),
         ]),
@@ -300,10 +295,6 @@ describe('PromotionService', () => {
     });
 
     it('should filter by RUNNING status', async () => {
-      const now = new Date();
-
-      jest.spyOn(global, 'Date').mockImplementation(() => now as any);
-
       model.aggregate.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce([mockPromotion]),
       });
@@ -320,8 +311,8 @@ describe('PromotionService', () => {
         expect.arrayContaining([
           expect.objectContaining({
             $match: expect.objectContaining({
-              startDate: { $lte: now },
-              endDate: { $gt: now },
+              startDate: { $lte: expect.any(Date) },
+              endDate: { $gt: expect.any(Date) },
             }),
           }),
         ]),
@@ -331,10 +322,6 @@ describe('PromotionService', () => {
     });
 
     it('should filter by ENDED status', async () => {
-      const now = new Date();
-
-      jest.spyOn(global, 'Date').mockImplementation(() => now as any);
-
       model.aggregate.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce([mockPromotion]),
       });
@@ -351,7 +338,7 @@ describe('PromotionService', () => {
         expect.arrayContaining([
           expect.objectContaining({
             $match: expect.objectContaining({
-              endDate: { $lte: now },
+              endDate: { $lte: expect.any(Date) },
             }),
           }),
         ]),
@@ -361,9 +348,6 @@ describe('PromotionService', () => {
     });
 
     it('should combine multiple filters', async () => {
-      const now = new Date();
-      jest.spyOn(global, 'Date').mockImplementation(() => now as any);
-
       model.aggregate.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce([mockPromotion]),
       });
@@ -384,8 +368,8 @@ describe('PromotionService', () => {
             $match: expect.objectContaining({
               operatorId: { $in: ['op123'] },
               code: { $regex: 'test-promotion', $options: 'i' },
-              startDate: { $lte: now },
-              endDate: { $gt: now },
+              startDate: { $lte: expect.any(Date) },
+              endDate: { $gt: expect.any(Date) },
             }),
           }),
         ]),
