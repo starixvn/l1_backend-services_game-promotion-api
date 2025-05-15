@@ -11,7 +11,7 @@ import { CreatePromotionAnnouncementDto } from '../models/create-promotion-annou
 import { UpdatePromotionAnnouncementDto } from '../models/update-promotion-announcement.dto';
 import { PromotionAnnouncementService } from '../services/promotion-announcement.service';
 import { PromotionAnnouncement } from '../schemas/promotion-announcement.schema';
-import { ANNOUNCEMENT_NOT_FOUND_DESCRIPTION } from 'src/constants/api-messages';
+import { ANNOUNCEMENT_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 import {
   PromotionAnnouncementFilterDto,
   PromotionAnnouncementStatus,
@@ -168,5 +168,29 @@ export class PromotionAnnouncementController {
   @ApiResponse({ status: 404, description: ANNOUNCEMENT_NOT_FOUND_DESCRIPTION })
   async findById(@Param('id') id: string): Promise<PromotionAnnouncement> {
     return this.promotionAnnouncementService.findById(id);
+  }
+
+  /**
+   * Test endpoint for smoke testing
+   * @returns Test message
+   */
+  @Get('admin/test')
+  @ApiOperation({ summary: 'Test endpoint for smoke testing' })
+  @ApiResponse({
+    status: 200,
+    description: 'The API is working properly',
+    schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', example: 'ok' },
+        message: { type: 'string', example: 'Promotion announcement API test endpoint is working' },
+      },
+    },
+  })
+  async test(): Promise<{ status: string; message: string }> {
+    return {
+      status: 'ok',
+      message: 'Promotion announcement API test endpoint is working',
+    };
   }
 }
