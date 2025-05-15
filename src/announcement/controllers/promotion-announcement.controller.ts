@@ -4,6 +4,7 @@ import { CreatePromotionAnnouncementDto } from '../models/create-promotion-annou
 import { UpdatePromotionAnnouncementDto } from '../models/update-promotion-announcement.dto';
 import { PromotionAnnouncementService } from '../services/promotion-announcement.service';
 import { PromotionAnnouncement } from '../schemas/promotion-announcement.schema';
+import { ANNOUNCEMENT_NOT_FOUND_DESCRIPTION } from 'src/constants/api-messages';
 
 const ANNOUNCEMENT_ID_PARAM = {
   name: 'id',
@@ -79,7 +80,7 @@ export class PromotionAnnouncementController {
     await this.promotionAnnouncementService.remove(id);
     return {
       statusCode: HttpStatus.OK,
-      message: 'Deleted successfully',
+      message: 'Promotion announcement with ID ${id} deleted successfully',
     };
   }
 
@@ -106,6 +107,12 @@ export class PromotionAnnouncementController {
   @Get(':id')
   @ApiOperation({ summary: 'Get a promotion announcement by ID' })
   @ApiParam(ANNOUNCEMENT_ID_PARAM)
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the requested promotion',
+    type: PromotionAnnouncement,
+  })
+  @ApiResponse({ status: 404, description: ANNOUNCEMENT_NOT_FOUND_DESCRIPTION })
   async findById(@Param('id') id: string): Promise<PromotionAnnouncement> {
     return this.promotionAnnouncementService.findById(id);
   }

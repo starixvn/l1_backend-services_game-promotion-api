@@ -54,14 +54,24 @@ export class PromotionAnnouncement {
   termsAndConditions: LocalizedString;
 
   @ApiProperty({
-    description: 'Display date range in GMT+7',
+    description: 'Start date of the promotion',
     example: '2024-06-01T00:00:00Z',
   })
   @Prop({
     type: Date,
     required: true,
   })
-  displayDate: Date;
+  fromDate: Date;
+
+  @ApiProperty({
+    description: 'End date of the promotion',
+    example: '2024-06-01T00:00:00Z',
+  })
+  @Prop({
+    type: Date,
+    required: true,
+  })
+  toDate: Date;
 
   @ApiProperty({
     type: [OperatorMapping],
@@ -74,13 +84,13 @@ export class PromotionAnnouncement {
   promotionMappings: OperatorMapping[];
 
   @ApiProperty({
-    example: 'template_1',
-    description: 'Template name offered by announcement',
+    example: 1,
+    description: 'Template number offered by announcement',
   })
   @Prop({
     required: true,
   })
-  imageTemplate: string;
+  template: number;
 }
 
 export const PromotionAnnouncementSchema = SchemaFactory.createForClass(PromotionAnnouncement);

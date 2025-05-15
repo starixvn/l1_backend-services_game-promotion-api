@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
-  IsDateString,
   ValidateNested,
-  ArrayUnique,
   IsString,
   IsNotEmpty,
   IsOptional,
+  IsDate,
+  IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -92,26 +92,34 @@ export class CreatePromotionAnnouncementDto {
     description: 'Display date in GMT+7',
     example: '2024-06-01T00:00:00Z',
   })
-  @IsDateString()
-  displayDate: string;
+  @IsDate()
+  @Type(() => Date)
+  @IsNotEmpty()
+  fromDate: Date;
+
+  @ApiProperty({
+    description: 'End date of the promotion',
+    example: '2024-06-01T00:00:00Z',
+  })
+  @IsDate()
+  @Type(() => Date)
+  @IsNotEmpty()
+  toDate: Date;
 
   @ApiProperty({
     type: [OperatorMappingDto],
     description: 'List of Operator-Promotion mappings',
   })
   @IsArray()
-  @ArrayUnique((item: OperatorMappingDto) => item.operatorId, {
-    message: 'Duplicate operatorId found in promotionMappings.',
-  })
   @ValidateNested({ each: true })
   @Type(() => OperatorMappingDto)
   promotionMappings: OperatorMappingDto[];
 
   @ApiProperty({
-    example: 'template_1',
-    description: 'Template name used by the announcement',
+    example: 1,
+    description: 'Template number used by the announcement',
   })
-  @IsString()
+  @IsNumber()
   @IsNotEmpty()
-  imageTemplate: string;
+  template: number;
 }

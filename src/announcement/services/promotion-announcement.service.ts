@@ -7,7 +7,7 @@ import {
 import { CreatePromotionAnnouncementDto } from '../models/create-promotion-announcement.dto';
 import { UpdatePromotionAnnouncementDto } from '../models/update-promotion-announcement.dto';
 import { Model } from 'mongoose';
-import { ANNOUNCEMENT_NOT_FOUND_DESCRIPTION } from 'src/constants/api-messages';
+import { ANNOUNCEMENT_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 
 @Injectable()
 export class PromotionAnnouncementService {
@@ -33,9 +33,11 @@ export class PromotionAnnouncementService {
    * @returns The updated announcement
    */
   async update(id: string, dto: UpdatePromotionAnnouncementDto): Promise<PromotionAnnouncement> {
-    const updated = await this.promotionAnnouncementModel.findByIdAndUpdate(id, dto, {
-      new: true,
-    });
+    const updated = await this.promotionAnnouncementModel
+      .findByIdAndUpdate(id, dto, {
+        new: true,
+      })
+      .exec();
 
     if (!updated) {
       throw new NotFoundException(ANNOUNCEMENT_NOT_FOUND_DESCRIPTION);
