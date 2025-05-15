@@ -25,4 +25,12 @@ export class PlayerDto {
   @IsNotEmpty()
   @IsString()
   playerId: string;
+
+  @ApiProperty({
+    description: 'Currency group identifier',
+    example: '60d21b4667d0d01ce67a7e3b',
+  })
+  @IsNotEmpty()
+  @IsString()
+  currencyGroup: string;
 }

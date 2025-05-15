@@ -16,9 +16,14 @@ export class PlayerPromotionService {
   ) {}
 
   async hasAvailablePromotions(playerDto: PlayerDto): Promise<EligiblePromotion[]> {
-    const { operatorId, siteName, playerId } = playerDto;
+    const { operatorId, siteName, playerId, currencyGroup } = playerDto;
 
-    const runningPromotions = await this.getRunningPromotions(operatorId, siteName, playerId);
+    const runningPromotions = await this.getRunningPromotions(
+      operatorId,
+      siteName,
+      playerId,
+      currencyGroup,
+    );
     const hasPromotion = await this.hasCurrentPromotion(playerId, operatorId, siteName);
 
     if (hasPromotion) {
@@ -41,14 +46,15 @@ export class PlayerPromotionService {
     operatorId: string,
     siteName: string,
     playerId: string,
+    currencyGroup: string,
   ): Promise<PromotionDocument[]> {
     const now = new Date();
-
     return this.promotionModel
       .find({
         operatorId,
         startDate: { $lte: now },
         endDate: { $gt: now },
+        currencyGroups: { $in: [currencyGroup] },
         $and: [
           {
             $or: [{ offeredSiteNames: { $size: 0 } }, { offeredSiteNames: siteName }],

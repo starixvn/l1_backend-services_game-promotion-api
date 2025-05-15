@@ -116,6 +116,7 @@ describe('PlayerPromotionService', () => {
         playerId: 'player1',
         operatorId: 'op123',
         siteName: 'site1',
+        currencyGroup: 'currency1',
       };
 
       playerPromotionModel.exec.mockResolvedValue(null);
@@ -155,6 +156,7 @@ describe('PlayerPromotionService', () => {
         playerId: 'player1',
         operatorId: 'op123',
         siteName: 'site1',
+        currencyGroup: 'currency1',
       };
 
       playerPromotionModel.exec.mockResolvedValue(mockPlayerPromotion);
