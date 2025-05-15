@@ -1,10 +1,22 @@
-import { Controller, Post, Body, Param, Delete, Put, HttpStatus, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { Controller, Post, Body, Param, Delete, Put, HttpStatus, Get, Query } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { CreatePromotionAnnouncementDto } from '../models/create-promotion-announcement.dto';
 import { UpdatePromotionAnnouncementDto } from '../models/update-promotion-announcement.dto';
 import { PromotionAnnouncementService } from '../services/promotion-announcement.service';
 import { PromotionAnnouncement } from '../schemas/promotion-announcement.schema';
 import { ANNOUNCEMENT_NOT_FOUND_DESCRIPTION } from 'src/constants/api-messages';
+import {
+  PromotionAnnouncementFilterDto,
+  PromotionAnnouncementStatus,
+} from '../models/promotion-announcement-filter.dto';
+import { PaginationResponse } from 'src/promotion/responses/pagination.response';
 
 const ANNOUNCEMENT_ID_PARAM = {
   name: 'id',
@@ -80,23 +92,64 @@ export class PromotionAnnouncementController {
     await this.promotionAnnouncementService.remove(id);
     return {
       statusCode: HttpStatus.OK,
-      message: 'Promotion announcement with ID ${id} deleted successfully',
+      message: `Promotion announcement with ID ${id} deleted successfully`,
     };
   }
 
   /**
-   * Finds all promotion announcements
-   * @returns All promotion announcements
+   * Get all promotions with optional filtering
+   * @param filterDto - Filters for promotions announcements
+   * @returns Array of promotions
    */
   @Get()
-  @ApiOperation({ summary: 'Get all promotion announcements' })
+  @ApiOperation({ summary: 'Get all promotion announcements with filtering options' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by promotion status',
+    enum: PromotionAnnouncementStatus,
+  })
+  @ApiQuery({
+    name: 'pageIndex',
+    required: false,
+    description: 'Page number (1-based)',
+    type: Number,
+    minimum: 1,
+  })
+  @ApiQuery({
+    name: 'pageSize',
+    required: false,
+    description: 'Number of items per page (1-100)',
+    type: Number,
+    minimum: 1,
+    maximum: 100,
+  })
   @ApiResponse({
     status: 200,
     description: 'Returns all promotion announcements',
     type: [PromotionAnnouncement],
+    schema: {
+      properties: {
+        promotions: {
+          type: 'array',
+          items: { $ref: getSchemaPath(PromotionAnnouncement) },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 100 },
+            pageIndex: { type: 'number', example: 1 },
+            pageSize: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 10 },
+          },
+        },
+      },
+    },
   })
-  async findAll(): Promise<PromotionAnnouncement[]> {
-    return this.promotionAnnouncementService.findAll();
+  async findAll(
+    @Query() filterDto: PromotionAnnouncementFilterDto,
+  ): Promise<PaginationResponse<PromotionAnnouncement>> {
+    return this.promotionAnnouncementService.findAll(filterDto);
   }
 
   /**

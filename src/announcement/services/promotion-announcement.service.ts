@@ -8,6 +8,11 @@ import { CreatePromotionAnnouncementDto } from '../models/create-promotion-annou
 import { UpdatePromotionAnnouncementDto } from '../models/update-promotion-announcement.dto';
 import { Model } from 'mongoose';
 import { ANNOUNCEMENT_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
+import {
+  PromotionAnnouncementFilterDto,
+  PromotionAnnouncementStatus,
+} from '../models/promotion-announcement-filter.dto';
+import { PaginationResponse } from 'src/promotion/responses/pagination.response';
 
 @Injectable()
 export class PromotionAnnouncementService {
@@ -65,8 +70,94 @@ export class PromotionAnnouncementService {
    * Finds all announcements
    * @returns All announcements
    */
-  async findAll(): Promise<PromotionAnnouncement[]> {
-    return this.promotionAnnouncementModel.find().exec();
+  async findAll(
+    filterDto?: PromotionAnnouncementFilterDto,
+  ): Promise<PaginationResponse<PromotionAnnouncement>> {
+    console.log('filterDto', filterDto);
+    const query: Record<string, any> = {};
+    const now = new Date();
+
+    const pageIndex = filterDto?.pageIndex || 1;
+    const pageSize = filterDto?.pageSize || 10;
+    const skip = (pageIndex - 1) * pageSize;
+    if (filterDto) {
+      // Filter by status (based on start and end dates)
+      if (filterDto.status) {
+        switch (filterDto.status) {
+          case PromotionAnnouncementStatus.UP_COMING:
+            query.fromDate = { $gt: now };
+            break;
+          case PromotionAnnouncementStatus.RUNNING:
+            query.fromDate = { $lte: now };
+            query.toDate = { $gt: now };
+            break;
+          case PromotionAnnouncementStatus.COMPLETED:
+            query.toDate = { $lte: now };
+            break;
+        }
+      }
+    }
+    console.log('query', query);
+    // Add a computed field for status sorting
+    const aggregationPipeline = [
+      { $match: query },
+      {
+        $addFields: {
+          statusOrder: {
+            $switch: {
+              branches: [
+                {
+                  // Running: startDate <= now AND endDate > now
+                  case: {
+                    $and: [{ $lte: ['$fromDate', now] }, { $gt: ['$toDate', now] }],
+                  },
+                  then: 1,
+                },
+                {
+                  // Upcoming: startDate > now
+                  case: { $gt: ['$fromDate', now] },
+                  then: 2,
+                },
+                {
+                  // Deleted/Ended: endDate <= now
+                  case: { $lte: ['$toDate', now] },
+                  then: 3,
+                },
+              ],
+              default: 4,
+            },
+          },
+        },
+      },
+      {
+        $sort: {
+          statusOrder: 1 as const,
+          toDate: 1 as const,
+        },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: pageSize,
+      },
+    ];
+
+    // Execute aggregation pipeline for items
+    const items = await this.promotionAnnouncementModel.aggregate(aggregationPipeline).exec();
+    console.log('items', items);
+    // Count total documents matching the query
+    const total = await this.promotionAnnouncementModel.countDocuments(query);
+    console.log('total', total);
+    return {
+      items: items,
+      metadata: {
+        total,
+        pageIndex,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
   }
 
   /**

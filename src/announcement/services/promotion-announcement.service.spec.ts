@@ -122,10 +122,37 @@ describe('PromotionAnnouncementService', () => {
   });
 
   describe('findAll', () => {
-    it('should return all announcements', async () => {
+    it('should return paginated promotion announcements', async () => {
+      const mockAnnouncement = {
+        _id: '123',
+        promotionTitle: { 'en-US': 'Test Promotion' },
+        fromDate: new Date('2025-06-01T00:00:00Z'),
+        toDate: new Date('2025-06-05T00:00:00Z'),
+      };
+
+      const mockItems = [mockAnnouncement];
+      const mockCount = 1;
+
+      jest
+        .spyOn(model, 'aggregate')
+        .mockReturnValueOnce({ exec: jest.fn().mockResolvedValueOnce(mockItems) } as any);
+
+      jest.spyOn(model, 'countDocuments').mockResolvedValueOnce(mockCount);
+
       const result = await service.findAll();
-      expect(result).toEqual([mockAnnouncement]);
-      expect(model.find).toHaveBeenCalled();
+
+      expect(result).toEqual({
+        items: mockItems,
+        metadata: {
+          total: mockCount,
+          pageIndex: 1,
+          pageSize: 10,
+          totalPages: 1,
+        },
+      });
+
+      expect(model.aggregate).toHaveBeenCalled();
+      expect(model.countDocuments).toHaveBeenCalled();
     });
   });
 
