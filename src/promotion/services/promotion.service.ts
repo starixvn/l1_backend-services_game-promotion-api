@@ -6,7 +6,6 @@ import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
 import { PaginationResponse } from '../responses/pagination.response';
-import dayjs from 'dayjs';
 
 @Injectable()
 export class PromotionService {
@@ -134,41 +133,7 @@ export class PromotionService {
       operatorId: operatorId,
     };
 
-    const promotions = await this.promotionModel.find(query).exec();
-
-    return this.prioritizePromotions(
-      Array.isArray(promotions) ? promotions : Array.from(promotions),
-    );
-  }
-
-  private prioritizePromotions(promotions: Promotion[]): Promotion[] {
-    return [...promotions].sort((a, b) => {
-      try {
-        // Use day.js for date comparison
-        const aStart = dayjs(a.startDate);
-        const bStart = dayjs(b.startDate);
-        const aEnd = dayjs(a.endDate);
-        const bEnd = dayjs(b.endDate);
-
-        // Case 1: Same start and end dates - sort by creation date (based on ID)
-        if (aStart.isSame(bStart) && aEnd.isSame(bEnd)) {
-          const docA = a as any;
-          const docB = b as any;
-
-          if (!docA._id || !docB._id) {
-            return 0;
-          }
-
-          return docA._id.toString().localeCompare(docB._id.toString());
-        }
-
-        // Case 2: All other cases - sort by earliest end date
-        return aEnd.isBefore(bEnd) ? -1 : 1;
-      } catch (error) {
-        console.error('Error sorting promotions:', error);
-        return 0;
-      }
-    });
+    return this.promotionModel.find(query, null, { sort: { endDate: 1, _id: 1 } }).exec();
   }
 
   /**
