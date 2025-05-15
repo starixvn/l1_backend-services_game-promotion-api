@@ -166,7 +166,7 @@ export class PromotionAnnouncementService {
    * @returns The found announcement
    */
   async findById(id: string): Promise<PromotionAnnouncement> {
-    const announcement = await this.promotionAnnouncementModel.findById(id).exec();
+    const announcement = await this.promotionAnnouncementModel.findById(id).lean().exec();
     if (!announcement) {
       throw new NotFoundException(ANNOUNCEMENT_NOT_FOUND_DESCRIPTION);
     }

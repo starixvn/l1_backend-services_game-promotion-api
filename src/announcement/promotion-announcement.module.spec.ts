@@ -118,17 +118,40 @@ describe('PromotionAnnouncementModule (Integration)', () => {
   });
 
   describe('/promotion-announcements/:id (GET)', () => {
-    it('should return a promotion announcement by ID', () => {
-      return request(app.getHttpServer())
-        .get('/promotion-announcements/a-promotion-id')
+    it('should return a promotion announcement by ID', async () => {
+      const mockAnnouncement = {
+        _id: 'a-promotion-announcement-id',
+        promotionTitle: { 'en-US': 'Hot Promotion' },
+        fromDate: '2025-06-01T00:00:00.000Z',
+        toDate: '2025-06-02T00:00:00.000Z',
+      };
+
+      const mockPromotionAnnouncementModel = app.get(getModelToken(PromotionAnnouncement.name));
+
+      // Mock findById().lean().exec()
+      const execMock = jest.fn().mockResolvedValueOnce(mockAnnouncement);
+      const leanMock = jest.fn().mockReturnValue({ exec: execMock });
+      const findByIdMock = jest.fn().mockReturnValue({ lean: leanMock });
+      mockPromotionAnnouncementModel.findById = findByIdMock;
+
+      const response = await request(app.getHttpServer())
+        .get('/promotion-announcements/a-promotion-announcement-id')
         .expect(200);
+
+      expect(response.body).toEqual(expect.objectContaining(mockAnnouncement));
+      expect(findByIdMock).toHaveBeenCalledWith('a-promotion-announcement-id');
+      expect(leanMock).toHaveBeenCalled();
+      expect(execMock).toHaveBeenCalled();
     });
 
     it('should return 404 for non-existent promotion announcement', () => {
       const mockPromotionAnnouncementModel = app.get(getModelToken(PromotionAnnouncement.name));
-      mockPromotionAnnouncementModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce(null),
-      });
+
+      const execMock = jest.fn().mockResolvedValueOnce(null);
+      const leanMock = jest.fn().mockReturnValue({ exec: execMock });
+      const findByIdMock = jest.fn().mockReturnValue({ lean: leanMock });
+
+      mockPromotionAnnouncementModel.findById = findByIdMock;
 
       return request(app.getHttpServer())
         .get('/promotion-announcements/nonexistent-id')

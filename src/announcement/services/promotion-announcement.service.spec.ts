@@ -157,18 +157,42 @@ describe('PromotionAnnouncementService', () => {
   });
 
   describe('findById', () => {
+    const mockAnnouncement = {
+      _id: 'ann123',
+      promotionTitle: { 'en-US': 'Test Promotion' },
+      fromDate: new Date('2025-06-01T00:00:00Z'),
+      toDate: new Date('2025-06-05T00:00:00Z'),
+    };
+
     it('should return an announcement by id', async () => {
+      const execMock = jest.fn().mockResolvedValue(mockAnnouncement);
+      const leanMock = jest.fn().mockReturnValue({ exec: execMock });
+      const findByIdMock = jest.fn().mockReturnValue({ lean: leanMock });
+
+      model.findById = findByIdMock;
+
       const result = await service.findById('ann123');
+
       expect(result).toEqual(mockAnnouncement);
-      expect(model.findById).toHaveBeenCalledWith('ann123');
+      expect(findByIdMock).toHaveBeenCalledWith('ann123');
+      expect(leanMock).toHaveBeenCalled();
+      expect(execMock).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if not found', async () => {
-      model.findById.mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(null) });
+      const execMock = jest.fn().mockResolvedValue(null);
+      const leanMock = jest.fn().mockReturnValue({ exec: execMock });
+      const findByIdMock = jest.fn().mockReturnValue({ lean: leanMock });
+
+      model.findById = findByIdMock;
 
       await expect(service.findById('missing-id')).rejects.toThrow(
         new NotFoundException(ANNOUNCEMENT_NOT_FOUND_DESCRIPTION),
       );
+
+      expect(findByIdMock).toHaveBeenCalledWith('missing-id');
+      expect(leanMock).toHaveBeenCalled();
+      expect(execMock).toHaveBeenCalled();
     });
   });
 
