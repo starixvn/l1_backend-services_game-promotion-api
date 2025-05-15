@@ -404,6 +404,7 @@ describe('PromotionService', () => {
         null,
         {
           sort: { endDate: 1, _id: 1 },
+          lean: true,
         },
       );
     });
@@ -425,27 +426,42 @@ describe('PromotionService', () => {
           operatorId: 'op456',
         }),
         null,
-        expect.anything(),
+        expect.objectContaining({
+          lean: true,
+        }),
       );
     });
   });
 
   describe('findOne', () => {
     it('should return a promotion by id', async () => {
+      // Arrange
+      const mockExec = jest.fn().mockResolvedValue(mockPromotion);
+      const mockLean = jest.fn().mockReturnValue({ exec: mockExec });
+
       model.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce(mockPromotion),
+        lean: mockLean,
       });
 
+      // Act
       const result = await service.findOne('a-promotion-id');
+
+      // Assert
       expect(result).toEqual(mockPromotion);
       expect(model.findById).toHaveBeenCalledWith('a-promotion-id');
+      expect(mockLean).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if promotion not found', async () => {
+      // Arrange
+      const mockExec = jest.fn().mockResolvedValue(null);
+      const mockLean = jest.fn().mockReturnValue({ exec: mockExec });
+
       model.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce(null),
+        lean: mockLean,
       });
 
+      // Act & Assert
       await expect(service.findOne('nonexistent-id')).rejects.toThrow(NotFoundException);
     });
   });

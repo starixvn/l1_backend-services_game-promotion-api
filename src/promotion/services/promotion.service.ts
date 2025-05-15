@@ -133,7 +133,9 @@ export class PromotionService {
       operatorId: operatorId,
     };
 
-    return this.promotionModel.find(query, null, { sort: { endDate: 1, _id: 1 } }).exec();
+    return this.promotionModel
+      .find(query, null, { sort: { endDate: 1, _id: 1 }, lean: true })
+      .exec();
   }
 
   /**
@@ -142,7 +144,7 @@ export class PromotionService {
    * @returns The found promotion or null
    */
   async findOne(id: string): Promise<Promotion> {
-    const promotion = await this.promotionModel.findById(id).exec();
+    const promotion = await this.promotionModel.findById(id).lean().exec();
     if (!promotion) {
       throw new NotFoundException(`Promotion with ID ${id} not found`);
     }
