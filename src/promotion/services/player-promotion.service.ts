@@ -133,6 +133,7 @@ export class PlayerPromotionService {
         siteName,
         remainingBonusItems: { $gt: 0 },
       })
+      .lean()
       .exec();
   }
 
@@ -243,7 +244,7 @@ export class PlayerPromotionService {
    * @returns Promotion document
    */
   private async getPromotionById(promotionId: string): Promise<PromotionDocument> {
-    const promotion = await this.promotionModel.findById(promotionId).exec();
+    const promotion = await this.promotionModel.findById(promotionId).lean().exec();
     if (!promotion) {
       throw new Error('Promotion not found');
     }
