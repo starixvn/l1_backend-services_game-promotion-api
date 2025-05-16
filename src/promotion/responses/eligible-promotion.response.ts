@@ -30,7 +30,7 @@ export class EligiblePromotion {
     description: 'Currency group ID for this player',
     example: '60d21b4667d0d01ce67a7e3c',
   })
-  currencyGroup: MongooseSchema.Types.ObjectId;
+  currencyGroup: MongooseSchema.Types.ObjectId | string;
 }
 
 export class EligiblePromotionsResponse {

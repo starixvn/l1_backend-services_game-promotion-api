@@ -4,6 +4,7 @@ import { PlayerPromotionService } from './player-promotion.service';
 import { PlayerPromotion } from '../schemas/player-promotion.schema';
 import { Promotion } from '../schemas/promotion.schema';
 import { PlayerDto } from '../models/player.dto';
+import { PlayerPromotionDocument } from '../schemas/player-promotion.schema';
 
 describe('PlayerPromotionService', () => {
   let service: PlayerPromotionService;
@@ -58,6 +59,7 @@ describe('PlayerPromotionService', () => {
     lastUsedDate: null,
   });
 
+  // Instead of using a circular reference, define a mock that's suitable for the PlayerPromotionDocument type
   const mockPlayerPromotion = {
     _id: 'player-promo1',
     playerId: 'player1',
@@ -69,7 +71,12 @@ describe('PlayerPromotionService', () => {
     remainingBonusItems: 10,
     lastUsedDate: null,
     save: saveFn,
-  };
+    // Add minimal Document properties needed for tests
+    $isEmpty: jest.fn(),
+    $isDeleted: jest.fn(),
+    $isValid: jest.fn(() => true),
+    isModified: jest.fn(),
+  } as unknown as PlayerPromotionDocument;
 
   beforeEach(async () => {
     // Simple mock implementations
@@ -135,19 +142,17 @@ describe('PlayerPromotionService', () => {
         siteName: 'site1',
         remainingBonusItems: { $gt: 0 },
       });
-      expect(promotionModel.find).toHaveBeenCalledWith({
-        operatorId: 'op123',
-        startDate: { $lte: expect.any(Date) },
-        endDate: { $gt: expect.any(Date) },
-        $and: [
-          {
-            $or: [{ offeredSiteNames: { $size: 0 } }, { offeredSiteNames: 'site1' }],
-          },
-          {
-            $or: [{ offeredPlayerIds: { $size: 0 } }, { offeredPlayerIds: 'player1' }],
-          },
-        ],
-      });
+      // Use a separate expect for checking query parameters to avoid exact date matching issues
+      expect(promotionModel.find).toHaveBeenCalled();
+      const findCall = promotionModel.find.mock.calls[0][0];
+      expect(findCall.operatorId).toBe('op123');
+      expect(findCall.currencyGroups.$in).toContain('currency1');
+      expect(findCall.startDate.$lte).toBeInstanceOf(Date);
+      expect(findCall.endDate.$gt).toBeInstanceOf(Date);
+      expect(findCall.$and[0].$or[0].offeredSiteNames.$size).toBe(0);
+      expect(findCall.$and[0].$or[1].offeredSiteNames).toBe('site1');
+      expect(findCall.$and[1].$or[0].offeredPlayerIds.$size).toBe(0);
+      expect(findCall.$and[1].$or[1].offeredPlayerIds).toBe('player1');
     });
 
     it('should return empty array when player has an active promotion', async () => {
@@ -224,6 +229,130 @@ describe('PlayerPromotionService', () => {
       await expect(
         service.assignPromotionToPlayer(playerId, promotionId, operatorId, siteName, currencyGroup),
       ).rejects.toThrow('Promotion not found');
+    });
+  });
+
+  describe('getCurrentPromotion', () => {
+    it('should return existing promotion if player has one', async () => {
+      // Arrange
+      const playerDto: PlayerDto = {
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        currencyGroup: 'currency1',
+      };
+
+      playerPromotionModel.exec.mockResolvedValue(mockPlayerPromotion);
+
+      // Act
+      const result = await service.getCurrentPromotion(playerDto);
+
+      // Assert
+      expect(result).toEqual(mockPlayerPromotion);
+      expect(playerPromotionModel.findOne).toHaveBeenCalledWith({
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        remainingBonusItems: { $gt: 0 },
+      });
+    });
+
+    it('should create and return new promotion if player has no promotion but has available ones', async () => {
+      // Arrange
+      const playerDto: PlayerDto = {
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        currencyGroup: 'currency1',
+      };
+
+      playerPromotionModel.exec.mockResolvedValue(null);
+      promotionModel.exec.mockResolvedValue(mockPromotions);
+
+      // Mock assignPromotionToPlayer instead of createPlayerPromotion
+      jest.spyOn(service, 'assignPromotionToPlayer').mockResolvedValue(mockPlayerPromotion);
+
+      // Act
+      const result = await service.getCurrentPromotion(playerDto);
+
+      // Assert
+      expect(result).toEqual(mockPlayerPromotion);
+      expect(service.assignPromotionToPlayer).toHaveBeenCalledWith(
+        'player1',
+        'promo1',
+        'op123',
+        'site1',
+        'currency1',
+      );
+    });
+
+    it('should return null if player has no promotion and no available promotions', async () => {
+      // Arrange
+      const playerDto: PlayerDto = {
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        currencyGroup: 'currency1',
+      };
+
+      playerPromotionModel.exec.mockResolvedValue(null);
+      promotionModel.exec.mockResolvedValue([]);
+
+      // Act
+      const result = await service.getCurrentPromotion(playerDto);
+
+      // Assert
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('claimPromotion', () => {
+    const playerDto: PlayerDto = {
+      playerId: 'player1',
+      operatorId: 'op123',
+      siteName: 'site1',
+      currencyGroup: 'currency1',
+    };
+
+    it('should return existing promotion if player has one', async () => {
+      playerPromotionModel.exec.mockResolvedValue(mockPlayerPromotion);
+
+      const result = await service.claimPromotion(playerDto);
+
+      expect(result).toEqual(mockPlayerPromotion);
+      expect(playerPromotionModel.findOne).toHaveBeenCalledWith({
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        remainingBonusItems: { $gt: 0 },
+      });
+    });
+
+    it('should claim and return new promotion if player has none but has available ones', async () => {
+      playerPromotionModel.exec.mockResolvedValueOnce(null);
+      promotionModel.exec.mockResolvedValue(mockPromotions);
+
+      jest.spyOn(service, 'assignPromotionToPlayer').mockResolvedValue(mockPlayerPromotion);
+
+      const result = await service.claimPromotion(playerDto);
+
+      expect(result).toEqual(mockPlayerPromotion);
+      expect(service.assignPromotionToPlayer).toHaveBeenCalledWith(
+        'player1',
+        'promo1',
+        'op123',
+        'site1',
+        'currency1',
+      );
+    });
+
+    it('should return null if player has no promotion and no available promotions', async () => {
+      playerPromotionModel.exec.mockResolvedValue(null);
+      promotionModel.exec.mockResolvedValue([]);
+
+      const result = await service.claimPromotion(playerDto);
+
+      expect(result).toBeNull();
     });
   });
 });

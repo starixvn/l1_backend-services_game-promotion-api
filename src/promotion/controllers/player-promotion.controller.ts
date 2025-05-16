@@ -5,11 +5,24 @@ import { PlayerDto } from '../models/player.dto';
 import { EligiblePromotionsResponse } from '../responses/eligible-promotion.response';
 import { AssignPromotionDto } from '../models/assign-promotion.dto';
 import { AssignmentResponse } from '../responses/assignment-response';
+import { PlayerPromotionResponse } from '../responses/player-promotion.response';
 
 @ApiTags('player-promotions')
 @Controller('player-promotions')
 export class PlayerPromotionController {
   constructor(private readonly playerPromotionService: PlayerPromotionService) {}
+
+  @Post('claim-promotion')
+  @ApiOperation({ summary: 'Get existing or claim new promotion for a player' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Player promotion details',
+    type: PlayerPromotionResponse,
+  })
+  async claimPromotion(@Body() playerDto: PlayerDto): Promise<PlayerPromotionResponse> {
+    const promotion = await this.playerPromotionService.claimPromotion(playerDto);
+    return { promotion };
+  }
 
   @Post('has-promotion')
   @ApiOperation({ summary: 'Check which promotions are eligible for a player' })
