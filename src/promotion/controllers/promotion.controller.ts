@@ -89,10 +89,9 @@ export class PromotionController {
   @ApiQuery({
     name: 'pageSize',
     required: false,
-    description: 'Number of items per page (1-100)',
+    description: 'Number of items per page (minimum 1)',
     type: Number,
     minimum: 1,
-    maximum: 100,
   })
   @ApiResponse({
     status: 200,
