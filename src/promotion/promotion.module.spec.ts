@@ -163,13 +163,21 @@ describe('PromotionModule (Integration)', () => {
 
   describe('/promotions/:id (GET)', () => {
     it('should return a promotion by ID', () => {
+      const mockPromotionModel = app.get(getModelToken(Promotion.name));
+      mockPromotionModel.findById.mockReturnValueOnce({
+        lean: () => ({
+          exec: jest.fn().mockResolvedValueOnce(mockPromotion),
+        }),
+      });
       return request(app.getHttpServer()).get('/promotions/a-promotion-id').expect(200);
     });
 
     it('should return 404 for non-existent promotion', () => {
       const mockPromotionModel = app.get(getModelToken(Promotion.name));
       mockPromotionModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce(null),
+        lean: () => ({
+          exec: jest.fn().mockResolvedValueOnce(null),
+        }),
       });
 
       return request(app.getHttpServer()).get('/promotions/nonexistent-id').expect(404);
