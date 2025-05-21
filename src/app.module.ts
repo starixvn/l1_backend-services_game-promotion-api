@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PromotionModule } from './promotion/promotion.module';
 import { CoreModule } from './core/core.module';
+import { PromotionAnnouncementModule } from './announcement/promotion-announcement.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { CoreModule } from './core/core.module';
       },
     }),
     PromotionModule,
+    PromotionAnnouncementModule,
     CoreModule,
   ],
 })

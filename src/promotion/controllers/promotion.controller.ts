@@ -1,11 +1,36 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, HttpStatus, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
+  HttpStatus,
+  Query,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { PromotionService } from '../services/promotion.service';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { Promotion } from '../schemas/promotion.schema';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
+import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
+import { PaginationResponse } from '../responses/pagination.response';
 
+const PROMOTION_ID_PARAM = {
+  name: 'id',
+  description: 'Promotion ID',
+  type: String,
+};
 @ApiTags('promotions')
 @Controller('promotions')
 export class PromotionController {
@@ -51,16 +76,103 @@ export class PromotionController {
   @ApiQuery({
     name: 'code',
     required: false,
-    description: 'Filter by promotion code (exact match)',
+    description: 'Filter by promotion code (partial match)',
+    type: String,
+  })
+  @ApiQuery({
+    name: 'pageIndex',
+    required: false,
+    description: 'Page number (1-based)',
+    type: Number,
+    minimum: 1,
+  })
+  @ApiQuery({
+    name: 'pageSize',
+    required: false,
+    description: 'Number of items per page (minimum 1)',
+    type: Number,
+    minimum: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns paginated promotions based on the provided filters',
+    schema: {
+      properties: {
+        promotions: {
+          type: 'array',
+          items: { $ref: getSchemaPath(Promotion) },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 100 },
+            pageIndex: { type: 'number', example: 1 },
+            pageSize: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 10 },
+          },
+        },
+      },
+    },
+  })
+  async findAll(@Query() filterDto: PromotionFilterDto): Promise<PaginationResponse<Promotion>> {
+    return this.promotionService.findAll(filterDto);
+  }
+
+  /**
+   * Get running promotions sorted by priority
+   * @param operatorId - Operator ID to filter by (required for performance)
+   * @returns Array of running promotions sorted by priority rules
+   */
+  @Get('running')
+  @ApiOperation({ summary: 'Get running promotions sorted by priority' })
+  @ApiQuery({
+    name: 'operatorId',
+    required: true,
+    description: 'Filter by operator ID (required for performance)',
     type: String,
   })
   @ApiResponse({
     status: 200,
-    description: 'Returns promotions based on the provided filters',
+    description: 'Returns running promotions sorted by priority (earliest end date first)',
     type: [Promotion],
   })
-  async findAll(@Query() filterDto: PromotionFilterDto): Promise<Promotion[]> {
-    return this.promotionService.findAll(filterDto);
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - operatorId is required',
+  })
+  async getRunningPromotions(@Query('operatorId') operatorId: string): Promise<Promotion[]> {
+    if (!operatorId) {
+      throw new BadRequestException('operatorId is required for performance reasons');
+    }
+    return this.promotionService.getRunningPromotions(operatorId);
+  }
+
+  @Get('check-code')
+  @ApiOperation({ summary: 'Check if promotion code already exists' })
+  @ApiQuery({
+    name: 'code',
+    required: true,
+    description: 'The promotion code to check',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns whether the promotion code exists',
+    schema: {
+      type: 'object',
+      properties: {
+        exists: { type: 'boolean', example: true },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - code is required' })
+  async checkCodeExists(@Query('code') code: string): Promise<{ exists: boolean }> {
+    if (!code) {
+      throw new BadRequestException('code is required');
+    }
+
+    const exists = await this.promotionService.doesCodeExist(code);
+    return { exists };
   }
 
   /**
@@ -70,17 +182,13 @@ export class PromotionController {
    */
   @Get(':id')
   @ApiOperation({ summary: 'Get promotion by ID' })
-  @ApiParam({
-    name: 'id',
-    description: 'Promotion ID',
-    type: String,
-  })
+  @ApiParam(PROMOTION_ID_PARAM)
   @ApiResponse({
     status: 200,
     description: 'Returns the requested promotion',
     type: Promotion,
   })
-  @ApiResponse({ status: 404, description: 'Promotion not found' })
+  @ApiResponse({ status: 404, description: PROMOTION_NOT_FOUND_DESCRIPTION })
   async findOne(@Param('id') id: string): Promise<Promotion> {
     return this.promotionService.findOne(id);
   }
@@ -93,18 +201,14 @@ export class PromotionController {
    */
   @Put(':id')
   @ApiOperation({ summary: 'Update promotion by ID' })
-  @ApiParam({
-    name: 'id',
-    description: 'Promotion ID',
-    type: String,
-  })
+  @ApiParam(PROMOTION_ID_PARAM)
   @ApiResponse({
     status: 200,
     description: 'The promotion has been successfully updated',
     type: Promotion,
   })
   @ApiResponse({ status: 400, description: 'Bad request - invalid data' })
-  @ApiResponse({ status: 404, description: 'Promotion not found' })
+  @ApiResponse({ status: 404, description: PROMOTION_NOT_FOUND_DESCRIPTION })
   async update(
     @Param('id') id: string,
     @Body() updatePromotionDto: UpdatePromotionDto,
@@ -119,11 +223,7 @@ export class PromotionController {
    */
   @Delete(':id')
   @ApiOperation({ summary: 'Delete promotion by ID' })
-  @ApiParam({
-    name: 'id',
-    description: 'Promotion ID',
-    type: String,
-  })
+  @ApiParam(PROMOTION_ID_PARAM)
   @ApiResponse({
     status: 200,
     description: 'The promotion has been successfully deleted',
@@ -138,7 +238,7 @@ export class PromotionController {
       },
     },
   })
-  @ApiResponse({ status: 404, description: 'Promotion not found' })
+  @ApiResponse({ status: 404, description: PROMOTION_NOT_FOUND_DESCRIPTION })
   async remove(@Param('id') id: string): Promise<{ statusCode: number; message: string }> {
     await this.promotionService.remove(id);
     return {

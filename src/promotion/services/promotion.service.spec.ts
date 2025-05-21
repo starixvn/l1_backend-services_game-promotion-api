@@ -12,7 +12,24 @@ import { NotFoundException } from '@nestjs/common';
 const mockDate = new Date();
 const futureDate = new Date(mockDate.getTime() + 86400000); // tomorrow
 
-const mockPromotion = {
+// Define a test interface for our mock objects
+interface MockPromotionType {
+  _id: string;
+  name: string;
+  code?: string;
+  operatorId?: string;
+  offeredSiteNames?: string[];
+  currencyGroups?: any[];
+  startDate: Date;
+  endDate: Date;
+  bonusItemCount?: number;
+  offeredPlayerIds?: string[];
+  gameConfigType?: number;
+  gameIds?: number[];
+  betLevels?: any[];
+}
+
+const mockPromotion: MockPromotionType = {
   _id: 'a-promotion-id',
   name: 'Test Promotion',
   code: 'test-promotion',
@@ -28,7 +45,7 @@ const mockPromotion = {
   betLevels: [],
 };
 
-const mockPromotionArray = [
+const mockPromotionArray: MockPromotionType[] = [
   mockPromotion,
   {
     ...mockPromotion,
@@ -47,6 +64,9 @@ interface MockModel<T = any> extends Partial<Model<T>> {
   findById: jest.Mock;
   findByIdAndUpdate: jest.Mock;
   deleteOne: jest.Mock;
+  exists: jest.Mock;
+  aggregate: jest.Mock;
+  countDocuments: jest.Mock;
   prototype: {
     save: jest.Mock;
   };
@@ -66,6 +86,9 @@ const createMockModel = <T>(): MockModel<T> => {
   MockModelClass.findById = jest.fn();
   MockModelClass.findByIdAndUpdate = jest.fn();
   MockModelClass.deleteOne = jest.fn();
+  MockModelClass.exists = jest.fn();
+  MockModelClass.aggregate = jest.fn();
+  MockModelClass.countDocuments = jest.fn();
 
   // Add prototype methods
   MockModelClass.prototype = {
@@ -123,6 +146,7 @@ describe('PromotionService', () => {
     it('should create a new promotion', async () => {
       const createPromotionDto: CreatePromotionDto = {
         name: 'Test Promotion',
+        code: '1234',
         operatorId: 'op123',
         currencyGroups: ['currency1'] as any,
         startDate: mockDate,
@@ -139,6 +163,7 @@ describe('PromotionService', () => {
     it('should generate a code from the name', async () => {
       const createPromotionDto: CreatePromotionDto = {
         name: 'Test Promotion With Spaces!',
+        code: ' 20243',
         operatorId: 'op123',
         currencyGroups: ['currency1'] as any,
         startDate: mockDate,
@@ -166,119 +191,277 @@ describe('PromotionService', () => {
       model.find.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce(mockPromotionArray),
       });
+      model.aggregate.mockReturnValueOnce({
+        exec: jest.fn().mockResolvedValueOnce(mockPromotionArray),
+      });
+      model.countDocuments.mockResolvedValueOnce(1);
 
-      const result = await service.findAll();
-      expect(result).toEqual(mockPromotionArray);
-      expect(model.find).toHaveBeenCalledWith({});
+      const result = await service.findAll({ pageIndex: 1, pageSize: 10 });
+
+      expect(model.aggregate).toHaveBeenCalled();
+      expect(model.countDocuments).toHaveBeenCalledWith({});
+
+      expect(result.items).toEqual(mockPromotionArray);
+      expect(result.metadata).toEqual({
+        total: 1,
+        pageIndex: 1,
+        pageSize: 10,
+        totalPages: 1,
+      });
     });
 
     it('should filter by operatorIds', async () => {
-      model.find.mockReturnValueOnce({
+      const operatorIds = ['op123'];
+
+      model.aggregate.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce([mockPromotion]),
       });
+      model.countDocuments.mockResolvedValueOnce(1);
 
       const result = await service.findAll({
-        operatorIds: ['op123'],
+        operatorIds,
+        pageIndex: 1,
+        pageSize: 10,
       });
-      expect(result).toEqual([mockPromotion]);
-      expect(model.find).toHaveBeenCalledWith({
-        operatorId: { $in: ['op123'] },
-      });
+
+      // Kiểm tra pipeline chứa $match với operatorId $in
+      expect(model.aggregate).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            $match: expect.objectContaining({
+              operatorId: { $in: operatorIds },
+            }),
+          }),
+        ]),
+      );
+
+      expect(result.items).toEqual([mockPromotion]);
     });
 
     it('should filter by code', async () => {
-      model.find.mockReturnValueOnce({
+      const code = 'test-promotion';
+
+      model.aggregate.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce([mockPromotion]),
       });
 
+      model.countDocuments.mockResolvedValueOnce(1);
+
       const result = await service.findAll({
-        code: 'test-promotion',
+        code,
+        pageIndex: 1,
+        pageSize: 10,
       });
-      expect(result).toEqual([mockPromotion]);
-      expect(model.find).toHaveBeenCalledWith({
-        code: 'test-promotion',
-      });
+
+      // Kiểm tra rằng pipeline chứa $match với code regex
+      expect(model.aggregate).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            $match: expect.objectContaining({
+              code: { $regex: code, $options: 'i' },
+            }),
+          }),
+        ]),
+      );
+
+      expect(result.items).toEqual([mockPromotion]);
+      expect(result.metadata.total).toBe(1);
     });
 
     it('should filter by NOT_STARTED status', async () => {
-      model.find.mockReturnValueOnce({
+      model.aggregate.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce([mockPromotion]),
       });
+
+      model.countDocuments.mockResolvedValueOnce(1);
 
       const result = await service.findAll({
         status: PromotionStatus.NOT_STARTED,
+        pageIndex: 1,
+        pageSize: 10,
       });
-      expect(result).toEqual([mockPromotion]);
-      expect(model.find).toHaveBeenCalledWith({
-        startDate: { $gt: expect.any(Date) },
-      });
+
+      expect(model.aggregate).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            $match: expect.objectContaining({
+              startDate: { $gt: expect.any(Date) },
+            }),
+          }),
+        ]),
+      );
+
+      expect(result.items).toEqual([mockPromotion]);
     });
 
     it('should filter by RUNNING status', async () => {
-      model.find.mockReturnValueOnce({
+      model.aggregate.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce([mockPromotion]),
       });
+
+      model.countDocuments.mockResolvedValueOnce(1);
 
       const result = await service.findAll({
         status: PromotionStatus.RUNNING,
+        pageIndex: 1,
+        pageSize: 10,
       });
-      expect(result).toEqual([mockPromotion]);
-      expect(model.find).toHaveBeenCalledWith({
-        startDate: { $lte: expect.any(Date) },
-        endDate: { $gt: expect.any(Date) },
-      });
+
+      expect(model.aggregate).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            $match: expect.objectContaining({
+              startDate: { $lte: expect.any(Date) },
+              endDate: { $gt: expect.any(Date) },
+            }),
+          }),
+        ]),
+      );
+
+      expect(result.items).toEqual([mockPromotion]);
     });
 
     it('should filter by ENDED status', async () => {
-      model.find.mockReturnValueOnce({
+      model.aggregate.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce([mockPromotion]),
       });
+
+      model.countDocuments.mockResolvedValueOnce(1);
 
       const result = await service.findAll({
         status: PromotionStatus.ENDED,
+        pageIndex: 1,
+        pageSize: 10,
       });
-      expect(result).toEqual([mockPromotion]);
-      expect(model.find).toHaveBeenCalledWith({
-        endDate: { $lte: expect.any(Date) },
-      });
+
+      expect(model.aggregate).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            $match: expect.objectContaining({
+              endDate: { $lte: expect.any(Date) },
+            }),
+          }),
+        ]),
+      );
+
+      expect(result.items).toEqual([mockPromotion]);
     });
 
     it('should combine multiple filters', async () => {
-      model.find.mockReturnValueOnce({
+      model.aggregate.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce([mockPromotion]),
       });
+
+      model.countDocuments.mockResolvedValueOnce(1);
 
       const result = await service.findAll({
         operatorIds: ['op123'],
         code: 'test-promotion',
         status: PromotionStatus.RUNNING,
+        pageIndex: 1,
+        pageSize: 10,
       });
-      expect(result).toEqual([mockPromotion]);
-      expect(model.find).toHaveBeenCalledWith({
-        operatorId: { $in: ['op123'] },
-        code: 'test-promotion',
-        startDate: { $lte: expect.any(Date) },
-        endDate: { $gt: expect.any(Date) },
+
+      expect(model.aggregate).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            $match: expect.objectContaining({
+              operatorId: { $in: ['op123'] },
+              code: { $regex: 'test-promotion', $options: 'i' },
+              startDate: { $lte: expect.any(Date) },
+              endDate: { $gt: expect.any(Date) },
+            }),
+          }),
+        ]),
+      );
+
+      expect(result.items).toEqual([mockPromotion]);
+    });
+  });
+
+  describe('getRunningPromotions', () => {
+    it('should query for running promotions with correct parameters and sort options', async () => {
+      // Arrange
+      const testNow = new Date('2023-01-15T12:00:00Z');
+      jest.spyOn(global.Date, 'now').mockImplementation(() => testNow.getTime());
+
+      const mockExec = jest.fn().mockResolvedValue([]);
+      const mockFind = jest.fn().mockReturnValue({
+        exec: mockExec,
       });
+      model.find = mockFind;
+
+      // Act
+      await service.getRunningPromotions('op123');
+
+      // Assert
+      expect(mockFind).toHaveBeenCalledWith(
+        {
+          startDate: { $lte: expect.any(Date) },
+          endDate: { $gt: expect.any(Date) },
+          operatorId: 'op123',
+        },
+        null,
+        {
+          sort: { endDate: 1, _id: 1 },
+          lean: true,
+        },
+      );
+    });
+
+    it('should filter by exact operatorId match', async () => {
+      // Arrange
+      const mockExec = jest.fn().mockResolvedValue([]);
+      const mockFind = jest.fn().mockReturnValue({
+        exec: mockExec,
+      });
+      model.find = mockFind;
+
+      // Act
+      await service.getRunningPromotions('op456');
+
+      // Assert
+      expect(mockFind).toHaveBeenCalledWith(
+        expect.objectContaining({
+          operatorId: 'op456',
+        }),
+        null,
+        expect.objectContaining({
+          lean: true,
+        }),
+      );
     });
   });
 
   describe('findOne', () => {
     it('should return a promotion by id', async () => {
+      // Arrange
+      const mockExec = jest.fn().mockResolvedValue(mockPromotion);
+      const mockLean = jest.fn().mockReturnValue({ exec: mockExec });
+
       model.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce(mockPromotion),
+        lean: mockLean,
       });
 
+      // Act
       const result = await service.findOne('a-promotion-id');
+
+      // Assert
       expect(result).toEqual(mockPromotion);
       expect(model.findById).toHaveBeenCalledWith('a-promotion-id');
+      expect(mockLean).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if promotion not found', async () => {
+      // Arrange
+      const mockExec = jest.fn().mockResolvedValue(null);
+      const mockLean = jest.fn().mockReturnValue({ exec: mockExec });
+
       model.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce(null),
+        lean: mockLean,
       });
 
+      // Act & Assert
       await expect(service.findOne('nonexistent-id')).rejects.toThrow(NotFoundException);
     });
   });
@@ -287,6 +470,7 @@ describe('PromotionService', () => {
     it('should update a promotion', async () => {
       const updatePromotionDto: UpdatePromotionDto = {
         name: 'Updated Promotion',
+        code: 'updated-promotion',
       };
 
       const updatedPromotion = {
@@ -357,6 +541,26 @@ describe('PromotionService', () => {
       });
 
       await expect(service.remove('nonexistent-id')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('doesCodeExist', () => {
+    it('should return true if promotion with code exists', async () => {
+      const code = 'existing-code';
+      model.exists = jest.fn().mockResolvedValueOnce({ _id: 'some-id' });
+
+      const result = await service.doesCodeExist(code);
+      expect(result).toBe(true);
+      expect(model.exists).toHaveBeenCalledWith({ code });
+    });
+
+    it('should return false if promotion with code does not exist', async () => {
+      const code = 'non-existing-code';
+      model.exists = jest.fn().mockResolvedValueOnce(null);
+
+      const result = await service.doesCodeExist(code);
+      expect(result).toBe(false);
+      expect(model.exists).toHaveBeenCalledWith({ code });
     });
   });
 });

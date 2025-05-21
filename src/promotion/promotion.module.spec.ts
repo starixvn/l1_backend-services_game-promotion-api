@@ -91,6 +91,10 @@ describe('PromotionModule (Integration)', () => {
     MockPromotionModel.deleteOne = jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
     });
+    MockPromotionModel.aggregate = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue(mockModelPromotion),
+    });
+    MockPromotionModel.countDocuments = jest.fn().mockResolvedValue(1);
 
     // Mock for the Player Promotion model (required by the module)
     mockPlayerPromotionModel = {
@@ -147,15 +151,33 @@ describe('PromotionModule (Integration)', () => {
     });
   });
 
+  describe('/promotions/running (GET)', () => {
+    it('should return running promotions for a specific operator', () => {
+      return request(app.getHttpServer()).get('/promotions/running?operatorId=op123').expect(200);
+    });
+
+    it('should return 400 if operatorId is not provided', () => {
+      return request(app.getHttpServer()).get('/promotions/running').expect(400);
+    });
+  });
+
   describe('/promotions/:id (GET)', () => {
     it('should return a promotion by ID', () => {
+      const mockPromotionModel = app.get(getModelToken(Promotion.name));
+      mockPromotionModel.findById.mockReturnValueOnce({
+        lean: () => ({
+          exec: jest.fn().mockResolvedValueOnce(mockPromotion),
+        }),
+      });
       return request(app.getHttpServer()).get('/promotions/a-promotion-id').expect(200);
     });
 
     it('should return 404 for non-existent promotion', () => {
       const mockPromotionModel = app.get(getModelToken(Promotion.name));
       mockPromotionModel.findById.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce(null),
+        lean: () => ({
+          exec: jest.fn().mockResolvedValueOnce(null),
+        }),
       });
 
       return request(app.getHttpServer()).get('/promotions/nonexistent-id').expect(404);
@@ -166,6 +188,7 @@ describe('PromotionModule (Integration)', () => {
     it('should create a new promotion', () => {
       const createPromotionDto = {
         name: 'Test Promotion',
+        code: '1224',
         operatorId: 'op123',
         currencyGroups: ['currency1'],
         startDate: mockDate.toISOString(),

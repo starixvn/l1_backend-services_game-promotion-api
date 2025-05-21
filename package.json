@@ -2,9 +2,9 @@
   "name": "game-promotion-api",
   "version": "0.0.1",
   "description": "API for game promotions",
-  "author": "",
+  "author": "Pentagon",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "Pentagon",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",

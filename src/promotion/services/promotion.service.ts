@@ -5,6 +5,7 @@ import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
+import { PaginationResponse } from '../responses/pagination.response';
 
 @Injectable()
 export class PromotionService {
@@ -19,15 +20,8 @@ export class PromotionService {
    * @returns The created promotion
    */
   async createPromotion(createPromotionDto: CreatePromotionDto): Promise<Promotion> {
-    // Generate code from name (e.g., "VIP Classic Free Spins" => "vip-classic-free-spins")
-    const code = createPromotionDto.name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
-      .replace(/\s+/g, '-');
-
     const newPromotion = new this.promotionModel({
       ...createPromotionDto,
-      code,
     });
 
     return newPromotion.save();
@@ -38,22 +32,23 @@ export class PromotionService {
    * @param filterDto - Filters for promotions
    * @returns Array of promotions
    */
-  async findAll(filterDto?: PromotionFilterDto): Promise<Promotion[]> {
+  async findAll(filterDto?: PromotionFilterDto): Promise<PaginationResponse<Promotion>> {
     const query: Record<string, any> = {};
     const now = new Date();
 
+    const pageIndex = filterDto?.pageIndex || 1;
+    const pageSize = filterDto?.pageSize || 10;
+    const skip = (pageIndex - 1) * pageSize;
+
     if (filterDto) {
-      // Filter by operator IDs
       if (filterDto.operatorIds && filterDto.operatorIds.length > 0) {
         query.operatorId = { $in: filterDto.operatorIds };
       }
 
-      // Filter by promotion code
       if (filterDto.code) {
-        query.code = filterDto.code;
+        query.code = { $regex: filterDto.code, $options: 'i' };
       }
 
-      // Filter by status (based on start and end dates)
       if (filterDto.status) {
         switch (filterDto.status) {
           case PromotionStatus.NOT_STARTED:
@@ -70,7 +65,78 @@ export class PromotionService {
       }
     }
 
-    return this.promotionModel.find(query).exec();
+    const aggregationPipeline = [
+      { $match: query },
+      {
+        $addFields: {
+          statusOrder: {
+            $switch: {
+              branches: [
+                {
+                  case: {
+                    $and: [{ $lte: ['$startDate', now] }, { $gt: ['$endDate', now] }],
+                  },
+                  then: 1,
+                },
+                {
+                  case: { $gt: ['$startDate', now] },
+                  then: 2,
+                },
+                {
+                  case: { $lte: ['$endDate', now] },
+                  then: 3,
+                },
+              ],
+              default: 4,
+            },
+          },
+        },
+      },
+      {
+        $sort: {
+          statusOrder: 1 as const,
+          endDate: 1 as const,
+          startDate: 1 as const,
+        },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: pageSize,
+      },
+    ];
+
+    const items = await this.promotionModel.aggregate(aggregationPipeline).exec();
+    const total = await this.promotionModel.countDocuments(query);
+
+    return {
+      items: items,
+      metadata: {
+        total,
+        pageIndex,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
+
+  /**
+   * Gets only running promotions (active at current time) sorted by priority
+   * @param operatorId - Operator ID to filter by (required for performance)
+   * @returns Array of running promotions sorted by priority rules
+   */
+  async getRunningPromotions(operatorId: string): Promise<Promotion[]> {
+    const now = new Date();
+    const query: Record<string, any> = {
+      startDate: { $lte: now },
+      endDate: { $gt: now },
+      operatorId: operatorId,
+    };
+
+    return this.promotionModel
+      .find(query, null, { sort: { endDate: 1, _id: 1 }, lean: true })
+      .exec();
   }
 
   /**
@@ -79,7 +145,7 @@ export class PromotionService {
    * @returns The found promotion or null
    */
   async findOne(id: string): Promise<Promotion> {
-    const promotion = await this.promotionModel.findById(id).exec();
+    const promotion = await this.promotionModel.findById(id).lean().exec();
     if (!promotion) {
       throw new NotFoundException(`Promotion with ID ${id} not found`);
     }
@@ -93,17 +159,7 @@ export class PromotionService {
    * @returns The updated promotion
    */
   async update(id: string, updatePromotionDto: UpdatePromotionDto): Promise<Promotion> {
-    // If name is updated, update code too
     const update: Record<string, any> = { ...updatePromotionDto };
-
-    if (updatePromotionDto.name) {
-      const code = updatePromotionDto.name
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
-        .replace(/\s+/g, '-');
-
-      update.code = code;
-    }
 
     const updatedPromotion = await this.promotionModel
       .findByIdAndUpdate(id, update, { new: true })
@@ -127,5 +183,15 @@ export class PromotionService {
       throw new NotFoundException(`Promotion with ID ${id} not found`);
     }
     return true;
+  }
+
+  /**
+   * Checks if a promotion code exists
+   * @param code - The promotion code to check
+   * @returns true if the code exists, false otherwise
+   */
+  async doesCodeExist(code: string): Promise<boolean> {
+    const existing = await this.promotionModel.exists({ code });
+    return !!existing;
   }
 }
