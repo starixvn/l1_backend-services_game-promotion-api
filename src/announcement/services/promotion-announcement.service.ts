@@ -133,6 +133,7 @@ export class PromotionAnnouncementService {
         $sort: {
           statusOrder: 1 as const,
           toDate: 1 as const,
+          fromDate: 1 as const,
         },
       },
       {
