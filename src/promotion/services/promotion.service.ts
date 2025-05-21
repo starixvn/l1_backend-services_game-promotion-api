@@ -96,6 +96,7 @@ export class PromotionService {
         $sort: {
           statusOrder: 1 as const,
           endDate: 1 as const,
+          startDate: 1 as const,
         },
       },
       {
