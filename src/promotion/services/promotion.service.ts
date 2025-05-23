@@ -68,6 +68,48 @@ export class PromotionService {
     const aggregationPipeline = [
       { $match: query },
       {
+        $lookup: {
+          from: 'promotion_announcements',
+          let: { promotionCode: '$code' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: [
+                    '$$promotionCode',
+                    {
+                      $map: {
+                        input: '$promotionMappings',
+                        as: 'mapping',
+                        in: '$$mapping.promotionCode',
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                announcementTitle: { $ifNull: ['$promotionTitle.en-US', ''] },
+              },
+            },
+          ],
+          as: 'announcements',
+        },
+      },
+      {
+        $addFields: {
+          announcementTitle: {
+            $ifNull: [{ $arrayElemAt: ['$announcements.announcementTitle', 0] }, ''],
+          },
+        },
+      },
+      {
+        $project: {
+          announcements: 0,
+        },
+      },
+      {
         $addFields: {
           statusOrder: {
             $switch: {
