@@ -8,11 +8,7 @@ import { AssignmentResponse } from '../responses/assignment-response';
 import { PlayerPromotionResponse } from '../responses/player-promotion.response';
 import { DeductBonusItemDto } from '../models/deduct-bonus-item.dto';
 import { RollbackBonusItemDto } from '../models/rollback-bonus-item.dto';
-import {
-  DeductBonusItemResponse,
-  DeductWithRollbackResponse,
-  RollbackResponse,
-} from '../responses/deduct-bonus-item.response';
+import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
 
 @ApiTags('player-promotions')
 @Controller('player-promotions')
@@ -73,23 +69,6 @@ export class PlayerPromotionController {
   })
   async deductBonusItem(@Body() deductDto: DeductBonusItemDto): Promise<DeductBonusItemResponse> {
     return this.playerPromotionService.deductBonusItem(
-      deductDto.operatorId,
-      deductDto.playerId,
-      deductDto.promotionId,
-    );
-  }
-
-  @Post('deduct-bonus-item-with-rollback')
-  @ApiOperation({ summary: 'Deduct a bonus item with rollback data for potential restoration' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Bonus item deduction result with rollback data',
-    type: DeductWithRollbackResponse,
-  })
-  async deductBonusItemWithRollback(
-    @Body() deductDto: DeductBonusItemDto,
-  ): Promise<DeductWithRollbackResponse> {
-    return this.playerPromotionService.deductBonusItemWithRollbackData(
       deductDto.operatorId,
       deductDto.playerId,
       deductDto.promotionId,

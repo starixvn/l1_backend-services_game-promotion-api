@@ -6,11 +6,7 @@ import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { PlayerDto } from '../models/player.dto';
 import { EligiblePromotion } from '../responses/eligible-promotion.response';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
-import {
-  DeductBonusItemResponse,
-  DeductWithRollbackResponse,
-  RollbackResponse,
-} from '../responses/deduct-bonus-item.response';
+import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
 
 /**
  * Service for managing player promotions
@@ -288,52 +284,6 @@ export class PlayerPromotionService {
     if (result) {
       return {
         success: true,
-        ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_SUCCESS,
-      };
-    }
-
-    return {
-      success: false,
-      ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_FAILED,
-    };
-  }
-
-  /**
-   * Deduct a bonus item with rollback data for potential restoration
-   * @param operatorId Operator ID
-   * @param playerId Player ID
-   * @param promotionId Promotion ID
-   * @returns Success or failure response with rollback data
-   */
-  async deductBonusItemWithRollbackData(
-    operatorId: string,
-    playerId: string,
-    promotionId: string,
-  ): Promise<DeductWithRollbackResponse> {
-    const result = await this.playerPromotionModel.findOneAndUpdate(
-      {
-        operatorId,
-        playerId,
-        promotionId,
-        remainingBonusItems: { $gt: 0 },
-      },
-      {
-        $inc: { remainingBonusItems: -1 },
-        $set: { lastUsedDate: new Date() },
-      },
-      {
-        lean: true,
-        returnDocument: 'before',
-      },
-    );
-
-    if (result) {
-      return {
-        success: true,
-        rollbackData: {
-          previousRemainingItems: result.remainingBonusItems,
-          previousLastUsedDate: result.lastUsedDate,
-        },
         ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_SUCCESS,
       };
     }
