@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PromotionModule } from './promotion/promotion.module';
+import { PromotionTicketModule } from './promotion-ticket/promotion-ticket.module';
 import { CoreModule } from './core/core.module';
 import { PromotionAnnouncementModule } from './announcement/promotion-announcement.module';
 
@@ -24,6 +25,7 @@ import { PromotionAnnouncementModule } from './announcement/promotion-announceme
       },
     }),
     PromotionModule,
+    PromotionTicketModule,
     PromotionAnnouncementModule,
     CoreModule,
   ],

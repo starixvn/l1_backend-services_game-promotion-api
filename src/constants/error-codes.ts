@@ -27,6 +27,14 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
     code: 'SB3002',
     message: 'Bonus item deducted successfully',
   },
+  ROLLBACK_SUCCESS: {
+    code: 'SB3003',
+    message: 'Bonus item rollback successful',
+  },
+  ROLLBACK_FAILED: {
+    code: 'SB3004',
+    message: 'Cannot rollback bonus item deduction',
+  },
 } as const;
 
 // Promotion Error Codes (PR31XX) - Ready for future use
@@ -57,15 +65,30 @@ export const ANNOUNCEMENT_ERROR_CODES = {
   },
 } as const;
 
+// Promotion Ticket Error Codes (PT33XX) - For tracking promotion usage
+export const PROMOTION_TICKET_ERROR_CODES = {
+  CREATION_SUCCESS: {
+    code: 'PT3300',
+    message: 'Promotion ticket created successfully',
+  },
+  CREATION_FAILED: {
+    code: 'PT3301',
+    message: 'Failed to create promotion ticket',
+  },
+} as const;
+
 // Type definitions for better TypeScript support
 export type PlayerPromotionErrorCode =
   (typeof PLAYER_PROMOTION_ERROR_CODES)[keyof typeof PLAYER_PROMOTION_ERROR_CODES];
 export type PromotionErrorCode = (typeof PROMOTION_ERROR_CODES)[keyof typeof PROMOTION_ERROR_CODES];
 export type AnnouncementErrorCode =
   (typeof ANNOUNCEMENT_ERROR_CODES)[keyof typeof ANNOUNCEMENT_ERROR_CODES];
+export type PromotionTicketErrorCode =
+  (typeof PROMOTION_TICKET_ERROR_CODES)[keyof typeof PROMOTION_TICKET_ERROR_CODES];
 
 // Union type for all error codes
 export type ApplicationErrorCode =
   | PlayerPromotionErrorCode
   | PromotionErrorCode
-  | AnnouncementErrorCode;
+  | AnnouncementErrorCode
+  | PromotionTicketErrorCode;
