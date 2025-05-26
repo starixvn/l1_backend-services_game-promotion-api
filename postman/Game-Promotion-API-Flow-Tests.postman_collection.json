@@ -1,0 +1,433 @@
+{
+  "info": {
+    "name": "Game Promotion API - Flow Tests",
+    "description": "Positive test scenarios for the complete promotion flow: create promotion -> claim promotion -> deduct bonus item -> insert promotion ticket",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "operatorId",
+      "value": "operator123",
+      "type": "string"
+    },
+    {
+      "key": "playerId",
+      "value": "player456",
+      "type": "string"
+    },
+    {
+      "key": "siteName",
+      "value": "testsite",
+      "type": "string"
+    },
+    {
+      "key": "currencyGroup",
+      "value": "USD",
+      "type": "string"
+    },
+    {
+      "key": "promotionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "gameId",
+      "value": "1001",
+      "type": "string"
+    },
+    {
+      "key": "gameRoundId",
+      "value": "789",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Create Promotion",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Response has promotion data', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('_id');",
+              "    pm.expect(jsonData).to.have.property('code');",
+              "    pm.expect(jsonData).to.have.property('bonusItemCount');",
+              "    pm.expect(jsonData).to.have.property('operatorId');",
+              "});",
+              "",
+              "pm.test('Save promotion ID for next requests', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.collectionVariables.set('promotionId', jsonData._id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test Free Spins Promotion\",\n  \"code\": \"FREE_SPINS_{{$timestamp}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"startDate\": \"{{$isoTimestamp}}\",\n  \"endDate\": \"2024-12-31T23:59:59.000Z\",\n  \"bonusItemCount\": 50,\n  \"currencyGroups\": [\"{{currencyGroup}}\"],\n  \"offeredSiteNames\": [\"{{siteName}}\"],\n  \"offeredPlayerIds\": [],\n  \"gameConfigType\": 2,\n  \"gameIds\": [{{gameId}}]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/promotions",
+          "host": ["{{baseUrl}}"],
+          "path": ["promotions"]
+        },
+        "description": "Create a new promotion with 50 free spins for testing"
+      }
+    },
+    {
+      "name": "2. Claim Promotion",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Player promotion claimed successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('promotion');",
+              "    pm.expect(jsonData.promotion).to.have.property('playerId', pm.collectionVariables.get('playerId'));",
+              "    pm.expect(jsonData.promotion).to.have.property('operatorId', pm.collectionVariables.get('operatorId'));",
+              "    pm.expect(jsonData.promotion).to.have.property('remainingBonusItems');",
+              "    pm.expect(jsonData.promotion.remainingBonusItems).to.be.greaterThan(0);",
+              "});",
+              "",
+              "pm.test('Promotion has correct initial state', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.promotion.remainingBonusItems).to.equal(50);",
+              "    pm.expect(jsonData.promotion.lastUsedDate).to.be.null;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"currencyGroup\": \"{{currencyGroup}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/claim-promotion",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "claim-promotion"]
+        },
+        "description": "Claim the created promotion for the test player"
+      }
+    },
+    {
+      "name": "3. Check Available Promotions",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('No available promotions (player already has one)', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('promotions');",
+              "    pm.expect(jsonData.promotions).to.be.an('array');",
+              "    pm.expect(jsonData.promotions).to.have.lengthOf(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"currencyGroup\": \"{{currencyGroup}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/has-promotion",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "has-promotion"]
+        },
+        "description": "Verify that player has no available promotions since they already claimed one"
+      }
+    },
+    {
+      "name": "4. Deduct Bonus Item (1st Free Spin)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Bonus item deducted successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('code', 'SB3002');",
+              "    pm.expect(jsonData).to.have.property('message', 'Bonus item deducted successfully');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operatorId\": \"{{operatorId}}\",\n  \"playerId\": \"{{playerId}}\",\n  \"promotionId\": \"{{promotionId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/deduct-bonus-item",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "deduct-bonus-item"]
+        },
+        "description": "Deduct one bonus item (simulate using 1 free spin)"
+      }
+    },
+    {
+      "name": "5. Create Promotion Ticket (1st Spin Result)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Promotion ticket created successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('code', 'PT3300');",
+              "    pm.expect(jsonData).to.have.property('message', 'Promotion ticket created successfully');",
+              "    pm.expect(jsonData).to.have.property('ticket');",
+              "});",
+              "",
+              "pm.test('Ticket has correct data', function () {",
+              "    const jsonData = pm.response.json();",
+              "    const ticket = jsonData.ticket;",
+              "    pm.expect(ticket).to.have.property('playerId', pm.collectionVariables.get('playerId'));",
+              "    pm.expect(ticket).to.have.property('operatorId', pm.collectionVariables.get('operatorId'));",
+              "    pm.expect(ticket).to.have.property('gameId', parseInt(pm.collectionVariables.get('gameId')));",
+              "    pm.expect(ticket).to.have.property('betAmount', 0.01);",
+              "    pm.expect(ticket).to.have.property('winAmount');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"gameId\": {{gameId}},\n  \"gameRoundId\": 789,\n  \"appType\": 1,\n  \"betAmount\": 0.01,\n  \"winAmount\": 15.50\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/promotion-tickets",
+          "host": ["{{baseUrl}}"],
+          "path": ["promotion-tickets"]
+        },
+        "description": "Create promotion ticket for the first free spin result (win: $15.50)"
+      }
+    },
+    {
+      "name": "6. Deduct Bonus Item (2nd Free Spin)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Second bonus item deducted successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('code', 'SB3002');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"operatorId\": \"{{operatorId}}\",\n  \"playerId\": \"{{playerId}}\",\n  \"promotionId\": \"{{promotionId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/deduct-bonus-item",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "deduct-bonus-item"]
+        },
+        "description": "Deduct another bonus item (simulate using 2nd free spin)"
+      }
+    },
+    {
+      "name": "7. Create Promotion Ticket (2nd Spin Result)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Second promotion ticket created successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('ticket');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"gameId\": {{gameId}},\n  \"gameRoundId\": 790,\n  \"appType\": 1,\n  \"betAmount\": 0.01,\n  \"winAmount\": 0.00\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/promotion-tickets",
+          "host": ["{{baseUrl}}"],
+          "path": ["promotion-tickets"]
+        },
+        "description": "Create promotion ticket for the second free spin result (no win)"
+      }
+    },
+
+    {
+      "name": "8. Verify Final State - Claim Promotion Again",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Final state verification', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.promotion).to.have.property('remainingBonusItems', 48);",
+              "    pm.expect(jsonData.promotion.lastUsedDate).to.not.be.null;",
+              "});",
+              "",
+              "pm.test('Promotion flow completed successfully', function () {",
+              "    console.log('✅ Complete promotion flow test passed!');",
+              "    console.log('- Created promotion with 50 bonus items');",
+              "    console.log('- Player claimed promotion');",
+              "    console.log('- Used 2 free spins successfully');",
+              "    console.log('- Created 2 promotion tickets');",
+              "    console.log('- Final state: 48 remaining bonus items');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"currencyGroup\": \"{{currencyGroup}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/claim-promotion",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "claim-promotion"]
+        },
+        "description": "Verify the final state after the complete flow"
+      }
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set dynamic values for each test run",
+          "if (!pm.collectionVariables.get('testRunId')) {",
+          "    pm.collectionVariables.set('testRunId', Date.now());",
+          "}"
+        ]
+      }
+    }
+  ]
+}
