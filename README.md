@@ -258,3 +258,68 @@ For open source projects, say how it is licensed.
 ## Project status
 
 If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+
+## Error Codes System
+
+This project uses a standardized error code system for consistent API responses across all modules.
+
+### Error Code Format
+
+```
+{MODULE}{CATEGORY}{NUMBER}
+```
+
+### Modules
+
+- **SB**: Spin Bonus (Player Promotion operations)
+- **PR**: Promotion management
+- **AN**: Announcement operations
+
+### Categories
+
+- **30XX**: Player Promotion operations
+- **31XX**: Promotion management
+- **32XX**: Announcement operations
+
+### Current Error Codes
+
+#### Player Promotion (SB30XX)
+
+- `SB3000`: Player promotion not found
+- `SB3001`: Cannot deduct bonus item
+- `SB3002`: Bonus item deducted successfully
+
+#### Promotion (PR31XX)
+
+- `PR3100`: Promotion not found
+- `PR3101`: Promotion has expired
+- `PR3102`: Promotion is not active
+
+#### Announcement (AN32XX)
+
+- `AN3200`: Announcement not found
+- `AN3201`: Announcement has expired
+
+### Usage
+
+```typescript
+import { PLAYER_PROMOTION_ERROR_CODES } from '../constants/error-codes';
+
+// Using destructuring for clean code
+return {
+  success: false,
+  ...PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND,
+};
+```
+
+### Response Format
+
+All API responses follow this standardized format:
+
+```json
+{
+  "success": boolean,
+  "code": "string",
+  "message": "string"
+}
+```

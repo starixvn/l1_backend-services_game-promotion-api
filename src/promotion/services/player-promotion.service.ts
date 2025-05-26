@@ -5,6 +5,8 @@ import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-prom
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { PlayerDto } from '../models/player.dto';
 import { EligiblePromotion } from '../responses/eligible-promotion.response';
+import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
+import { DeductBonusItemResponse } from '../responses/deduct-bonus-item.response';
 
 /**
  * Service for managing player promotions
@@ -249,5 +251,46 @@ export class PlayerPromotionService {
       throw new Error('Promotion not found');
     }
     return promotion;
+  }
+
+  /**
+   * Deduct a bonus item from a player's promotion
+   * @param operatorId Operator ID
+   * @param playerId Player ID
+   * @param promotionId Promotion ID
+   * @returns Success or failure response with error code
+   */
+  async deductBonusItem(
+    operatorId: string,
+    playerId: string,
+    promotionId: string,
+  ): Promise<DeductBonusItemResponse> {
+    const result = await this.playerPromotionModel.findOneAndUpdate(
+      {
+        operatorId,
+        playerId,
+        promotionId,
+        remainingBonusItems: { $gt: 0 },
+      },
+      {
+        $inc: { remainingBonusItems: -1 },
+        $set: { lastUsedDate: new Date() },
+      },
+      {
+        lean: true,
+      },
+    );
+
+    if (result) {
+      return {
+        success: true,
+        ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_SUCCESS,
+      };
+    }
+
+    return {
+      success: false,
+      ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_FAILED,
+    };
   }
 }

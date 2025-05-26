@@ -6,6 +6,8 @@ import { EligiblePromotionsResponse } from '../responses/eligible-promotion.resp
 import { AssignPromotionDto } from '../models/assign-promotion.dto';
 import { AssignmentResponse } from '../responses/assignment-response';
 import { PlayerPromotionResponse } from '../responses/player-promotion.response';
+import { DeductBonusItemDto } from '../models/deduct-bonus-item.dto';
+import { DeductBonusItemResponse } from '../responses/deduct-bonus-item.response';
 
 @ApiTags('player-promotions')
 @Controller('player-promotions')
@@ -55,5 +57,22 @@ export class PlayerPromotionController {
     );
 
     return { message: 'Promotion assigned successfully' };
+  }
+
+  @Post('deduct-bonus-item')
+  @ApiOperation({ summary: 'Deduct a bonus item from player promotion' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Bonus item deduction result',
+    type: DeductBonusItemResponse,
+  })
+  async deductBonusItem(
+    @Body() deductBonusItemDto: DeductBonusItemDto,
+  ): Promise<DeductBonusItemResponse> {
+    return this.playerPromotionService.deductBonusItem(
+      deductBonusItemDto.operatorId,
+      deductBonusItemDto.playerId,
+      deductBonusItemDto.promotionId,
+    );
   }
 }
