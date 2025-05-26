@@ -117,6 +117,96 @@ Each request includes multiple test assertions:
 - Confirms atomic operations work correctly
 - Tests data consistency across requests
 
+## API Response Structures
+
+### Create Promotion Response
+
+```json
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "name": "Test Free Spins Promotion",
+  "code": "FREE_SPINS_1234567890",
+  "operatorId": "operator123",
+  "bonusItemCount": 50,
+  "startDate": "2024-01-01T00:00:00.000Z",
+  "endDate": "2024-12-31T23:59:59.000Z",
+  "currencyGroups": ["USD"],
+  "offeredSiteNames": ["testsite"],
+  "gameIds": [1001]
+}
+```
+
+### Claim Promotion Response
+
+```json
+{
+  "success": true,
+  "code": "SB3002",
+  "message": "Player promotion claimed successfully",
+  "promotion": {
+    "_id": "507f1f77bcf86cd799439012",
+    "playerId": "player456",
+    "operatorId": "operator123",
+    "siteName": "testsite",
+    "promotionId": "507f1f77bcf86cd799439011",
+    "remainingBonusItems": 50,
+    "lastUsedDate": null
+  }
+}
+```
+
+### Deduct Bonus Item Response
+
+```json
+{
+  "success": true,
+  "code": "SB3002",
+  "message": "Bonus item deducted successfully"
+}
+```
+
+### Create Promotion Ticket Response
+
+```json
+{
+  "success": true,
+  "code": "PT3300",
+  "message": "Promotion ticket created successfully",
+  "ticket": {
+    "_id": "507f1f77bcf86cd799439013",
+    "playerId": "player456",
+    "operatorId": "operator123",
+    "gameId": 1001,
+    "gameRoundId": 789,
+    "appType": 1,
+    "betAmount": 0.01,
+    "winAmount": 15.5,
+    "createdAt": "2024-01-01T12:00:00.000Z",
+    "updatedAt": "2024-01-01T12:00:00.000Z"
+  }
+}
+```
+
+### Response Structure Patterns
+
+The API follows consistent response patterns:
+
+1. **Direct Object Response** (Create Promotion):
+
+   - Returns the created object directly
+   - No wrapper properties
+   - Example: `{ "_id": "...", "name": "...", "code": "..." }`
+
+2. **Wrapped Response with Success Info** (Claim Promotion, Deduct Bonus, Create Ticket):
+
+   - Includes `success`, `code`, and `message` fields
+   - Main data wrapped in descriptive property (`promotion`, `ticket`)
+   - Example: `{ "success": true, "code": "...", "message": "...", "promotion": {...} }`
+
+3. **Status Codes**:
+   - All POST endpoints return `201 Created` (NestJS default)
+   - GET endpoints return `200 OK`
+
 ## Error Codes Tested
 
 The collection validates these error codes:
