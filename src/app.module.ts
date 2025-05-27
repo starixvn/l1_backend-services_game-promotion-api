@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { APP_FILTER } from '@nestjs/core';
+import { SentryModule, SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { PromotionModule } from './promotion/promotion.module';
 import { PromotionTicketModule } from './promotion-ticket/promotion-ticket.module';
 import { CoreModule } from './core/core.module';
@@ -11,6 +13,7 @@ import { PromotionAnnouncementModule } from './announcement/promotion-announceme
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    SentryModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -28,6 +31,12 @@ import { PromotionAnnouncementModule } from './announcement/promotion-announceme
     PromotionTicketModule,
     PromotionAnnouncementModule,
     CoreModule,
+  ],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: SentryGlobalFilter,
+    },
   ],
 })
 export class AppModule {}

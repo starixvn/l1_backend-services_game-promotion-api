@@ -1,3 +1,7 @@
+// Import this first!
+import './instrument';
+
+// Now import other modules
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';

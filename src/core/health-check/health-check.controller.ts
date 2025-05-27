@@ -29,4 +29,18 @@ export class HealthCheckController {
       message: 'Game Promotion API is healthy',
     };
   }
+
+  /**
+   * Test endpoint to verify Sentry error tracking
+   * @returns Throws an error to test Sentry integration
+   */
+  @Get('debug-sentry')
+  @ApiOperation({ summary: 'Test Sentry error tracking' })
+  @ApiResponse({
+    status: 500,
+    description: 'Throws an error to test Sentry integration',
+  })
+  testSentry(): never {
+    throw new Error('Test Sentry error - this should be captured by Sentry!');
+  }
 }
