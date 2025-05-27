@@ -1,9 +1,11 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { LoggerService } from '../logger/logger.service';
 
 @ApiTags('health-check')
 @Controller()
 export class HealthCheckController {
+  constructor(private readonly loggerService: LoggerService) {}
   /**
    * Root endpoint for health check
    * @returns Health status of the API
@@ -41,6 +43,23 @@ export class HealthCheckController {
     description: 'Throws an error to test Sentry integration',
   })
   testSentry(): never {
+    // Add some context before throwing the error
+    this.loggerService.setTags({
+      test: 'true',
+      endpoint: 'debug-sentry',
+    });
+
+    this.loggerService.addBreadcrumb('Debug endpoint called', 'debug', 'info', {
+      timestamp: new Date().toISOString(),
+    });
+
+    // Manually capture a message first
+    this.loggerService.captureMessage(
+      'Debug endpoint accessed - about to throw test error',
+      'info',
+      { endpoint: '/debug-sentry' },
+    );
+
     throw new Error('Test Sentry error - this should be captured by Sentry!');
   }
 }
