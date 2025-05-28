@@ -173,4 +173,21 @@ export class PromotionAnnouncementService {
     }
     return announcement;
   }
+
+  /**
+   * Finds a promotion announcement by promotion code
+   * @param promotionCode - The promotion code to find the announcement for
+   * @returns The found promotion announcement
+   */
+  async findByPromotionCode(promotionCode: string): Promise<PromotionAnnouncement> {
+    const announcement = await this.promotionAnnouncementModel
+      .findOne({ 'promotionMappings.promotionCode': promotionCode })
+      .lean()
+      .exec();
+
+    if (!announcement) {
+      throw new NotFoundException(ANNOUNCEMENT_NOT_FOUND_DESCRIPTION);
+    }
+    return announcement;
+  }
 }

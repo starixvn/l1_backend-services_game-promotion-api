@@ -171,6 +171,30 @@ export class PromotionAnnouncementController {
   }
 
   /**
+   * Finds a promotion announcement by promotion code
+   * @param promotionCode - The promotion code to find the announcement for
+   * @returns The found promotion announcement
+   */
+  @Get('by-promotion-code/:promotionCode')
+  @ApiOperation({ summary: 'Get a promotion announcement by promotion code' })
+  @ApiParam({
+    name: 'promotionCode',
+    description: 'Promotion code',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the requested promotion announcement',
+    type: PromotionAnnouncement,
+  })
+  @ApiResponse({ status: 404, description: ANNOUNCEMENT_NOT_FOUND_DESCRIPTION })
+  async findByPromotionCode(
+    @Param('promotionCode') promotionCode: string,
+  ): Promise<PromotionAnnouncement> {
+    return this.promotionAnnouncementService.findByPromotionCode(promotionCode);
+  }
+
+  /**
    * Test endpoint for smoke testing
    * @returns Test message
    */
