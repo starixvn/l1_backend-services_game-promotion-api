@@ -15,13 +15,13 @@ A comprehensive Node.js/TypeScript API client for the Game Promotion API, suppor
 ## Installation
 
 ```bash
-npm install game-promotion-api-client
+npm install @sc/game-promotion-api-client
 ```
 
 Or with yarn:
 
 ```bash
-yarn add game-promotion-api-client
+yarn add @sc/game-promotion-api-client
 ```
 
 ## Development Setup
@@ -39,7 +39,10 @@ npm run build
 ## Quick Start
 
 ```typescript
-import { GamePromotionApiClient } from 'game-promotion-api-client';
+import {
+  GamePromotionApiClient,
+  createGamePromotionApiClient,
+} from '@sc/game-promotion-api-client';
 
 // Create client instance
 const client = new GamePromotionApiClient({
@@ -265,7 +268,10 @@ try {
 ### Custom Configuration
 
 ```typescript
-import { GamePromotionApiClient, createGamePromotionApiClient } from 'game-promotion-api-client';
+import {
+  GamePromotionApiClient,
+  createGamePromotionApiClient,
+} from '@sc/game-promotion-api-client';
 
 // Using the factory function
 const client = createGamePromotionApiClient({
