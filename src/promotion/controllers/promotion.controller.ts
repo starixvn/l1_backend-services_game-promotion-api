@@ -270,4 +270,19 @@ export class PromotionController {
       message: 'Promotion API test endpoint is working',
     };
   }
+
+  /**
+   * Get promotions that are NOT_STARTED and not mapped to any announcement
+   * @returns Array of unmapped NOT_STARTED promotions
+   */
+  @Post('unmapped-not-started')
+  @ApiOperation({ summary: 'Get NOT_STARTED promotions that are not mapped to any announcement' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns unmapped NOT_STARTED promotions',
+    type: [Promotion],
+  })
+  async getUnmappedNotStartedPromotions(): Promise<Promotion[]> {
+    return this.promotionService.getUnmappedNotStartedPromotions();
+  }
 }

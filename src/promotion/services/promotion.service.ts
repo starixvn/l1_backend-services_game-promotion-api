@@ -236,4 +236,44 @@ export class PromotionService {
     const existing = await this.promotionModel.exists({ code });
     return !!existing;
   }
+
+  /**
+   * Gets promotions that are NOT_STARTED and not mapped to any announcement
+   * @returns Array of unmapped NOT_STARTED promotions
+   */
+  async getUnmappedNotStartedPromotions(): Promise<Promotion[]> {
+    const now = new Date();
+    const aggregationPipeline = [
+      { $match: { startDate: { $gt: now } } }, // NOT_STARTED
+      {
+        $lookup: {
+          from: 'promotion_announcements',
+          let: { promotionCode: '$code' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: [
+                    '$$promotionCode',
+                    {
+                      $map: {
+                        input: '$promotionMappings',
+                        as: 'mapping',
+                        in: '$$mapping.promotionCode',
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'announcements',
+        },
+      },
+      { $match: { 'announcements.0': { $exists: false } } }, // Chưa mapping announcement nào
+      { $project: { announcements: 0 } },
+      { $sort: { startDate: 1 as const } },
+    ];
+    return this.promotionModel.aggregate(aggregationPipeline).exec();
+  }
 }
