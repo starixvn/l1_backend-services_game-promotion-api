@@ -276,4 +276,11 @@ export class PromotionService {
     ];
     return this.promotionModel.aggregate(aggregationPipeline).exec();
   }
+
+  async findManyByCodes(codes: string[]): Promise<Promotion[]> {
+    return this.promotionModel
+      .find({ code: { $in: codes } })
+      .lean()
+      .exec();
+  }
 }

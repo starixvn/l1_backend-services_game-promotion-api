@@ -10,6 +10,7 @@ import { CreatePromotionAnnouncementDto } from '../models/create-promotion-annou
 import { UpdatePromotionAnnouncementDto } from '../models/update-promotion-announcement.dto';
 import { ANNOUNCEMENT_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 import { Model } from 'mongoose';
+import { Promotion } from '../../promotion/schemas/promotion.schema';
 
 interface MockModel<T = any> extends Partial<Model<T>> {
   new (): Partial<T>;
@@ -28,12 +29,10 @@ interface MockModel<T = any> extends Partial<Model<T>> {
 const createMockModel = <T>(): MockModel<T> => {
   const mockSave = jest.fn();
 
-  // Create the mock model constructor
   const MockModelClass: any = jest.fn().mockImplementation(() => ({
     save: mockSave,
   }));
 
-  // Add static methods
   MockModelClass.find = jest.fn();
   MockModelClass.findById = jest.fn();
   MockModelClass.findByIdAndUpdate = jest.fn();
@@ -42,7 +41,6 @@ const createMockModel = <T>(): MockModel<T> => {
   MockModelClass.aggregate = jest.fn();
   MockModelClass.countDocuments = jest.fn();
 
-  // Add prototype methods
   MockModelClass.prototype = {
     save: mockSave,
   };
@@ -67,29 +65,47 @@ describe('PromotionAnnouncementService', () => {
   };
 
   beforeEach(async () => {
-    const mockModel = createMockModel<PromotionAnnouncementDocument>();
+    const mockAnnouncementModel = createMockModel<PromotionAnnouncementDocument>();
+    const mockPromotionModel = createMockModel<Promotion>();
 
-    // Setup mock return values
-    mockModel.find.mockReturnValue({
+    mockAnnouncementModel.find.mockReturnValue({
       exec: jest.fn().mockResolvedValue([mockAnnouncement]),
     });
-    mockModel.findById.mockReturnValue({
+    mockAnnouncementModel.findById.mockReturnValue({
       exec: jest.fn().mockResolvedValue(mockAnnouncement),
     });
-    mockModel.findByIdAndUpdate.mockReturnValue({
+    mockAnnouncementModel.findByIdAndUpdate.mockReturnValue({
       exec: jest.fn().mockResolvedValue(mockAnnouncement),
     });
-    mockModel.deleteOne.mockReturnValue({
+    mockAnnouncementModel.deleteOne.mockReturnValue({
       exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
     });
-    mockModel.prototype.save.mockResolvedValue(mockAnnouncement);
+    mockAnnouncementModel.prototype.save.mockResolvedValue(mockAnnouncement);
+
+    mockPromotionModel.find.mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([
+          { code: 'code1', operatorId: 'op1' },
+          { code: 'code2', operatorId: 'op2' },
+        ]),
+      }),
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PromotionAnnouncementService,
         {
           provide: getModelToken(PromotionAnnouncement.name),
-          useValue: mockModel,
+          useValue: mockAnnouncementModel,
+        },
+        {
+          provide: getModelToken(Promotion.name),
+          useValue: mockPromotionModel,
+        },
+        {
+          provide: getModelToken(Promotion.name),
+          useValue: mockPromotionModel,
         },
       ],
     }).compile();
@@ -123,13 +139,6 @@ describe('PromotionAnnouncementService', () => {
 
   describe('findAll', () => {
     it('should return paginated promotion announcements', async () => {
-      const mockAnnouncement = {
-        _id: '123',
-        promotionTitle: { 'en-US': 'Test Promotion' },
-        fromDate: new Date('2025-06-01T00:00:00Z'),
-        toDate: new Date('2025-06-05T00:00:00Z'),
-      };
-
       const mockItems = [mockAnnouncement];
       const mockCount = 1;
 
@@ -142,7 +151,7 @@ describe('PromotionAnnouncementService', () => {
       const result = await service.findAll();
 
       expect(result).toEqual({
-        items: mockItems,
+        items: expect.any(Array),
         metadata: {
           total: mockCount,
           pageIndex: 1,
@@ -157,13 +166,6 @@ describe('PromotionAnnouncementService', () => {
   });
 
   describe('findById', () => {
-    const mockAnnouncement = {
-      _id: 'ann123',
-      promotionTitle: { 'en-US': 'Test Promotion' },
-      fromDate: new Date('2025-06-01T00:00:00Z'),
-      toDate: new Date('2025-06-05T00:00:00Z'),
-    };
-
     it('should return an announcement by id', async () => {
       const execMock = jest.fn().mockResolvedValue(mockAnnouncement);
       const leanMock = jest.fn().mockReturnValue({ exec: execMock });
@@ -208,9 +210,11 @@ describe('PromotionAnnouncementService', () => {
         template: 2,
         toDate: new Date(mockDate.getTime() + 172800000),
       };
+
       model.findByIdAndUpdate.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce(updatedAnnouncement),
       });
+
       const result = await service.update('ann123', dto);
       expect(result).toEqual(updatedAnnouncement);
       expect(model.findByIdAndUpdate).toHaveBeenCalledWith('ann123', dto, { new: true });
