@@ -162,12 +162,7 @@ describe('PromotionAnnouncementModule (Integration)', () => {
   describe('/promotion-announcements (POST)', () => {
     it('should create a new promotion announcement', () => {
       const createPromotionAnnouncementDto = {
-        promotionMappings: [
-          {
-            promotionCode: 'test-promotion-announcement',
-            operatorId: 'op123',
-          },
-        ],
+        promotionMappings: ['code1', 'code2'],
         promotionTitle: { 'en-US': 'Test Promotion Announcement' },
         bannerContent: { 'en-US': 'Test Content' },
         fromDate: mockDate,

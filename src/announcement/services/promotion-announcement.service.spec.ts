@@ -63,7 +63,7 @@ describe('PromotionAnnouncementService', () => {
     fromDate: mockDate,
     toDate: new Date(mockDate.getTime() + 86400000),
     template: 1,
-    promotionMappings: [{ operatorId: 'op1', promotionCode: 'code1' }],
+    promotionMappings: ['code1', 'code2'],
   };
 
   beforeEach(async () => {
@@ -113,7 +113,7 @@ describe('PromotionAnnouncementService', () => {
         fromDate: mockDate,
         toDate: new Date(mockDate.getTime() + 86400000),
         template: 1,
-        promotionMappings: [{ operatorId: 'op1', promotionCode: 'code1' }],
+        promotionMappings: ['code1', 'code2'],
       };
 
       const result = await service.create(dto);
