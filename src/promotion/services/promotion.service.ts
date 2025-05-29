@@ -75,16 +75,7 @@ export class PromotionService {
             {
               $match: {
                 $expr: {
-                  $in: [
-                    '$$promotionCode',
-                    {
-                      $map: {
-                        input: '$promotionMappings',
-                        as: 'mapping',
-                        in: '$$mapping.promotionCode',
-                      },
-                    },
-                  ],
+                  $in: ['$$promotionCode', '$promotionMappings'],
                 },
               },
             },
@@ -253,16 +244,7 @@ export class PromotionService {
             {
               $match: {
                 $expr: {
-                  $in: [
-                    '$$promotionCode',
-                    {
-                      $map: {
-                        input: '$promotionMappings',
-                        as: 'mapping',
-                        in: '$$mapping.promotionCode',
-                      },
-                    },
-                  ],
+                  $in: ['$$promotionCode', '$promotionMappings'],
                 },
               },
             },
