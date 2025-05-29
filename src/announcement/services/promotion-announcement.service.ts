@@ -161,10 +161,12 @@ export class PromotionAnnouncementService {
     const codeToOperatorMap = new Map(promotions.map(p => [p.code, p.operatorId]));
     const itemsWithMappings = items.map(item => ({
       ...item,
-      mappings: item.promotionMappings.map((code: string) => ({
-        promotionCode: code,
-        operatorId: codeToOperatorMap.get(code) ?? null,
-      })),
+      mappings: (item.promotionMappings || [])
+        .filter((code: string) => codeToOperatorMap.has(code))
+        .map((code: string) => ({
+          promotionCode: code,
+          operatorId: codeToOperatorMap.get(code)!,
+        })),
     }));
     // Count total documents matching the query
     const total = await this.promotionAnnouncementModel.countDocuments(query);

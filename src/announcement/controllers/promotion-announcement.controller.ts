@@ -190,10 +190,14 @@ export class PromotionAnnouncementController {
 
     // Resolve mappings
     const promotions = await this.promotionService.findManyByCodes(announcement.promotionMappings);
-    const mappings = promotions.map(p => ({
-      operatorId: p.operatorId,
-      promotionCode: p.code,
-    }));
+    const codeToOperatorMap = new Map(promotions.map(p => [p.code, p.operatorId]));
+
+    const mappings = (announcement.promotionMappings || [])
+      .filter(code => codeToOperatorMap.has(code))
+      .map(code => ({
+        promotionCode: code,
+        operatorId: codeToOperatorMap.get(code)!,
+      }));
 
     return {
       ...announcement,
