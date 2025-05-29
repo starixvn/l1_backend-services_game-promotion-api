@@ -202,7 +202,7 @@ export class PromotionAnnouncementService {
    */
   async findByPromotionCode(promotionCode: string): Promise<PromotionAnnouncement> {
     const announcement = await this.promotionAnnouncementModel
-      .findOne({ 'promotionMappings.promotionCode': promotionCode })
+      .findOne({ promotionMappings: promotionCode })
       .lean()
       .exec();
 
