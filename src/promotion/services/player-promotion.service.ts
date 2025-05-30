@@ -128,15 +128,46 @@ export class PlayerPromotionService {
     operatorId: string,
     siteName: string,
   ): Promise<PlayerPromotionDocument | null> {
+    const now = new Date();
     return this.playerPromotionModel
-      .findOne({
-        playerId,
-        operatorId,
-        siteName,
-        remainingBonusItems: { $gt: 0 },
-      })
-      .lean()
-      .exec();
+      .aggregate([
+        {
+          $match: {
+            playerId,
+            operatorId,
+            siteName,
+            remainingBonusItems: { $gt: 0 },
+          },
+        },
+        {
+          $lookup: {
+            from: 'promotions',
+            localField: 'promotionId',
+            foreignField: '_id',
+            as: 'promotion',
+          },
+        },
+        {
+          $match: {
+            'promotion.0.startDate': { $lte: now },
+            'promotion.0.endDate': { $gt: now },
+          },
+        },
+        {
+          $replaceRoot: {
+            newRoot: {
+              $mergeObjects: [{ $arrayElemAt: ['$promotion', 0] }, '$$ROOT'],
+            },
+          },
+        },
+        {
+          $project: {
+            promotion: 0,
+          },
+        },
+      ])
+      .exec()
+      .then(results => results[0] || null);
   }
 
   /**
