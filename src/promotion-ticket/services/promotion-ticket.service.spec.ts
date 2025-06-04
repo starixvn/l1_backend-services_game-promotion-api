@@ -6,15 +6,33 @@ import { PromotionTicket, PromotionTicketDocument } from '../schemas/promotion-t
 import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto';
 import { PROMOTION_TICKET_ERROR_CODES } from '../../constants/error-codes';
 import { CreatePromotionTicketResponse } from '../responses/promotion-ticket.response';
+import { LoggerService } from '../../core/logger/logger.service';
 
 describe('PromotionTicketService', () => {
   let service: PromotionTicketService;
   let mockPromotionTicketModel: jest.Mocked<Model<PromotionTicketDocument>>;
+  let mockLoggerService: jest.Mocked<LoggerService>;
 
   beforeEach(async () => {
     const mockModelValue = {
       save: jest.fn(),
     };
+
+    // Create mock for LoggerService
+    mockLoggerService = {
+      captureException: jest.fn(),
+      captureMessage: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      log: jest.fn(),
+      debug: jest.fn(),
+      verbose: jest.fn(),
+      addBreadcrumb: jest.fn(),
+      setUser: jest.fn(),
+      setTags: jest.fn(),
+      setContext: jest.fn(),
+      flush: jest.fn(),
+    } as unknown as jest.Mocked<LoggerService>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -22,6 +40,10 @@ describe('PromotionTicketService', () => {
         {
           provide: getModelToken(PromotionTicket.name),
           useValue: jest.fn().mockImplementation(() => mockModelValue),
+        },
+        {
+          provide: LoggerService,
+          useValue: mockLoggerService,
         },
       ],
     }).compile();
@@ -71,6 +93,7 @@ describe('PromotionTicketService', () => {
       expect(mockPromotionTicketModel).toHaveBeenCalledWith(inputDto);
       expect(mockTicketInstance.save).toHaveBeenCalledTimes(1);
       expect(actualResult).toEqual(expectedResult);
+      expect(mockLoggerService.captureException).not.toHaveBeenCalled();
     });
 
     it('should return failure response when ticket creation fails', async () => {
@@ -94,6 +117,11 @@ describe('PromotionTicketService', () => {
       expect(mockPromotionTicketModel).toHaveBeenCalledWith(inputDto);
       expect(mockTicketInstance.save).toHaveBeenCalledTimes(1);
       expect(actualResult).toEqual(expectedResult);
+      expect(mockLoggerService.captureException).toHaveBeenCalledWith(mockError, {
+        method: 'createTicket',
+        service: 'PromotionTicketService',
+        dto: inputDto,
+      });
     });
 
     it('should create ticket with correct data structure', async () => {
@@ -124,6 +152,7 @@ describe('PromotionTicketService', () => {
         betAmount: 10.5,
         winAmount: 25.0,
       });
+      expect(mockLoggerService.captureException).not.toHaveBeenCalled();
     });
   });
 });
