@@ -61,18 +61,7 @@ export class PlayerPromotionService {
    * @returns List of eligible promotions
    */
   async hasAvailablePromotions(playerDto: PlayerDto): Promise<EligiblePromotion[]> {
-    const { operatorId, siteName, playerId, currencyGroup } = playerDto;
-    const runningPromotions = await this.getRunningPromotions(
-      operatorId,
-      siteName,
-      playerId,
-      currencyGroup,
-    );
-    const hasPromotion = await this.hasCurrentPromotion(playerId, operatorId, siteName);
-    if (hasPromotion) {
-      return [];
-    }
-    return this.mapPromotionsToEligible(runningPromotions, currencyGroup);
+    return this.getAvailablePromotions(playerDto);
   }
 
   /**

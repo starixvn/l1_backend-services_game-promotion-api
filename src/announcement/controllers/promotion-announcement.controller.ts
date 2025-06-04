@@ -196,7 +196,7 @@ export class PromotionAnnouncementController {
       .filter(code => codeToOperatorMap.has(code))
       .map(code => ({
         promotionCode: code,
-        operatorId: codeToOperatorMap.get(code)!,
+        operatorId: codeToOperatorMap.get(code) ?? '',
       }));
 
     return {

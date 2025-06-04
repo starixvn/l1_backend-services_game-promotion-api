@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as Sentry from '@sentry/nestjs';
 
+type LogLevel = 'fatal' | 'error' | 'warning' | 'info' | 'debug';
+
 @Injectable()
 export class LoggerService {
   private readonly logger = new Logger(LoggerService.name);
@@ -45,11 +47,7 @@ export class LoggerService {
    * @param level - Severity level
    * @param context - Additional context information
    */
-  captureMessage(
-    message: string,
-    level: 'fatal' | 'error' | 'warning' | 'info' | 'debug' = 'info',
-    context?: Record<string, any>,
-  ): string {
+  captureMessage(message: string, level: LogLevel = 'info', context?: Record<string, any>): string {
     try {
       // Set additional context if provided
       if (context) {
@@ -122,7 +120,7 @@ export class LoggerService {
    * @param sendToSentry - Whether to send to Sentry (default: false for info)
    * @param context - Additional context
    */
-  log(message: string, sendToSentry: boolean = false, context?: Record<string, any>): void {
+  log(message: string, sendToSentry = false, context?: Record<string, any>): void {
     // Log locally
     this.logger.log(message);
 
@@ -145,7 +143,7 @@ export class LoggerService {
    * @param sendToSentry - Whether to send to Sentry (default: false for debug)
    * @param context - Additional context
    */
-  debug(message: string, sendToSentry: boolean = false, context?: Record<string, any>): void {
+  debug(message: string, sendToSentry = false, context?: Record<string, any>): void {
     // Log locally
     this.logger.debug(message);
 
@@ -168,7 +166,7 @@ export class LoggerService {
    * @param sendToSentry - Whether to send to Sentry (default: false)
    * @param context - Additional context
    */
-  verbose(message: string, sendToSentry: boolean = false, context?: Record<string, any>): void {
+  verbose(message: string, sendToSentry = false, context?: Record<string, any>): void {
     // Log locally
     this.logger.verbose(message);
 
@@ -194,8 +192,8 @@ export class LoggerService {
    */
   addBreadcrumb(
     message: string,
-    category: string = 'custom',
-    level: 'fatal' | 'error' | 'warning' | 'info' | 'debug' = 'info',
+    category = 'custom',
+    level: LogLevel = 'info',
     data?: Record<string, any>,
   ): void {
     try {
@@ -252,7 +250,7 @@ export class LoggerService {
    * Manually flush Sentry events (useful for serverless or short-lived processes)
    * @param timeout - Timeout in milliseconds
    */
-  async flush(timeout: number = 2000): Promise<boolean> {
+  async flush(timeout = 2000): Promise<boolean> {
     try {
       return await Sentry.flush(timeout);
     } catch (error) {

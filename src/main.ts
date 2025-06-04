@@ -31,7 +31,7 @@ async function bootstrap(): Promise<void> {
 
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
-    environment: process.env.SYSTEM_NAME + '-' + process.env.ENV || 'DEV',
+    environment: `${process.env.SYSTEM_NAME}-${process.env.ENV}` || 'DEV',
     tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE ?? '0.1'),
     debug: true,
     release: '1.0.0',

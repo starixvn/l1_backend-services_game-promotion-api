@@ -165,7 +165,7 @@ export class PromotionAnnouncementService {
         .filter((code: string) => codeToOperatorMap.has(code))
         .map((code: string) => ({
           promotionCode: code,
-          operatorId: codeToOperatorMap.get(code)!,
+          operatorId: codeToOperatorMap.get(code) ?? '',
         })),
     }));
     // Count total documents matching the query
