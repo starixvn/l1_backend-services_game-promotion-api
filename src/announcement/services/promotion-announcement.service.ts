@@ -13,12 +13,18 @@ import {
   PromotionAnnouncementStatus,
 } from '../models/promotion-announcement-filter.dto';
 import { PaginationResponse } from 'src/promotion/responses/pagination.response';
+import { PromotionDocument } from 'src/promotion/schemas/promotion.schema';
+import { Promotion } from '../../promotion/schemas/promotion.schema';
+import { PromotionAnnouncementWithMappingsDto } from '../models/promotion-announcement-with-mapping.dto';
 
 @Injectable()
 export class PromotionAnnouncementService {
   constructor(
     @InjectModel(PromotionAnnouncement.name)
     private readonly promotionAnnouncementModel: Model<PromotionAnnouncementDocument>,
+
+    @InjectModel(Promotion.name)
+    private readonly promotionModel: Model<PromotionDocument>,
   ) {}
 
   /**
@@ -72,7 +78,7 @@ export class PromotionAnnouncementService {
    */
   async findAll(
     filterDto?: PromotionAnnouncementFilterDto,
-  ): Promise<PaginationResponse<PromotionAnnouncement>> {
+  ): Promise<PaginationResponse<PromotionAnnouncementWithMappingsDto>> {
     console.log('filterDto', filterDto);
     const query: Record<string, any> = {};
     const now = new Date();
@@ -146,12 +152,27 @@ export class PromotionAnnouncementService {
 
     // Execute aggregation pipeline for items
     const items = await this.promotionAnnouncementModel.aggregate(aggregationPipeline).exec();
-    console.log('items', items);
+    const allCodes = [...new Set(items.flatMap(item => item.promotionMappings || []))];
+    const promotions = await this.promotionModel
+      .find({ code: { $in: allCodes } })
+      .select('code operatorId') // chỉ lấy cần thiết
+      .lean()
+      .exec();
+    const codeToOperatorMap = new Map(promotions.map(p => [p.code, p.operatorId]));
+    const itemsWithMappings = items.map(item => ({
+      ...item,
+      mappings: (item.promotionMappings || [])
+        .filter((code: string) => codeToOperatorMap.has(code))
+        .map((code: string) => ({
+          promotionCode: code,
+          operatorId: codeToOperatorMap.get(code) ?? '',
+        })),
+    }));
     // Count total documents matching the query
     const total = await this.promotionAnnouncementModel.countDocuments(query);
-    console.log('total', total);
+
     return {
-      items: items,
+      items: itemsWithMappings,
       metadata: {
         total,
         pageIndex,
@@ -168,6 +189,23 @@ export class PromotionAnnouncementService {
    */
   async findById(id: string): Promise<PromotionAnnouncement> {
     const announcement = await this.promotionAnnouncementModel.findById(id).lean().exec();
+    if (!announcement) {
+      throw new NotFoundException(ANNOUNCEMENT_NOT_FOUND_DESCRIPTION);
+    }
+    return announcement;
+  }
+
+  /**
+   * Finds a promotion announcement by promotion code
+   * @param promotionCode - The promotion code to find the announcement for
+   * @returns The found promotion announcement
+   */
+  async findByPromotionCode(promotionCode: string): Promise<PromotionAnnouncement> {
+    const announcement = await this.promotionAnnouncementModel
+      .findOne({ promotionMappings: promotionCode })
+      .lean()
+      .exec();
+
     if (!announcement) {
       throw new NotFoundException(ANNOUNCEMENT_NOT_FOUND_DESCRIPTION);
     }

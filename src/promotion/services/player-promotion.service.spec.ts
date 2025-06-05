@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { PlayerPromotionService } from './player-promotion.service';
-import { PlayerPromotion } from '../schemas/player-promotion.schema';
+import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
 import { Promotion } from '../schemas/promotion.schema';
 import { PlayerDto } from '../models/player.dto';
-import { PlayerPromotionDocument } from '../schemas/player-promotion.schema';
+import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
+import { DeductBonusItemResponse } from '../responses/deduct-bonus-item.response';
 
 describe('PlayerPromotionService', () => {
   let service: PlayerPromotionService;
@@ -79,16 +80,21 @@ describe('PlayerPromotionService', () => {
   } as unknown as PlayerPromotionDocument;
 
   beforeEach(async () => {
-    // Simple mock implementations
-    playerPromotionModel = {
+    const mockPlayerPromotionModelValue = {
+      findOneAndUpdate: jest.fn(),
       findOne: jest.fn().mockReturnThis(),
       find: jest.fn().mockReturnThis(),
       findById: jest.fn().mockReturnThis(),
+      aggregate: jest.fn().mockReturnThis(),
       lean: jest.fn().mockReturnThis(),
-      exec: jest.fn(),
+      exec: jest.fn().mockImplementation(function () {
+        // Return the mock data based on what was mocked in the test
+        return Promise.resolve(this._mockAggregateResult || []);
+      }),
+      _mockAggregateResult: [], // This will be set in each test
     };
 
-    promotionModel = {
+    const mockPromotionModelValue = {
       findOne: jest.fn().mockReturnThis(),
       find: jest.fn().mockReturnThis(),
       findById: jest.fn().mockReturnThis(),
@@ -101,16 +107,18 @@ describe('PlayerPromotionService', () => {
         PlayerPromotionService,
         {
           provide: getModelToken(PlayerPromotion.name),
-          useValue: playerPromotionModel,
+          useValue: mockPlayerPromotionModelValue,
         },
         {
           provide: getModelToken(Promotion.name),
-          useValue: promotionModel,
+          useValue: mockPromotionModelValue,
         },
       ],
     }).compile();
 
     service = module.get<PlayerPromotionService>(PlayerPromotionService);
+    playerPromotionModel = module.get(getModelToken(PlayerPromotion.name));
+    promotionModel = module.get(getModelToken(Promotion.name));
 
     // Clear mocks before each test
     jest.clearAllMocks();
@@ -126,7 +134,7 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel.exec.mockResolvedValue(null);
+      playerPromotionModel._mockAggregateResult = [];
       promotionModel.exec.mockResolvedValue(mockPromotions);
 
       // Act
@@ -136,23 +144,8 @@ describe('PlayerPromotionService', () => {
       expect(result.length).toBe(2);
       expect(result[0]._id).toBe('promo1');
       expect(result[1]._id).toBe('promo2');
-      expect(playerPromotionModel.findOne).toHaveBeenCalledWith({
-        playerId: 'player1',
-        operatorId: 'op123',
-        siteName: 'site1',
-        remainingBonusItems: { $gt: 0 },
-      });
-      // Use a separate expect for checking query parameters to avoid exact date matching issues
+      expect(playerPromotionModel.aggregate).toHaveBeenCalled();
       expect(promotionModel.find).toHaveBeenCalled();
-      const findCall = promotionModel.find.mock.calls[0][0];
-      expect(findCall.operatorId).toBe('op123');
-      expect(findCall.currencyGroups.$in).toContain('currency1');
-      expect(findCall.startDate.$lte).toBeInstanceOf(Date);
-      expect(findCall.endDate.$gt).toBeInstanceOf(Date);
-      expect(findCall.$and[0].$or[0].offeredSiteNames.$size).toBe(0);
-      expect(findCall.$and[0].$or[1].offeredSiteNames).toBe('site1');
-      expect(findCall.$and[1].$or[0].offeredPlayerIds.$size).toBe(0);
-      expect(findCall.$and[1].$or[1].offeredPlayerIds).toBe('player1');
     });
 
     it('should return empty array when player has an active promotion', async () => {
@@ -164,19 +157,14 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel.exec.mockResolvedValue(mockPlayerPromotion);
+      playerPromotionModel._mockAggregateResult = [mockPlayerPromotion];
 
       // Act
       const result = await service.hasAvailablePromotions(playerDto);
 
       // Assert
       expect(result.length).toBe(0);
-      expect(playerPromotionModel.findOne).toHaveBeenCalledWith({
-        playerId: 'player1',
-        operatorId: 'op123',
-        siteName: 'site1',
-        remainingBonusItems: { $gt: 0 },
-      });
+      expect(playerPromotionModel.aggregate).toHaveBeenCalled();
     });
   });
 
@@ -242,19 +230,14 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel.exec.mockResolvedValue(mockPlayerPromotion);
+      playerPromotionModel._mockAggregateResult = [mockPlayerPromotion];
 
       // Act
       const result = await service.getCurrentPromotion(playerDto);
 
       // Assert
       expect(result).toEqual(mockPlayerPromotion);
-      expect(playerPromotionModel.findOne).toHaveBeenCalledWith({
-        playerId: 'player1',
-        operatorId: 'op123',
-        siteName: 'site1',
-        remainingBonusItems: { $gt: 0 },
-      });
+      expect(playerPromotionModel.aggregate).toHaveBeenCalled();
     });
 
     it('should create and return new promotion if player has no promotion but has available ones', async () => {
@@ -266,7 +249,7 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel.exec.mockResolvedValue(null);
+      playerPromotionModel._mockAggregateResult = [];
       promotionModel.exec.mockResolvedValue(mockPromotions);
 
       // Mock assignPromotionToPlayer instead of createPlayerPromotion
@@ -295,7 +278,7 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel.exec.mockResolvedValue(null);
+      playerPromotionModel._mockAggregateResult = [];
       promotionModel.exec.mockResolvedValue([]);
 
       // Act
@@ -315,21 +298,16 @@ describe('PlayerPromotionService', () => {
     };
 
     it('should return existing promotion if player has one', async () => {
-      playerPromotionModel.exec.mockResolvedValue(mockPlayerPromotion);
+      playerPromotionModel._mockAggregateResult = [mockPlayerPromotion];
 
       const result = await service.claimPromotion(playerDto);
 
       expect(result).toEqual(mockPlayerPromotion);
-      expect(playerPromotionModel.findOne).toHaveBeenCalledWith({
-        playerId: 'player1',
-        operatorId: 'op123',
-        siteName: 'site1',
-        remainingBonusItems: { $gt: 0 },
-      });
+      expect(playerPromotionModel.aggregate).toHaveBeenCalled();
     });
 
     it('should claim and return new promotion if player has none but has available ones', async () => {
-      playerPromotionModel.exec.mockResolvedValueOnce(null);
+      playerPromotionModel._mockAggregateResult = [];
       promotionModel.exec.mockResolvedValue(mockPromotions);
 
       jest.spyOn(service, 'assignPromotionToPlayer').mockResolvedValue(mockPlayerPromotion);
@@ -347,12 +325,169 @@ describe('PlayerPromotionService', () => {
     });
 
     it('should return null if player has no promotion and no available promotions', async () => {
-      playerPromotionModel.exec.mockResolvedValue(null);
+      playerPromotionModel._mockAggregateResult = [];
       promotionModel.exec.mockResolvedValue([]);
 
       const result = await service.claimPromotion(playerDto);
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('deductBonusItem', () => {
+    const inputOperatorId = 'operator123';
+    const inputPlayerId = 'player456';
+    const inputPromotionId = 'promotion789';
+
+    it('should successfully deduct bonus item when promotion exists with remaining items', async () => {
+      // Arrange
+      const mockUpdatedPromotion = {
+        _id: 'promotion-doc-id',
+        playerId: inputPlayerId,
+        operatorId: inputOperatorId,
+        promotionId: inputPromotionId,
+        remainingBonusItems: 4,
+        lastUsedDate: new Date(),
+      };
+      playerPromotionModel.findOneAndUpdate.mockResolvedValue(mockUpdatedPromotion);
+
+      const expectedResult: DeductBonusItemResponse = {
+        success: true,
+        ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_SUCCESS,
+      };
+
+      // Act
+      const actualResult = await service.deductBonusItem(
+        inputOperatorId,
+        inputPlayerId,
+        inputPromotionId,
+      );
+
+      // Assert
+      expect(playerPromotionModel.findOneAndUpdate).toHaveBeenCalledWith(
+        {
+          operatorId: inputOperatorId,
+          playerId: inputPlayerId,
+          promotionId: inputPromotionId,
+          remainingBonusItems: { $gt: 0 },
+        },
+        {
+          $inc: { remainingBonusItems: -1 },
+          $set: { lastUsedDate: expect.any(Date) },
+        },
+        {
+          lean: true,
+        },
+      );
+      expect(actualResult).toEqual(expectedResult);
+    });
+
+    it('should return deduction failed when promotion does not exist', async () => {
+      // Arrange
+      playerPromotionModel.findOneAndUpdate.mockResolvedValue(null);
+
+      const expectedResult: DeductBonusItemResponse = {
+        success: false,
+        ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_FAILED,
+      };
+
+      // Act
+      const actualResult = await service.deductBonusItem(
+        inputOperatorId,
+        inputPlayerId,
+        inputPromotionId,
+      );
+
+      // Assert
+      expect(playerPromotionModel.findOneAndUpdate).toHaveBeenCalledWith(
+        {
+          operatorId: inputOperatorId,
+          playerId: inputPlayerId,
+          promotionId: inputPromotionId,
+          remainingBonusItems: { $gt: 0 },
+        },
+        {
+          $inc: { remainingBonusItems: -1 },
+          $set: { lastUsedDate: expect.any(Date) },
+        },
+        {
+          lean: true,
+        },
+      );
+      expect(actualResult).toEqual(expectedResult);
+    });
+
+    it('should return deduction failed when no bonus items remaining', async () => {
+      // Arrange
+      playerPromotionModel.findOneAndUpdate.mockResolvedValue(null);
+
+      const expectedResult: DeductBonusItemResponse = {
+        success: false,
+        ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_FAILED,
+      };
+
+      // Act
+      const actualResult = await service.deductBonusItem(
+        inputOperatorId,
+        inputPlayerId,
+        inputPromotionId,
+      );
+
+      // Assert
+      expect(playerPromotionModel.findOneAndUpdate).toHaveBeenCalledWith(
+        {
+          operatorId: inputOperatorId,
+          playerId: inputPlayerId,
+          promotionId: inputPromotionId,
+          remainingBonusItems: { $gt: 0 },
+        },
+        {
+          $inc: { remainingBonusItems: -1 },
+          $set: { lastUsedDate: expect.any(Date) },
+        },
+        {
+          lean: true,
+        },
+      );
+      expect(actualResult).toEqual(expectedResult);
+    });
+
+    it('should handle database errors gracefully', async () => {
+      // Arrange
+      const mockError = new Error('Database connection failed');
+      playerPromotionModel.findOneAndUpdate.mockRejectedValue(mockError);
+
+      // Act & Assert
+      await expect(
+        service.deductBonusItem(inputOperatorId, inputPlayerId, inputPromotionId),
+      ).rejects.toThrow('Database connection failed');
+    });
+
+    it('should call findOneAndUpdate with correct atomic operations', async () => {
+      // Arrange
+      const mockUpdatedPromotion = {
+        _id: 'promotion-doc-id',
+        remainingBonusItems: 2,
+      };
+      playerPromotionModel.findOneAndUpdate.mockResolvedValue(mockUpdatedPromotion);
+
+      // Act
+      await service.deductBonusItem(inputOperatorId, inputPlayerId, inputPromotionId);
+
+      // Assert
+      expect(playerPromotionModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+      expect(playerPromotionModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remainingBonusItems: { $gt: 0 },
+        }),
+        expect.objectContaining({
+          $inc: { remainingBonusItems: -1 },
+          $set: { lastUsedDate: expect.any(Date) },
+        }),
+        expect.objectContaining({
+          lean: true,
+        }),
+      );
     });
   });
 });

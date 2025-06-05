@@ -1,4 +1,15 @@
-import { Controller, Post, Body, Param, Delete, Put, HttpStatus, Get, Query } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
+  HttpStatus,
+  Get,
+  Query,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -17,6 +28,8 @@ import {
   PromotionAnnouncementStatus,
 } from '../models/promotion-announcement-filter.dto';
 import { PaginationResponse } from 'src/promotion/responses/pagination.response';
+import { PromotionService } from '../../promotion/services/promotion.service';
+import { PromotionAnnouncementWithMappingsDto } from '../models/promotion-announcement-with-mapping.dto';
 
 const ANNOUNCEMENT_ID_PARAM = {
   name: 'id',
@@ -27,7 +40,10 @@ const ANNOUNCEMENT_ID_PARAM = {
 @ApiTags('promotion-announcements')
 @Controller('promotion-announcements')
 export class PromotionAnnouncementController {
-  constructor(private readonly promotionAnnouncementService: PromotionAnnouncementService) {}
+  constructor(
+    private readonly promotionAnnouncementService: PromotionAnnouncementService,
+    private readonly promotionService: PromotionService,
+  ) {}
 
   /**
    * Creates a new promotion announcement
@@ -127,12 +143,12 @@ export class PromotionAnnouncementController {
   @ApiResponse({
     status: 200,
     description: 'Returns all promotion announcements',
-    type: [PromotionAnnouncement],
+    type: [PromotionAnnouncementWithMappingsDto],
     schema: {
       properties: {
         promotions: {
           type: 'array',
-          items: { $ref: getSchemaPath(PromotionAnnouncement) },
+          items: { $ref: getSchemaPath(PromotionAnnouncementWithMappingsDto) },
         },
         pagination: {
           type: 'object',
@@ -148,7 +164,7 @@ export class PromotionAnnouncementController {
   })
   async findAll(
     @Query() filterDto: PromotionAnnouncementFilterDto,
-  ): Promise<PaginationResponse<PromotionAnnouncement>> {
+  ): Promise<PaginationResponse<PromotionAnnouncementWithMappingsDto>> {
     return this.promotionAnnouncementService.findAll(filterDto);
   }
 
@@ -163,11 +179,54 @@ export class PromotionAnnouncementController {
   @ApiResponse({
     status: 200,
     description: 'Returns the requested promotion',
+    type: PromotionAnnouncementWithMappingsDto,
+  })
+  @ApiResponse({ status: 404, description: ANNOUNCEMENT_NOT_FOUND_DESCRIPTION })
+  async findById(@Param('id') id: string): Promise<PromotionAnnouncementWithMappingsDto> {
+    const announcement = await this.promotionAnnouncementService.findById(id);
+    if (!announcement) {
+      throw new NotFoundException('Announcement not found');
+    }
+
+    // Resolve mappings
+    const promotions = await this.promotionService.findManyByCodes(announcement.promotionMappings);
+    const codeToOperatorMap = new Map(promotions.map(p => [p.code, p.operatorId]));
+
+    const mappings = (announcement.promotionMappings || [])
+      .filter(code => codeToOperatorMap.has(code))
+      .map(code => ({
+        promotionCode: code,
+        operatorId: codeToOperatorMap.get(code) ?? '',
+      }));
+
+    return {
+      ...announcement,
+      mappings,
+    };
+  }
+
+  /**
+   * Finds a promotion announcement by promotion code
+   * @param promotionCode - The promotion code to find the announcement for
+   * @returns The found promotion announcement
+   */
+  @Get('by-promotion-code/:promotionCode')
+  @ApiOperation({ summary: 'Get a promotion announcement by promotion code' })
+  @ApiParam({
+    name: 'promotionCode',
+    description: 'Promotion code',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the requested promotion announcement',
     type: PromotionAnnouncement,
   })
   @ApiResponse({ status: 404, description: ANNOUNCEMENT_NOT_FOUND_DESCRIPTION })
-  async findById(@Param('id') id: string): Promise<PromotionAnnouncement> {
-    return this.promotionAnnouncementService.findById(id);
+  async findByPromotionCode(
+    @Param('promotionCode') promotionCode: string,
+  ): Promise<PromotionAnnouncement> {
+    return this.promotionAnnouncementService.findByPromotionCode(promotionCode);
   }
 
   /**

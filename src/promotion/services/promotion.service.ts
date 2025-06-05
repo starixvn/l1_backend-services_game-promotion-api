@@ -68,6 +68,39 @@ export class PromotionService {
     const aggregationPipeline = [
       { $match: query },
       {
+        $lookup: {
+          from: 'promotion_announcements',
+          let: { promotionCode: '$code' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ['$$promotionCode', '$promotionMappings'],
+                },
+              },
+            },
+            {
+              $project: {
+                announcementTitle: { $ifNull: ['$promotionTitle.en-US', ''] },
+              },
+            },
+          ],
+          as: 'announcements',
+        },
+      },
+      {
+        $addFields: {
+          announcementTitle: {
+            $ifNull: [{ $arrayElemAt: ['$announcements.announcementTitle', 0] }, ''],
+          },
+        },
+      },
+      {
+        $project: {
+          announcements: 0,
+        },
+      },
+      {
         $addFields: {
           statusOrder: {
             $switch: {
@@ -193,5 +226,43 @@ export class PromotionService {
   async doesCodeExist(code: string): Promise<boolean> {
     const existing = await this.promotionModel.exists({ code });
     return !!existing;
+  }
+
+  /**
+   * Gets promotions that are NOT_STARTED and not mapped to any announcement
+   * @returns Array of unmapped NOT_STARTED promotions
+   */
+  async getUnmappedNotStartedPromotions(): Promise<Promotion[]> {
+    const now = new Date();
+    const aggregationPipeline = [
+      { $match: { startDate: { $gt: now } } }, // NOT_STARTED
+      {
+        $lookup: {
+          from: 'promotion_announcements',
+          let: { promotionCode: '$code' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ['$$promotionCode', '$promotionMappings'],
+                },
+              },
+            },
+          ],
+          as: 'announcements',
+        },
+      },
+      { $match: { 'announcements.0': { $exists: false } } }, // Chưa mapping announcement nào
+      { $project: { announcements: 0 } },
+      { $sort: { startDate: 1 as const } },
+    ];
+    return this.promotionModel.aggregate(aggregationPipeline).exec();
+  }
+
+  async findManyByCodes(codes: string[]): Promise<Promotion[]> {
+    return this.promotionModel
+      .find({ code: { $in: codes } })
+      .lean()
+      .exec();
   }
 }

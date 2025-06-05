@@ -5,6 +5,8 @@ import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-prom
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { PlayerDto } from '../models/player.dto';
 import { EligiblePromotion } from '../responses/eligible-promotion.response';
+import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
+import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
 
 /**
  * Service for managing player promotions
@@ -59,18 +61,7 @@ export class PlayerPromotionService {
    * @returns List of eligible promotions
    */
   async hasAvailablePromotions(playerDto: PlayerDto): Promise<EligiblePromotion[]> {
-    const { operatorId, siteName, playerId, currencyGroup } = playerDto;
-    const runningPromotions = await this.getRunningPromotions(
-      operatorId,
-      siteName,
-      playerId,
-      currencyGroup,
-    );
-    const hasPromotion = await this.hasCurrentPromotion(playerId, operatorId, siteName);
-    if (hasPromotion) {
-      return [];
-    }
-    return this.mapPromotionsToEligible(runningPromotions, currencyGroup);
+    return this.getAvailablePromotions(playerDto);
   }
 
   /**
@@ -126,15 +117,46 @@ export class PlayerPromotionService {
     operatorId: string,
     siteName: string,
   ): Promise<PlayerPromotionDocument | null> {
+    const now = new Date();
     return this.playerPromotionModel
-      .findOne({
-        playerId,
-        operatorId,
-        siteName,
-        remainingBonusItems: { $gt: 0 },
-      })
-      .lean()
-      .exec();
+      .aggregate([
+        {
+          $match: {
+            playerId,
+            operatorId,
+            siteName,
+            remainingBonusItems: { $gt: 0 },
+          },
+        },
+        {
+          $lookup: {
+            from: 'promotions',
+            localField: 'promotionId',
+            foreignField: '_id',
+            as: 'promotion',
+          },
+        },
+        {
+          $match: {
+            'promotion.0.startDate': { $lte: now },
+            'promotion.0.endDate': { $gt: now },
+          },
+        },
+        {
+          $replaceRoot: {
+            newRoot: {
+              $mergeObjects: [{ $arrayElemAt: ['$promotion', 0] }, '$$ROOT'],
+            },
+          },
+        },
+        {
+          $project: {
+            promotion: 0,
+          },
+        },
+      ])
+      .exec()
+      .then(results => results[0] || null);
   }
 
   /**
@@ -249,5 +271,93 @@ export class PlayerPromotionService {
       throw new Error('Promotion not found');
     }
     return promotion;
+  }
+
+  /**
+   * Deduct a bonus item from a player's promotion
+   * @param operatorId Operator ID
+   * @param playerId Player ID
+   * @param promotionId Promotion ID
+   * @returns Success or failure response with error code
+   */
+  async deductBonusItem(
+    operatorId: string,
+    playerId: string,
+    promotionId: string,
+  ): Promise<DeductBonusItemResponse> {
+    const result = await this.playerPromotionModel.findOneAndUpdate(
+      {
+        operatorId,
+        playerId,
+        promotionId,
+        remainingBonusItems: { $gt: 0 },
+      },
+      {
+        $inc: { remainingBonusItems: -1 },
+        $set: { lastUsedDate: new Date() },
+      },
+      {
+        lean: true,
+      },
+    );
+
+    if (result) {
+      return {
+        success: true,
+        ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_SUCCESS,
+      };
+    }
+
+    return {
+      success: false,
+      ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_FAILED,
+    };
+  }
+
+  /**
+   * Rollback a bonus item deduction
+   * @param operatorId Operator ID
+   * @param playerId Player ID
+   * @param promotionId Promotion ID
+   * @param rollbackData Previous state data
+   * @returns Success or failure response
+   */
+  async rollbackBonusItemDeduction(
+    operatorId: string,
+    playerId: string,
+    promotionId: string,
+    rollbackData: {
+      previousRemainingItems: number;
+      previousLastUsedDate: Date | null;
+    },
+  ): Promise<RollbackResponse> {
+    const result = await this.playerPromotionModel.findOneAndUpdate(
+      {
+        operatorId,
+        playerId,
+        promotionId,
+      },
+      {
+        $set: {
+          remainingBonusItems: rollbackData.previousRemainingItems,
+          lastUsedDate: rollbackData.previousLastUsedDate,
+        },
+      },
+      {
+        lean: true,
+      },
+    );
+
+    if (result) {
+      return {
+        success: true,
+        ...PLAYER_PROMOTION_ERROR_CODES.ROLLBACK_SUCCESS,
+      };
+    }
+
+    return {
+      success: false,
+      ...PLAYER_PROMOTION_ERROR_CODES.ROLLBACK_FAILED,
+    };
   }
 }

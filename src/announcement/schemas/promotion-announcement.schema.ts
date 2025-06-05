@@ -4,19 +4,6 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export type PromotionAnnouncementDocument = PromotionAnnouncement & Document;
 
-class OperatorMapping {
-  @ApiProperty({
-    description: 'Operator identifier',
-    example: 'op123',
-  })
-  @Prop({ required: true })
-  operatorId: string;
-
-  @ApiProperty({ example: 'promo-summer-01', description: 'Promotion Code' })
-  @Prop({ required: true })
-  promotionCode: string;
-}
-
 class LocalizedString {
   [languageCode: string]: string;
 }
@@ -74,14 +61,11 @@ export class PromotionAnnouncement {
   toDate: Date;
 
   @ApiProperty({
-    type: [OperatorMapping],
-    description: 'List of Operator-Promotion mappings (unique operatorId)',
+    type: [String],
+    description: 'List of Promotion mappings (unique operatorId)',
   })
-  @Prop({
-    type: [OperatorMapping],
-    required: true,
-  })
-  promotionMappings: OperatorMapping[];
+  @Prop({ type: [String], default: [] })
+  promotionMappings: string[];
 
   @ApiProperty({
     example: 1,

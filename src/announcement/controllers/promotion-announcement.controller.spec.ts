@@ -3,45 +3,60 @@ import { HttpStatus } from '@nestjs/common';
 import { PromotionAnnouncementController } from './promotion-announcement.controller';
 import { PromotionAnnouncementService } from '../services/promotion-announcement.service';
 import { CreatePromotionAnnouncementDto } from '../models/create-promotion-announcement.dto';
-import { PromotionAnnouncementFilterDto } from '../models/promotion-announcement-filter.dto';
-import { PromotionAnnouncementStatus } from '../models/promotion-announcement-filter.dto';
+import {
+  PromotionAnnouncementFilterDto,
+  PromotionAnnouncementStatus,
+} from '../models/promotion-announcement-filter.dto';
 import { UpdatePromotionAnnouncementDto } from '../models/update-promotion-announcement.dto';
+import { PromotionService } from '../../promotion/services/promotion.service';
 
-// Mock data
 const mockDate = new Date();
 const futureDate = new Date(mockDate.getTime() + 86400000); // tomorrow
 
 const mockPromotionAnnouncement = {
   _id: 'a-promotion-id',
-  name: 'Test Promotion',
-  code: 'test-promotion',
-  operatorId: 'op123',
-  offeredSiteNames: ['site1'],
-  currencyGroups: ['currency1'],
-  startDate: mockDate,
-  endDate: futureDate,
-  bonusItemCount: 10,
-  offeredPlayerIds: ['player1'],
-  gameConfigType: 2,
-  gameIds: [1001],
-  betLevels: [],
+  promotionTitle: { 'en-US': 'Test Promotion' },
+  bannerContent: { 'en-US': 'Test Content' },
+  termsAndConditions: { 'en-US': 'Test Terms' },
+  fromDate: mockDate,
+  toDate: futureDate,
+  promotionMappings: ['test-promotion'],
+  template: 1,
+  mappings: [{ promotionCode: 'test-promotion', operatorId: 'op123' }],
 };
 
 const mockPromotionAnnouncementArray = [
   mockPromotionAnnouncement,
   {
     ...mockPromotionAnnouncement,
-    _id: 'another-promotion-announcement-id',
+    _id: 'another-promotion-id',
     promotionTitle: { 'en-US': 'Another Promotion' },
-    fromDate: new Date('2025-06-01T00:00:00Z'),
-    toDate: new Date('2025-06-05T00:00:00Z'),
-    operatorId: 'op456',
+    promotionMappings: ['another-code'],
+    mappings: [{ promotionCode: 'another-code', operatorId: 'op456' }],
+  },
+];
+
+const mockPromotions = [
+  {
+    code: 'test-promotion',
+    operatorId: 'op123',
+    name: 'Test Promotion',
+    offeredSiteNames: ['site1'],
+    currencyGroups: ['currency1'],
+    startDate: mockDate,
+    endDate: futureDate,
+    bonusItemCount: 10,
+    offeredPlayerIds: ['player1'],
+    gameConfigType: 1,
+    gameIds: [1001],
+    betLevels: [],
   },
 ];
 
 describe('PromotionAnnouncementController', () => {
   let controller: PromotionAnnouncementController;
   let service: PromotionAnnouncementService;
+  let promotionService: PromotionService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -57,11 +72,18 @@ describe('PromotionAnnouncementController', () => {
             remove: jest.fn(),
           },
         },
+        {
+          provide: PromotionService,
+          useValue: {
+            findManyByCodes: jest.fn(), // <- mock hàm này nếu cần
+          },
+        },
       ],
     }).compile();
 
     controller = module.get<PromotionAnnouncementController>(PromotionAnnouncementController);
     service = module.get<PromotionAnnouncementService>(PromotionAnnouncementService);
+    promotionService = module.get<PromotionService>(PromotionService);
   });
 
   afterEach(() => {
@@ -74,35 +96,46 @@ describe('PromotionAnnouncementController', () => {
 
   describe('create', () => {
     it('should create a new promotion announcement', async () => {
-      const createPromotionAnnouncementDto: CreatePromotionAnnouncementDto = {
-        promotionTitle: { 'en-US': 'Test Promotion Announcement' },
+      const dto: CreatePromotionAnnouncementDto = {
+        promotionTitle: { 'en-US': 'Test Promotion' },
         bannerContent: { 'en-US': 'Test Content' },
-        termsAndConditions: { 'en-US': 'Test Terms and Conditions' },
+        termsAndConditions: { 'en-US': 'Test Terms' },
         fromDate: mockDate,
         toDate: futureDate,
-        promotionMappings: [
-          {
-            promotionCode: 'test-promotion-announcement',
-            operatorId: 'op123',
-          },
-        ],
+        promotionMappings: ['test-promotion'],
         template: 1,
       };
 
       jest.spyOn(service, 'create').mockResolvedValueOnce(mockPromotionAnnouncement as any);
 
-      const result = await controller.create(createPromotionAnnouncementDto);
+      const result = await controller.create(dto);
       expect(result).toEqual(mockPromotionAnnouncement);
-      expect(service.create).toHaveBeenCalledWith(createPromotionAnnouncementDto);
+      expect(service.create).toHaveBeenCalledWith(dto);
     });
   });
 
   describe('findAll', () => {
-    it('should return all promotion announcements when no filter is provided', async () => {
-      jest.spyOn(service, 'findAll').mockResolvedValueOnce(mockPromotionAnnouncementArray as any);
+    it('should return all promotion announcements with pagination metadata', async () => {
+      jest.spyOn(service, 'findAll').mockResolvedValueOnce({
+        items: mockPromotionAnnouncementArray,
+        metadata: {
+          total: 2,
+          pageIndex: 1,
+          pageSize: 10,
+          totalPages: 1,
+        },
+      });
 
       const result = await controller.findAll({});
-      expect(result).toEqual(mockPromotionAnnouncementArray);
+      expect(result).toEqual({
+        items: mockPromotionAnnouncementArray,
+        metadata: {
+          total: 2,
+          pageIndex: 1,
+          pageSize: 10,
+          totalPages: 1,
+        },
+      });
       expect(service.findAll).toHaveBeenCalledWith({});
     });
 
@@ -111,46 +144,59 @@ describe('PromotionAnnouncementController', () => {
         status: PromotionAnnouncementStatus.RUNNING,
       };
 
-      jest.spyOn(service, 'findAll').mockResolvedValueOnce([mockPromotionAnnouncement] as any);
+      jest.spyOn(service, 'findAll').mockResolvedValueOnce({
+        items: [mockPromotionAnnouncement],
+        metadata: {
+          total: 1,
+          pageIndex: 1,
+          pageSize: 10,
+          totalPages: 1,
+        },
+      });
 
       const result = await controller.findAll(filterDto);
-      expect(result).toEqual([mockPromotionAnnouncement]);
+      expect(result).toEqual({
+        items: [mockPromotionAnnouncement],
+        metadata: {
+          total: 1,
+          pageIndex: 1,
+          pageSize: 10,
+          totalPages: 1,
+        },
+      });
       expect(service.findAll).toHaveBeenCalledWith(filterDto);
     });
   });
 
   describe('findById', () => {
-    it('should return a specific promotion by id', async () => {
+    it('should return a specific promotion announcement by id', async () => {
       jest.spyOn(service, 'findById').mockResolvedValueOnce(mockPromotionAnnouncement as any);
 
-      const result = await controller.findById('a-promotion-announcement-id');
+      jest.spyOn(promotionService, 'findManyByCodes').mockResolvedValueOnce(mockPromotions as any);
+
+      const result = await controller.findById('a-promotion-id');
       expect(result).toEqual(mockPromotionAnnouncement);
-      expect(service.findById).toHaveBeenCalledWith('a-promotion-announcement-id');
+      expect(service.findById).toHaveBeenCalledWith('a-promotion-id');
+      expect(promotionService.findManyByCodes).toHaveBeenCalledWith(['test-promotion']);
     });
   });
 
   describe('update', () => {
-    it('should update a promotion', async () => {
-      const updatePromotionAnnouncementDto: UpdatePromotionAnnouncementDto = {
+    it('should update a promotion announcement', async () => {
+      const dto: UpdatePromotionAnnouncementDto = {
         promotionTitle: { 'en-US': 'Updated Promotion' },
       };
 
-      const updatedPromotionAnnouncement = {
+      const updated = {
         ...mockPromotionAnnouncement,
         promotionTitle: { 'en-US': 'Updated Promotion' },
       };
 
-      jest.spyOn(service, 'update').mockResolvedValueOnce(updatedPromotionAnnouncement as any);
+      jest.spyOn(service, 'update').mockResolvedValueOnce(updated as any);
 
-      const result = await controller.update(
-        'a-promotion-announcement-id',
-        updatePromotionAnnouncementDto,
-      );
-      expect(result).toEqual(updatedPromotionAnnouncement);
-      expect(service.update).toHaveBeenCalledWith(
-        'a-promotion-announcement-id',
-        updatePromotionAnnouncementDto,
-      );
+      const result = await controller.update('a-promotion-id', dto);
+      expect(result).toEqual(updated);
+      expect(service.update).toHaveBeenCalledWith('a-promotion-id', dto);
     });
   });
 
@@ -158,12 +204,12 @@ describe('PromotionAnnouncementController', () => {
     it('should delete a promotion announcement and return success message', async () => {
       jest.spyOn(service, 'remove').mockResolvedValueOnce(true);
 
-      const result = await controller.remove('a-promotion-announcement-id');
+      const result = await controller.remove('a-promotion-id');
       expect(result).toEqual({
         statusCode: HttpStatus.OK,
-        message: 'Promotion announcement with ID a-promotion-announcement-id deleted successfully',
+        message: 'Promotion announcement with ID a-promotion-id deleted successfully',
       });
-      expect(service.remove).toHaveBeenCalledWith('a-promotion-announcement-id');
+      expect(service.remove).toHaveBeenCalledWith('a-promotion-id');
     });
   });
 

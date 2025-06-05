@@ -107,13 +107,13 @@ export class CreatePromotionAnnouncementDto {
   toDate: Date;
 
   @ApiProperty({
-    type: [OperatorMappingDto],
-    description: 'List of Operator-Promotion mappings',
+    description: 'List of promotion codes',
+    type: [String],
+    example: ['code1', 'code2'],
   })
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => OperatorMappingDto)
-  promotionMappings: OperatorMappingDto[];
+  @IsString({ each: true })
+  promotionMappings: string[];
 
   @ApiProperty({
     example: 1,

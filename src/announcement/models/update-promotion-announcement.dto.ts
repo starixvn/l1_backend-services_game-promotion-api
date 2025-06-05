@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, ValidateNested, IsOptional, IsDate, IsNumber } from 'class-validator';
+import { IsArray, ValidateNested, IsOptional, IsDate, IsNumber, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { OperatorMappingDto, LocalizedStringDto } from './create-promotion-announcement.dto';
+import { LocalizedStringDto } from './create-promotion-announcement.dto';
 
 export class UpdatePromotionAnnouncementDto {
   @ApiPropertyOptional({ type: LocalizedStringDto })
@@ -34,12 +34,15 @@ export class UpdatePromotionAnnouncementDto {
   @Type(() => Date)
   toDate?: Date;
 
-  @ApiPropertyOptional({ type: [OperatorMappingDto] })
-  @IsOptional()
+  @ApiPropertyOptional({
+    description: 'List of promotion codes',
+    type: [String],
+    example: ['code1', 'code2'],
+  })
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => OperatorMappingDto)
-  promotionMappings?: OperatorMappingDto[];
+  @IsString({ each: true })
+  @IsOptional()
+  promotionMappings?: string[];
 
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
