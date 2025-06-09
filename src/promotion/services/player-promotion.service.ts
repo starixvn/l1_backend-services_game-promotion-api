@@ -285,6 +285,12 @@ export class PlayerPromotionService {
     currencyGroup: string,
   ): Promise<PlayerPromotionDocument> {
     const promotion = await this.getPromotionById(promotionId);
+
+    // Find the bet level for the player's currency group
+    const betLevelInfo = promotion.betLevels.find(
+      betLevel => betLevel.currencyGroup.toString() === currencyGroup.toString(),
+    );
+
     const playerPromotion = new this.playerPromotionModel({
       playerId,
       operatorId,
@@ -293,6 +299,10 @@ export class PlayerPromotionService {
       promotionCode: promotion.code,
       currencyGroup,
       remainingBonusItems: promotion.bonusItemCount,
+      initialBonusItem: promotion.bonusItemCount,
+      betLevel: betLevelInfo?.betLevel || 0,
+      startDate: promotion.startDate,
+      endDate: promotion.endDate,
       lastUsedDate: null,
     });
 

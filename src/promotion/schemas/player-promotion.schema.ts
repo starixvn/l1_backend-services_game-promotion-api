@@ -32,6 +32,18 @@ export class PlayerPromotion {
   @Prop({ required: true })
   remainingBonusItems: number;
 
+  @Prop({ required: true })
+  initialBonusItem: number;
+
+  @Prop({ required: true })
+  betLevel: number;
+
+  @Prop({ type: Date, required: true })
+  startDate: Date;
+
+  @Prop({ type: Date, required: true })
+  endDate: Date;
+
   @Prop({ type: Date, default: null })
   lastUsedDate: Date;
 }

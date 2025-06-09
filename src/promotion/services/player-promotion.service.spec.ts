@@ -30,6 +30,12 @@ describe('PlayerPromotionService', () => {
       offeredPlayerIds: [],
       gameConfigType: 2,
       gameIds: [1001],
+      betLevels: [
+        {
+          currencyGroup: 'currency1',
+          betLevel: 1,
+        },
+      ],
     },
     {
       _id: 'promo2',
@@ -44,6 +50,12 @@ describe('PlayerPromotionService', () => {
       offeredPlayerIds: ['player1'],
       gameConfigType: 2,
       gameIds: [1002],
+      betLevels: [
+        {
+          currencyGroup: 'currency1',
+          betLevel: 2,
+        },
+      ],
     },
   ];
 
@@ -70,6 +82,10 @@ describe('PlayerPromotionService', () => {
     promotionCode: 'test-promo-1',
     currencyGroup: 'currency1',
     remainingBonusItems: 10,
+    initialBonusItem: 10,
+    betLevel: 1,
+    startDate: yesterday,
+    endDate: tomorrow,
     lastUsedDate: null,
     save: saveFn,
     // Add minimal Document properties needed for tests
@@ -85,13 +101,9 @@ describe('PlayerPromotionService', () => {
       findOne: jest.fn().mockReturnThis(),
       find: jest.fn().mockReturnThis(),
       findById: jest.fn().mockReturnThis(),
-      aggregate: jest.fn().mockReturnThis(),
+      aggregate: jest.fn(),
       lean: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockImplementation(function () {
-        // Return the mock data based on what was mocked in the test
-        return Promise.resolve(this._mockAggregateResult || []);
-      }),
-      _mockAggregateResult: [], // This will be set in each test
+      exec: jest.fn(),
     };
 
     const mockPromotionModelValue = {
@@ -134,7 +146,7 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel._mockAggregateResult = [];
+      playerPromotionModel.aggregate.mockResolvedValue([]);
       promotionModel.exec.mockResolvedValue(mockPromotions);
 
       // Act
@@ -157,7 +169,8 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel._mockAggregateResult = [mockPlayerPromotion];
+      playerPromotionModel.aggregate.mockResolvedValue([mockPlayerPromotion]);
+      promotionModel.exec.mockResolvedValue(mockPromotions); // Mock the getRunningPromotions call
 
       // Act
       const result = await service.hasAvailablePromotions(playerDto);
@@ -182,6 +195,14 @@ describe('PlayerPromotionService', () => {
         name: 'Test Promotion',
         code: 'test-promo',
         bonusItemCount: 10,
+        startDate: yesterday,
+        endDate: tomorrow,
+        betLevels: [
+          {
+            currencyGroup: 'currency1',
+            betLevel: 1,
+          },
+        ],
       };
 
       promotionModel.exec.mockResolvedValue(mockPromotion);
@@ -230,13 +251,19 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel._mockAggregateResult = [mockPlayerPromotion];
+      playerPromotionModel.aggregate.mockResolvedValue([mockPlayerPromotion]);
+      promotionModel.exec.mockResolvedValue(mockPromotions); // Mock the getRunningPromotions call
 
       // Act
       const result = await service.getCurrentPromotion(playerDto);
 
       // Assert
-      expect(result).toEqual(mockPlayerPromotion);
+      expect(result).toEqual(
+        expect.objectContaining({
+          ...mockPlayerPromotion,
+          isGiftCode: true,
+        }),
+      );
       expect(playerPromotionModel.aggregate).toHaveBeenCalled();
     });
 
@@ -249,17 +276,24 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel._mockAggregateResult = [];
+      playerPromotionModel.aggregate.mockResolvedValue([]);
       promotionModel.exec.mockResolvedValue(mockPromotions);
 
       // Mock assignPromotionToPlayer instead of createPlayerPromotion
       jest.spyOn(service, 'assignPromotionToPlayer').mockResolvedValue(mockPlayerPromotion);
+      jest.spyOn(service as any, 'getPromotionById').mockResolvedValue(mockPromotions[0]);
 
       // Act
       const result = await service.getCurrentPromotion(playerDto);
 
       // Assert
-      expect(result).toEqual(mockPlayerPromotion);
+      expect(result).toEqual(
+        expect.objectContaining({
+          ...mockPlayerPromotion,
+          betLevel: 1,
+          isGiftCode: true,
+        }),
+      );
       expect(service.assignPromotionToPlayer).toHaveBeenCalledWith(
         'player1',
         'promo1',
@@ -278,7 +312,7 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel._mockAggregateResult = [];
+      playerPromotionModel.aggregate.mockResolvedValue([]);
       promotionModel.exec.mockResolvedValue([]);
 
       // Act
@@ -298,23 +332,36 @@ describe('PlayerPromotionService', () => {
     };
 
     it('should return existing promotion if player has one', async () => {
-      playerPromotionModel._mockAggregateResult = [mockPlayerPromotion];
+      playerPromotionModel.aggregate.mockResolvedValue([mockPlayerPromotion]);
+      promotionModel.exec.mockResolvedValue(mockPromotions); // Mock the getRunningPromotions call
 
       const result = await service.claimPromotion(playerDto);
 
-      expect(result).toEqual(mockPlayerPromotion);
+      expect(result).toEqual(
+        expect.objectContaining({
+          ...mockPlayerPromotion,
+          isGiftCode: true,
+        }),
+      );
       expect(playerPromotionModel.aggregate).toHaveBeenCalled();
     });
 
     it('should claim and return new promotion if player has none but has available ones', async () => {
-      playerPromotionModel._mockAggregateResult = [];
+      playerPromotionModel.aggregate.mockResolvedValue([]);
       promotionModel.exec.mockResolvedValue(mockPromotions);
 
       jest.spyOn(service, 'assignPromotionToPlayer').mockResolvedValue(mockPlayerPromotion);
+      jest.spyOn(service as any, 'getPromotionById').mockResolvedValue(mockPromotions[0]);
 
       const result = await service.claimPromotion(playerDto);
 
-      expect(result).toEqual(mockPlayerPromotion);
+      expect(result).toEqual(
+        expect.objectContaining({
+          ...mockPlayerPromotion,
+          betLevel: 1,
+          isGiftCode: true,
+        }),
+      );
       expect(service.assignPromotionToPlayer).toHaveBeenCalledWith(
         'player1',
         'promo1',
@@ -325,7 +372,7 @@ describe('PlayerPromotionService', () => {
     });
 
     it('should return null if player has no promotion and no available promotions', async () => {
-      playerPromotionModel._mockAggregateResult = [];
+      playerPromotionModel.aggregate.mockResolvedValue([]);
       promotionModel.exec.mockResolvedValue([]);
 
       const result = await service.claimPromotion(playerDto);

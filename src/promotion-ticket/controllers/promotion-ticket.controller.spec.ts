@@ -34,6 +34,7 @@ describe('PromotionTicketController', () => {
     const inputDto: CreatePromotionTicketDto = {
       playerId: 'player123',
       operatorId: 'operator456',
+      promotionId: 'promo789',
       gameId: 1001,
       gameRoundId: 789,
       appType: 1,
@@ -105,6 +106,7 @@ describe('PromotionTicketController', () => {
       expect(mockPromotionTicketService.createTicket).toHaveBeenCalledWith({
         playerId: 'player123',
         operatorId: 'operator456',
+        promotionId: 'promo789',
         gameId: 1001,
         gameRoundId: 789,
         appType: 1,

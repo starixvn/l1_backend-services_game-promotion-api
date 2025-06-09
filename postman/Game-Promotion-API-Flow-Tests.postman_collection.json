@@ -119,6 +119,20 @@
               "    const jsonData = pm.response.json();",
               "    pm.expect(jsonData.promotion.remainingBonusItems).to.equal(50);",
               "    pm.expect(jsonData.promotion.lastUsedDate).to.be.null;",
+              "});",
+              "",
+              "pm.test('Promotion has new required fields', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.promotion).to.have.property('initialBonusItem', 50);",
+              "    pm.expect(jsonData.promotion).to.have.property('betLevel');",
+              "    pm.expect(jsonData.promotion.betLevel).to.be.a('number');",
+              "    pm.expect(jsonData.promotion).to.have.property('startDate');",
+              "    pm.expect(jsonData.promotion).to.have.property('endDate');",
+              "    pm.expect(new Date(jsonData.promotion.startDate)).to.be.below(new Date());",
+              "    pm.expect(new Date(jsonData.promotion.endDate)).to.be.above(new Date());",
+              "",
+              "    // Save promotion info for later use",
+              "    pm.collectionVariables.set('claimedPromotionId', jsonData.promotion.promotionId);",
               "});"
             ],
             "type": "text/javascript"
@@ -253,6 +267,7 @@
               "    const ticket = jsonData.ticket;",
               "    pm.expect(ticket).to.have.property('playerId', pm.collectionVariables.get('playerId'));",
               "    pm.expect(ticket).to.have.property('operatorId', pm.collectionVariables.get('operatorId'));",
+              "    pm.expect(ticket).to.have.property('promotionId', pm.collectionVariables.get('claimedPromotionId'));",
               "    pm.expect(ticket).to.have.property('gameId', parseInt(pm.collectionVariables.get('gameId')));",
               "    pm.expect(ticket).to.have.property('betAmount', 0.01);",
               "    pm.expect(ticket).to.have.property('winAmount');",
@@ -272,7 +287,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"gameId\": {{gameId}},\n  \"gameRoundId\": 789,\n  \"appType\": 1,\n  \"betAmount\": 0.01,\n  \"winAmount\": 15.50\n}"
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\",\n  \"gameId\": {{gameId}},\n  \"gameRoundId\": 789,\n  \"appType\": 1,\n  \"betAmount\": 0.01,\n  \"winAmount\": 15.50\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/promotion-tickets",
@@ -354,7 +369,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"gameId\": {{gameId}},\n  \"gameRoundId\": 790,\n  \"appType\": 1,\n  \"betAmount\": 0.01,\n  \"winAmount\": 0.00\n}"
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\",\n  \"gameId\": {{gameId}},\n  \"gameRoundId\": 790,\n  \"appType\": 1,\n  \"betAmount\": 0.01,\n  \"winAmount\": 0.00\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/promotion-tickets",
@@ -380,15 +395,21 @@
               "    const jsonData = pm.response.json();",
               "    pm.expect(jsonData.promotion).to.have.property('remainingBonusItems', 48);",
               "    pm.expect(jsonData.promotion.lastUsedDate).to.not.be.null;",
+              "    // Verify new fields are still present",
+              "    pm.expect(jsonData.promotion).to.have.property('initialBonusItem', 50);",
+              "    pm.expect(jsonData.promotion).to.have.property('betLevel');",
+              "    pm.expect(jsonData.promotion).to.have.property('startDate');",
+              "    pm.expect(jsonData.promotion).to.have.property('endDate');",
               "});",
               "",
               "pm.test('Promotion flow completed successfully', function () {",
               "    console.log('✅ Complete promotion flow test passed!');",
               "    console.log('- Created promotion with 50 bonus items');",
-              "    console.log('- Player claimed promotion');",
+              "    console.log('- Player claimed promotion with new fields (initialBonusItem, betLevel, startDate, endDate)');",
               "    console.log('- Used 2 free spins successfully');",
-              "    console.log('- Created 2 promotion tickets');",
+              "    console.log('- Created 2 promotion tickets with promotionId');",
               "    console.log('- Final state: 48 remaining bonus items');",
+              "    console.log('- All new fields verified in responses');",
               "});"
             ],
             "type": "text/javascript"

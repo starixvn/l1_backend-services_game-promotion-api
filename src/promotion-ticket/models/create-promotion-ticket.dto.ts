@@ -10,6 +10,10 @@ export class CreatePromotionTicketDto {
   @IsString()
   operatorId: string;
 
+  @ApiProperty({ description: 'Promotion identifier' })
+  @IsString()
+  promotionId: string;
+
   @ApiProperty({ description: 'Game identifier' })
   @IsNumber()
   @IsPositive()
