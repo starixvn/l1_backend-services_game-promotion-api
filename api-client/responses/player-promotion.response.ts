@@ -7,6 +7,8 @@ export interface PlayerPromotion {
   currencyGroup: string;
   remainingBonusItems: number;
   lastUsedDate: Date;
+  betLevel: number;
+  isGiftCode: boolean;
 }
 
 export interface PlayerPromotionResponse {

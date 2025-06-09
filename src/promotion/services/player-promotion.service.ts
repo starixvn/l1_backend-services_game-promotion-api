@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
+import {
+  PlayerPromotion,
+  PlayerPromotionDocument,
+  PlayerClaimedPromotionDocument,
+} from '../schemas/player-promotion.schema';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { PlayerDto } from '../models/player.dto';
 import { EligiblePromotion } from '../responses/eligible-promotion.response';
@@ -25,13 +29,16 @@ export class PlayerPromotionService {
    * @param playerDto Player information
    * @returns Current player promotion or null if none available
    */
-  async claimPromotion(playerDto: PlayerDto): Promise<PlayerPromotionDocument | null> {
+  async claimPromotion(playerDto: PlayerDto): Promise<PlayerClaimedPromotionDocument | null> {
     const { operatorId, siteName, playerId, currencyGroup } = playerDto;
 
     // Step 1: Check if player already has an active promotion
     const existingPromotion = await this.findExistingPromotion(playerId, operatorId, siteName);
     if (existingPromotion) {
-      return existingPromotion;
+      return {
+        ...existingPromotion,
+        isGiftCode: true,
+      } as PlayerClaimedPromotionDocument;
     }
 
     // Step 2: Find available promotions for the player
@@ -42,13 +49,22 @@ export class PlayerPromotionService {
 
     // Step 3: Claim the first available promotion
     const firstPromotion = availablePromotions[0];
-    return this.assignPromotionToPlayer(
+    const playerPromotion = await this.assignPromotionToPlayer(
       playerId,
       firstPromotion._id,
       operatorId,
       siteName,
       currencyGroup,
     );
+    const promotion = await this.getPromotionById(playerPromotion.promotionId.toString());
+
+    return {
+      ...playerPromotion,
+      betLevel: promotion.betLevels.find(
+        betLevel => betLevel.currencyGroup.toString() === currencyGroup.toString(),
+      )?.betLevel,
+      isGiftCode: true,
+    } as PlayerClaimedPromotionDocument;
   }
 
   async getCurrentPromotion(playerDto: PlayerDto): Promise<PlayerPromotionDocument | null> {
@@ -97,6 +113,7 @@ export class PlayerPromotionService {
     return promotions.map(promotion => {
       return {
         _id: promotion._id,
+        betLevels: promotion.betLevels,
         name: promotion.name,
         code: promotion.code,
         bonusItemCount: promotion.bonusItemCount,
@@ -118,45 +135,67 @@ export class PlayerPromotionService {
     siteName: string,
   ): Promise<PlayerPromotionDocument | null> {
     const now = new Date();
-    return this.playerPromotionModel
-      .aggregate([
-        {
-          $match: {
-            playerId,
-            operatorId,
-            siteName,
-            remainingBonusItems: { $gt: 0 },
-          },
+
+    const result = await this.playerPromotionModel.aggregate([
+      {
+        $match: {
+          playerId,
+          operatorId,
+          siteName,
+          remainingBonusItems: { $gt: 0 },
         },
-        {
-          $lookup: {
-            from: 'promotions',
-            localField: 'promotionId',
-            foreignField: '_id',
-            as: 'promotion',
-          },
+      },
+      {
+        $lookup: {
+          from: 'game_promotions',
+          localField: 'promotionCode',
+          foreignField: 'code',
+          as: 'promotion',
         },
-        {
-          $match: {
-            'promotion.0.startDate': { $lte: now },
-            'promotion.0.endDate': { $gt: now },
-          },
-        },
-        {
-          $replaceRoot: {
-            newRoot: {
-              $mergeObjects: [{ $arrayElemAt: ['$promotion', 0] }, '$$ROOT'],
+      },
+      {
+        $unwind: '$promotion',
+      },
+      {
+        $addFields: {
+          betLevel: {
+            $let: {
+              vars: {
+                matchedBetLevel: {
+                  $arrayElemAt: [
+                    {
+                      $filter: {
+                        input: '$promotion.betLevels',
+                        as: 'bl',
+                        cond: { $eq: ['$$bl.currencyGroup', '$currencyGroup'] },
+                      },
+                    },
+                    0,
+                  ],
+                },
+              },
+              in: '$$matchedBetLevel.betLevel',
             },
           },
         },
-        {
-          $project: {
-            promotion: 0,
-          },
+      },
+      {
+        $match: {
+          'promotion.startDate': { $lte: now },
+          'promotion.endDate': { $gt: now },
         },
-      ])
-      .exec()
-      .then(results => results[0] || null);
+      },
+      {
+        $project: {
+          promotion: 0,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ]);
+
+    return result.length > 0 ? result[0] : null;
   }
 
   /**
