@@ -33,7 +33,6 @@ export class PromotionTicketService {
       return {
         success: true,
         ticket: savedTicket,
-        ...PROMOTION_TICKET_ERROR_CODES.CREATION_SUCCESS,
       };
     } catch (error) {
       // Log the exception to Sentry with context

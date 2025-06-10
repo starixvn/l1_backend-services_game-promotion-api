@@ -52,7 +52,6 @@ describe('PromotionTicketController', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
         } as any,
-        ...PROMOTION_TICKET_ERROR_CODES.CREATION_SUCCESS,
       };
       mockPromotionTicketService.createTicket.mockResolvedValue(expectedServiceResponse);
 
@@ -94,7 +93,6 @@ describe('PromotionTicketController', () => {
       // Arrange
       const expectedServiceResponse: CreatePromotionTicketResponse = {
         success: true,
-        ...PROMOTION_TICKET_ERROR_CODES.CREATION_SUCCESS,
       };
       mockPromotionTicketService.createTicket.mockResolvedValue(expectedServiceResponse);
 

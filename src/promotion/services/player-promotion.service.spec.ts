@@ -146,8 +146,19 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel.aggregate.mockResolvedValue([]);
-      promotionModel.exec.mockResolvedValue(mockPromotions);
+      // Mock findExistingPromotion to return null (no existing promotion)
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      });
+
+      // Mock getRunningPromotions
+      promotionModel.find.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPromotions),
+        }),
+      });
 
       // Act
       const result = await service.hasAvailablePromotions(playerDto);
@@ -156,7 +167,7 @@ describe('PlayerPromotionService', () => {
       expect(result.length).toBe(2);
       expect(result[0]._id).toBe('promo1');
       expect(result[1]._id).toBe('promo2');
-      expect(playerPromotionModel.aggregate).toHaveBeenCalled();
+      expect(playerPromotionModel.findOne).toHaveBeenCalled();
       expect(promotionModel.find).toHaveBeenCalled();
     });
 
@@ -169,15 +180,19 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel.aggregate.mockResolvedValue([mockPlayerPromotion]);
-      promotionModel.exec.mockResolvedValue(mockPromotions); // Mock the getRunningPromotions call
+      // Mock findExistingPromotion to return an existing promotion
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      });
 
       // Act
       const result = await service.hasAvailablePromotions(playerDto);
 
       // Assert
       expect(result.length).toBe(0);
-      expect(playerPromotionModel.aggregate).toHaveBeenCalled();
+      expect(playerPromotionModel.findOne).toHaveBeenCalled();
     });
   });
 
@@ -205,7 +220,12 @@ describe('PlayerPromotionService', () => {
         ],
       };
 
-      promotionModel.exec.mockResolvedValue(mockPromotion);
+      // Mock the findById chain properly
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPromotion),
+        }),
+      });
 
       // Instead of mocking the constructor, directly mock the createPlayerPromotion method
       jest.spyOn(service as any, 'createPlayerPromotion').mockResolvedValue(mockPlayerPromotion);
@@ -232,7 +252,12 @@ describe('PlayerPromotionService', () => {
       const siteName = 'site1';
       const currencyGroup = 'currency1';
 
-      promotionModel.exec.mockResolvedValue(null);
+      // Mock the findById chain to return null
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      });
 
       // Act & Assert
       await expect(
@@ -251,20 +276,31 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel.aggregate.mockResolvedValue([mockPlayerPromotion]);
-      promotionModel.exec.mockResolvedValue(mockPromotions); // Mock the getRunningPromotions call
+      // Mock findExistingPromotion to return existing promotion
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      });
 
       // Act
       const result = await service.getCurrentPromotion(playerDto);
 
-      // Assert
+      // Assert - Should return object without _id and __v
       expect(result).toEqual(
         expect.objectContaining({
-          ...mockPlayerPromotion,
-          isGiftCode: true,
+          playerId: 'player1',
+          operatorId: 'op123',
+          siteName: 'site1',
+          promotionId: 'promo1',
+          promotionCode: 'test-promo-1',
+          currencyGroup: 'currency1',
+          remainingBonusItems: 10,
         }),
       );
-      expect(playerPromotionModel.aggregate).toHaveBeenCalled();
+      expect(result).not.toHaveProperty('_id');
+      expect(result).not.toHaveProperty('__v');
+      expect(playerPromotionModel.findOne).toHaveBeenCalled();
     });
 
     it('should create and return new promotion if player has no promotion but has available ones', async () => {
@@ -276,24 +312,44 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel.aggregate.mockResolvedValue([]);
-      promotionModel.exec.mockResolvedValue(mockPromotions);
+      // Mock findExistingPromotion to return null
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      });
 
-      // Mock assignPromotionToPlayer instead of createPlayerPromotion
-      jest.spyOn(service, 'assignPromotionToPlayer').mockResolvedValue(mockPlayerPromotion);
+      // Mock getRunningPromotions
+      promotionModel.find.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPromotions),
+        }),
+      });
+
+      // Mock assignPromotionToPlayer
+      jest.spyOn(service, 'assignPromotionToPlayer').mockResolvedValue({
+        ...mockPlayerPromotion,
+        toObject: () => ({ ...mockPlayerPromotion, _id: 'player-promo1', __v: 0 }),
+      } as any);
+
+      // Mock getPromotionById
       jest.spyOn(service as any, 'getPromotionById').mockResolvedValue(mockPromotions[0]);
 
       // Act
       const result = await service.getCurrentPromotion(playerDto);
 
-      // Assert
+      // Assert - Should return object without _id and __v
       expect(result).toEqual(
         expect.objectContaining({
-          ...mockPlayerPromotion,
-          betLevel: 1,
-          isGiftCode: true,
+          playerId: 'player1',
+          operatorId: 'op123',
+          promotionCode: 'test-promo-1',
+          currencyGroup: 'currency1',
+          remainingBonusItems: 10,
         }),
       );
+      expect(result).not.toHaveProperty('_id');
+      expect(result).not.toHaveProperty('__v');
       expect(service.assignPromotionToPlayer).toHaveBeenCalledWith(
         'player1',
         'promo1',
@@ -312,8 +368,19 @@ describe('PlayerPromotionService', () => {
         currencyGroup: 'currency1',
       };
 
-      playerPromotionModel.aggregate.mockResolvedValue([]);
-      promotionModel.exec.mockResolvedValue([]);
+      // Mock findExistingPromotion to return null
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      });
+
+      // Mock getRunningPromotions to return empty array
+      promotionModel.find.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+      });
 
       // Act
       const result = await service.getCurrentPromotion(playerDto);
@@ -332,36 +399,66 @@ describe('PlayerPromotionService', () => {
     };
 
     it('should return existing promotion if player has one', async () => {
-      playerPromotionModel.aggregate.mockResolvedValue([mockPlayerPromotion]);
-      promotionModel.exec.mockResolvedValue(mockPromotions); // Mock the getRunningPromotions call
+      // Mock findExistingPromotion to return existing promotion
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      });
 
       const result = await service.claimPromotion(playerDto);
 
+      // Assert - Should return object without _id and __v
       expect(result).toEqual(
         expect.objectContaining({
-          ...mockPlayerPromotion,
-          isGiftCode: true,
+          playerId: 'player1',
+          operatorId: 'op123',
+          siteName: 'site1',
+          promotionId: 'promo1',
+          promotionCode: 'test-promo-1',
+          currencyGroup: 'currency1',
+          remainingBonusItems: 10,
         }),
       );
-      expect(playerPromotionModel.aggregate).toHaveBeenCalled();
+      expect(result).not.toHaveProperty('_id');
+      expect(result).not.toHaveProperty('__v');
+      expect(playerPromotionModel.findOne).toHaveBeenCalled();
     });
 
     it('should claim and return new promotion if player has none but has available ones', async () => {
-      playerPromotionModel.aggregate.mockResolvedValue([]);
-      promotionModel.exec.mockResolvedValue(mockPromotions);
+      // Mock findExistingPromotion to return null
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      });
 
-      jest.spyOn(service, 'assignPromotionToPlayer').mockResolvedValue(mockPlayerPromotion);
-      jest.spyOn(service as any, 'getPromotionById').mockResolvedValue(mockPromotions[0]);
+      // Mock getRunningPromotions
+      promotionModel.find.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPromotions),
+        }),
+      });
+
+      jest.spyOn(service, 'assignPromotionToPlayer').mockResolvedValue({
+        ...mockPlayerPromotion,
+        toObject: () => ({ ...mockPlayerPromotion, _id: 'player-promo1', __v: 0 }),
+      } as any);
 
       const result = await service.claimPromotion(playerDto);
 
+      // Assert - Should return object without _id and __v
       expect(result).toEqual(
         expect.objectContaining({
-          ...mockPlayerPromotion,
-          betLevel: 1,
-          isGiftCode: true,
+          playerId: 'player1',
+          operatorId: 'op123',
+          promotionCode: 'test-promo-1',
+          currencyGroup: 'currency1',
+          remainingBonusItems: 10,
         }),
       );
+      expect(result).not.toHaveProperty('_id');
+      expect(result).not.toHaveProperty('__v');
       expect(service.assignPromotionToPlayer).toHaveBeenCalledWith(
         'player1',
         'promo1',
@@ -372,8 +469,19 @@ describe('PlayerPromotionService', () => {
     });
 
     it('should return null if player has no promotion and no available promotions', async () => {
-      playerPromotionModel.aggregate.mockResolvedValue([]);
-      promotionModel.exec.mockResolvedValue([]);
+      // Mock findExistingPromotion to return null
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      });
+
+      // Mock getRunningPromotions to return empty array
+      promotionModel.find.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+      });
 
       const result = await service.claimPromotion(playerDto);
 
