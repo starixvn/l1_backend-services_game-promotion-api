@@ -41,7 +41,6 @@ describe('PlayerPromotionController - deductBonusItem', () => {
       // Arrange
       const expectedServiceResponse: DeductBonusItemResponse = {
         success: true,
-        ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_SUCCESS,
       };
       mockPlayerPromotionService.deductBonusItem.mockResolvedValue(expectedServiceResponse);
 
@@ -95,7 +94,6 @@ describe('PlayerPromotionController - deductBonusItem', () => {
       // Arrange
       const expectedServiceResponse: DeductBonusItemResponse = {
         success: true,
-        ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_SUCCESS,
       };
       mockPlayerPromotionService.deductBonusItem.mockResolvedValue(expectedServiceResponse);
 

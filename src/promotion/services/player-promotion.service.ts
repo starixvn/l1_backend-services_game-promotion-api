@@ -296,7 +296,6 @@ export class PlayerPromotionService {
     if (result) {
       return {
         success: true,
-        ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_SUCCESS,
       };
     }
 
@@ -343,7 +342,6 @@ export class PlayerPromotionService {
     if (result) {
       return {
         success: true,
-        ...PLAYER_PROMOTION_ERROR_CODES.ROLLBACK_SUCCESS,
       };
     }
 

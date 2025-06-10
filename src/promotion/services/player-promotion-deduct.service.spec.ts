@@ -63,7 +63,6 @@ describe('PlayerPromotionService - deductBonusItem', () => {
 
       const expectedResult: DeductBonusItemResponse = {
         success: true,
-        ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_SUCCESS,
       };
 
       // Act
