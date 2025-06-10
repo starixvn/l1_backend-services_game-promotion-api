@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Game Promotion API - Flow Tests",
-    "description": "Positive test scenarios for the complete promotion flow: create promotion -> claim promotion -> deduct bonus item -> insert promotion ticket",
+    "name": "Game Promotion API - Complete Lifecycle Flow",
+    "description": "Complete promotion lifecycle testing:\n\n**Flow Overview:**\n- Create promotion (50 bonus items)\n- Claim promotion\n- Check available promotions\n- Deduct bonus items (2 times)\n- Create promotion tickets (2 times)\n- Verify final state\n\n**Key Features:**\n- Tests the full end-to-end promotion workflow\n- Validates promotion tickets creation\n- Verifies response format without success codes\n- Comprehensive state verification",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -43,6 +43,11 @@
     {
       "key": "gameRoundId",
       "value": "789",
+      "type": "string"
+    },
+    {
+      "key": "claimedPromotionId",
+      "value": "",
       "type": "string"
     }
   ],
@@ -215,8 +220,9 @@
               "pm.test('Bonus item deducted successfully', function () {",
               "    const jsonData = pm.response.json();",
               "    pm.expect(jsonData).to.have.property('success', true);",
-              "    pm.expect(jsonData).to.have.property('code', 'SB3002');",
-              "    pm.expect(jsonData).to.have.property('message', 'Bonus item deducted successfully');",
+              "    // No code/message properties expected for successful responses",
+              "    pm.expect(jsonData).to.not.have.property('code');",
+              "    pm.expect(jsonData).to.not.have.property('message');",
               "});"
             ],
             "type": "text/javascript"
@@ -257,8 +263,9 @@
               "pm.test('Promotion ticket created successfully', function () {",
               "    const jsonData = pm.response.json();",
               "    pm.expect(jsonData).to.have.property('success', true);",
-              "    pm.expect(jsonData).to.have.property('code', 'PT3300');",
-              "    pm.expect(jsonData).to.have.property('message', 'Promotion ticket created successfully');",
+              "    // No code/message properties expected for successful responses",
+              "    pm.expect(jsonData).to.not.have.property('code');",
+              "    pm.expect(jsonData).to.not.have.property('message');",
               "    pm.expect(jsonData).to.have.property('ticket');",
               "});",
               "",
@@ -311,7 +318,9 @@
               "pm.test('Second bonus item deducted successfully', function () {",
               "    const jsonData = pm.response.json();",
               "    pm.expect(jsonData).to.have.property('success', true);",
-              "    pm.expect(jsonData).to.have.property('code', 'SB3002');",
+              "    // No code/message properties expected for successful responses",
+              "    pm.expect(jsonData).to.not.have.property('code');",
+              "    pm.expect(jsonData).to.not.have.property('message');",
               "});"
             ],
             "type": "text/javascript"
@@ -379,7 +388,6 @@
         "description": "Create promotion ticket for the second free spin result (no win)"
       }
     },
-
     {
       "name": "8. Verify Final State - Claim Promotion Again",
       "event": [
@@ -402,14 +410,18 @@
               "    pm.expect(jsonData.promotion).to.have.property('endDate');",
               "});",
               "",
-              "pm.test('Promotion flow completed successfully', function () {",
-              "    console.log('✅ Complete promotion flow test passed!');",
-              "    console.log('- Created promotion with 50 bonus items');",
-              "    console.log('- Player claimed promotion with new fields (initialBonusItem, betLevel, startDate, endDate)');",
-              "    console.log('- Used 2 free spins successfully');",
-              "    console.log('- Created 2 promotion tickets with promotionId');",
-              "    console.log('- Final state: 48 remaining bonus items');",
-              "    console.log('- All new fields verified in responses');",
+              "pm.test('Complete lifecycle flow summary', function () {",
+              "    console.log('');",
+              "    console.log('🎉 Complete Promotion Lifecycle Flow Completed Successfully!');",
+              "    console.log('='.repeat(60));",
+              "    console.log('✅ Created promotion with 50 bonus items');",
+              "    console.log('✅ Player claimed promotion with new fields');",
+              "    console.log('✅ Verified no available promotions (player has one)');",
+              "    console.log('✅ Used 2 free spins successfully');",
+              "    console.log('✅ Created 2 promotion tickets with promotionId');",
+              "    console.log('✅ Final state: 48 remaining bonus items');",
+              "    console.log('✅ All response formats verified (no success codes)');",
+              "    console.log('='.repeat(60));",
               "});"
             ],
             "type": "text/javascript"
@@ -433,7 +445,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["player-promotions", "claim-promotion"]
         },
-        "description": "Verify the final state after the complete flow"
+        "description": "Verify the final state after the complete lifecycle flow"
       }
     }
   ],
@@ -444,9 +456,8 @@
         "type": "text/javascript",
         "exec": [
           "// Set dynamic values for each test run",
-          "if (!pm.collectionVariables.get('testRunId')) {",
-          "    pm.collectionVariables.set('testRunId', Date.now());",
-          "}"
+          "console.log('🚀 Starting Complete Promotion Lifecycle Flow Tests');",
+          "console.log('Target API:', pm.collectionVariables.get('baseUrl'));"
         ]
       }
     }
