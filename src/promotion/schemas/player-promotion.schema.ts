@@ -3,12 +3,6 @@ import { Document, Schema as MongooseSchema } from 'mongoose';
 
 export type PlayerPromotionDocument = PlayerPromotion & Document;
 
-export type PlayerClaimedPromotionDocument = PlayerPromotion &
-  Document & {
-    betLevel: number | undefined;
-    isGiftCode: boolean;
-  };
-
 @Schema({ timestamps: true, collection: 'game_player_promotions' })
 export class PlayerPromotion {
   @Prop({ required: true })
@@ -46,6 +40,9 @@ export class PlayerPromotion {
 
   @Prop({ type: Date, default: null })
   lastUsedDate: Date;
+
+  @Prop({ type: Boolean, required: true })
+  isGiftCode: boolean;
 }
 
 export const PlayerPromotionSchema = SchemaFactory.createForClass(PlayerPromotion);
