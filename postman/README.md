@@ -71,13 +71,14 @@ Both collections use these configurable variables:
 
 ### Additional Variables (Deduction Collection)
 
-| Variable                   | Description                          |
-| -------------------------- | ------------------------------------ |
-| `testRunId`                | Unique identifier for test run       |
-| `deductionTestPromotionId` | ID of the test promotion             |
-| `deductionTestPlayerId`    | Unique player ID for deduction tests |
-| `initialRemainingItems`    | Starting bonus item count            |
-| `expectedRemainingItems`   | Expected count after deductions      |
+| Variable                 | Description                      |
+| ------------------------ | -------------------------------- |
+| `testRunId`              | Unique identifier for test run   |
+| `existingPromotionId`    | ID of existing promotion to test |
+| `playerId`               | Player ID for deduction tests    |
+| `initialRemainingItems`  | Starting bonus item count        |
+| `expectedRemainingItems` | Expected count after deductions  |
+| `initialBonusItemCount`  | Initial bonus items of promotion |
 
 ## How to Use
 
@@ -100,10 +101,11 @@ Both collections use these configurable variables:
 #### Option 2: Deduction Verification Flow
 
 1. Import `Game-Promotion-API-Deduction-Verification.postman_collection.json`
-2. Click "Run Collection"
-3. Select all 6 requests
-4. Click "Run" to execute deduction verification
-5. Expected result: **23 remaining bonus items** (25 → 24 → 23)
+2. **Set `existingPromotionId` variable** to an existing promotion ID
+3. Click "Run Collection"
+4. Select all 6 requests
+5. Click "Run" to execute deduction verification
+6. Expected result: **2 items deducted** from the existing promotion
 
 #### Option 3: Run Both Collections
 
@@ -124,9 +126,9 @@ Both collections use these configurable variables:
 
 #### Deduction Verification Flow
 
-- ✅ **15+ test assertions** passing
-- ✅ Promotion created with **25 bonus items**
-- ✅ **Precise deduction tracking** (25 → 24 → 23)
+- ✅ **12+ test assertions** passing
+- ✅ Uses **existing promotion** (no creation needed)
+- ✅ **Precise deduction tracking** (initial → -1 → -2)
 - ✅ **Multiple deduction verification**
 - ✅ **Field integrity** maintained throughout
 - ✅ **State consistency** verified
