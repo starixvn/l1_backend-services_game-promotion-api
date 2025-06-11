@@ -15,6 +15,7 @@ import {
   RollbackResponse,
   CreatePromotionTicketResponse,
 } from './responses';
+import { TotalWinDto } from './dtos/total-win.dto';
 
 export class GamePromotionApiClient {
   private readonly httpClient: AxiosInstance;
@@ -117,6 +118,17 @@ export class GamePromotionApiClient {
     const response: AxiosResponse<CreatePromotionTicketResponse> = await this.httpClient.post(
       '/promotion-tickets',
       createTicketDto,
+    );
+    return response.data;
+  }
+
+  /**
+   * Get total win amount for a player by promotion and operator
+   */
+  async getTotalWin(totalWinDto: TotalWinDto): Promise<{ totalWin: number }> {
+    const response: AxiosResponse<{ totalWin: number }> = await this.httpClient.post(
+      '/promotion-tickets/total-win',
+      totalWinDto,
     );
     return response.data;
   }
