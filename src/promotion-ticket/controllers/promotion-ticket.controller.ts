@@ -30,8 +30,7 @@ export class PromotionTicketController {
     description: 'Total win amount',
     type: Number,
   })
-  async calculateTotalWin(@Body() totalWinDto: TotalWinDto): Promise<{ totalWin: number }> {
-    const totalWin = await this.promotionTicketService.calculateTotalWin(totalWinDto);
-    return { totalWin };
+  async calculateTotalWin(@Body() totalWinDto: TotalWinDto): Promise<number> {
+    return this.promotionTicketService.calculateTotalWin(totalWinDto);
   }
 }
