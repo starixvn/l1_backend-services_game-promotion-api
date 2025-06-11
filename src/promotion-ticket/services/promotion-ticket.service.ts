@@ -57,7 +57,7 @@ export class PromotionTicketService {
    * @param operatorId Operator ID
    * @returns Total win amount (number)
    */
-  async getTotalWin(totalWinDto: TotalWinDto): Promise<number> {
+  async calculateTotalWin(totalWinDto: TotalWinDto): Promise<number> {
     const tickets = await this.promotionTicketModel
       .find({
         promotionId: totalWinDto.promotionId,

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpStatus, Get } from '@nestjs/common';
+import { Controller, Post, Body, HttpStatus } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PromotionTicketService } from '../services/promotion-ticket.service';
 import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto';
@@ -23,15 +23,15 @@ export class PromotionTicketController {
     return this.promotionTicketService.createTicket(createTicketDto);
   }
 
-  @Get('total-win')
+  @Post('total-win')
   @ApiOperation({ summary: 'Get total win amount for a player by promotion and operator' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Total win amount',
     type: Number,
   })
-  async getTotalWin(@Body() totalWinDto: TotalWinDto): Promise<{ totalWin: number }> {
-    const totalWin = await this.promotionTicketService.getTotalWin(totalWinDto);
+  async calculateTotalWin(@Body() totalWinDto: TotalWinDto): Promise<{ totalWin: number }> {
+    const totalWin = await this.promotionTicketService.calculateTotalWin(totalWinDto);
     return { totalWin };
   }
 }
