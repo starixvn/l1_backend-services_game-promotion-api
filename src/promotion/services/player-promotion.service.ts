@@ -154,10 +154,58 @@ export class PlayerPromotionService {
       currencyGroup,
     );
     const hasPromotion = await this.hasCurrentPromotion(playerId, operatorId, siteName);
+
     if (hasPromotion) {
       return [];
     }
-    return this.mapPromotionsToEligible(runningPromotions, currencyGroup);
+
+    // Filter out promotions that have been claimed before by this player
+    const unclaimedPromotions = await this.filterUnclaimedPromotions(
+      runningPromotions,
+      playerId,
+      operatorId,
+      siteName,
+    );
+
+    return this.mapPromotionsToEligible(unclaimedPromotions, currencyGroup);
+  }
+
+  /**
+   * Filter out promotions that have been claimed before by the player
+   * @param promotions List of running promotions
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @returns List of unclaimed promotions
+   */
+  private async filterUnclaimedPromotions(
+    promotions: PromotionDocument[],
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+  ): Promise<PromotionDocument[]> {
+    if (promotions.length === 0) {
+      return [];
+    }
+
+    // Get all promotion IDs that this player has ever claimed
+    const claimedPromotions = await this.playerPromotionModel
+      .find({
+        playerId,
+        operatorId,
+        siteName,
+      })
+      .lean()
+      .exec();
+
+    // Filter out promotions that have been claimed before
+    return promotions.filter(
+      promotion =>
+        !claimedPromotions.some(
+          claimedPromotion =>
+            claimedPromotion.promotionCode.toString() === promotion.code.toString(),
+        ),
+    );
   }
 
   /**
