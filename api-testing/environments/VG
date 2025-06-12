@@ -1,0 +1,93 @@
+{
+	"id": "2ec5de9c-291c-4f48-ae9c-95870a29ca15",
+	"name": "VG",
+	"values": [
+		{
+			"key": "baseUrl",
+			"value": "https://l2-proxy2.lumigame.com/game-promotion-api",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "operatorId",
+			"value": "operator123",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "playerId",
+			"value": "player456",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "siteName",
+			"value": "testsite",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "promotionId",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "currencyGroup",
+			"value": "61b953ad815d6c000196a14c",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "gameId",
+			"value": "29",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "gameRoundId",
+			"value": "2357",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "testRunId",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "deductionTestPromotionId",
+			"value": "",
+			"type": "any",
+			"enabled": true
+		},
+		{
+			"key": "deductionTestPlayerId",
+			"value": "",
+			"type": "any",
+			"enabled": true
+		},
+		{
+			"key": "initialRemainingItems",
+			"value": "",
+			"type": "any",
+			"enabled": true
+		},
+		{
+			"key": "claimedDeductionPromotionId",
+			"value": "",
+			"type": "any",
+			"enabled": true
+		},
+		{
+			"key": "expectedRemainingItems",
+			"value": "",
+			"type": "any",
+			"enabled": true
+		}
+	],
+	"_postman_variable_scope": "environment",
+	"_postman_exported_at": "2025-06-12T08:45:50.261Z",
+	"_postman_exported_using": "Postman/11.49.2"
+}
