@@ -10,6 +10,7 @@ api_tests:
   image: hub.lumigame.com/base/node:22-alpine-25h1.1
   stage: test
   before_script:
-    - npm install newman
+    - cd api-testing
+    - npm install
   script:
     - node index.js
