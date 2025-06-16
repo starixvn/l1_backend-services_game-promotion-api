@@ -81,6 +81,9 @@ describe('PromotionModule (Integration)', () => {
     // Add static methods to the model
     MockPromotionModel.find = jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue(mockModelPromotion),
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockModelPromotion),
+      }),
     });
     MockPromotionModel.findById = jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue(mockModelPromotion),
@@ -156,8 +159,18 @@ describe('PromotionModule (Integration)', () => {
       return request(app.getHttpServer()).get('/promotions/running?operatorId=op123').expect(200);
     });
 
-    it('should return 400 if operatorId is not provided', () => {
-      return request(app.getHttpServer()).get('/promotions/running').expect(400);
+    it('should return running promotions for a specific gameId', () => {
+      return request(app.getHttpServer()).get('/promotions/running?gameId=1001').expect(200);
+    });
+
+    it('should return running promotions for both operatorId and gameId', () => {
+      return request(app.getHttpServer())
+        .get('/promotions/running?operatorId=op123&gameId=1001')
+        .expect(200);
+    });
+
+    it('should return all running promotions when no parameters are provided', () => {
+      return request(app.getHttpServer()).get('/promotions/running').expect(200);
     });
   });
 

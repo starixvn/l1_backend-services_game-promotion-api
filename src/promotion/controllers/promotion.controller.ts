@@ -120,15 +120,23 @@ export class PromotionController {
 
   /**
    * Get running promotions sorted by priority
-   * @param operatorId - Operator ID to filter by (required for performance)
+   * @param operatorId - Operator ID to filter by (optional - if provided, filter by operatorId, otherwise get all)
+   * @param gameId - Game ID to filter by (optional - if provided, filter by gameId, otherwise get all)
    * @returns Array of running promotions sorted by priority rules
    */
   @Get('running')
   @ApiOperation({ summary: 'Get running promotions sorted by priority' })
   @ApiQuery({
     name: 'operatorId',
-    required: true,
-    description: 'Filter by operator ID (required for performance)',
+    required: false,
+    description:
+      'Filter by operator ID (optional - if provided, filter by operatorId, otherwise get all)',
+    type: String,
+  })
+  @ApiQuery({
+    name: 'gameId',
+    required: false,
+    description: 'Filter by game ID (optional - if provided, filter by gameId, otherwise get all)',
     type: String,
   })
   @ApiResponse({
@@ -136,15 +144,11 @@ export class PromotionController {
     description: 'Returns running promotions sorted by priority (earliest end date first)',
     type: [Promotion],
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad request - operatorId is required',
-  })
-  async getRunningPromotions(@Query('operatorId') operatorId: string): Promise<Promotion[]> {
-    if (!operatorId) {
-      throw new BadRequestException('operatorId is required for performance reasons');
-    }
-    return this.promotionService.getRunningPromotions(operatorId);
+  async getRunningPromotions(
+    @Query('operatorId') operatorId?: string,
+    @Query('gameId') gameId?: string,
+  ): Promise<Promotion[]> {
+    return this.promotionService.getRunningPromotions(operatorId, gameId);
   }
 
   @Get('check-code')

@@ -14,6 +14,7 @@ import {
   DeductBonusItemResponse,
   RollbackResponse,
   CreatePromotionTicketResponse,
+  PromotionResponse,
 } from './responses';
 import { TotalWinDto } from './dtos/total-win.dto';
 
@@ -107,6 +108,15 @@ export class GamePromotionApiClient {
     return response.data;
   }
 
+  // ===== PROMOTION METHODS =====
+
+  async getRunningPromotions(operatorId?: string, gameId?: string): Promise<PromotionResponse[]> {
+    const response: AxiosResponse<PromotionResponse[]> = await this.httpClient.get(
+      '/promotions/running',
+      { params: { operatorId, gameId } },
+    );
+    return response.data;
+  }
   // ===== PROMOTION TICKET METHODS =====
 
   /**

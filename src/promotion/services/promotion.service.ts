@@ -156,16 +156,26 @@ export class PromotionService {
 
   /**
    * Gets only running promotions (active at current time) sorted by priority
-   * @param operatorId - Operator ID to filter by (required for performance)
+   * @param operatorId - Operator ID to filter by (optional - if provided, filter by operatorId, otherwise get all)
+   * @param gameId - Game ID to filter by (optional - if provided, filter by gameId, otherwise get all)
    * @returns Array of running promotions sorted by priority rules
    */
-  async getRunningPromotions(operatorId: string): Promise<Promotion[]> {
+  async getRunningPromotions(operatorId?: string, gameId?: string): Promise<Promotion[]> {
     const now = new Date();
     const query: Record<string, any> = {
       startDate: { $lte: now },
       endDate: { $gt: now },
-      operatorId: operatorId,
     };
+
+    // Add operatorId filter if provided
+    if (operatorId) {
+      query.operatorId = operatorId;
+    }
+
+    // Add gameId filter if provided
+    if (gameId) {
+      query.gameIds = { $in: [parseInt(gameId)] };
+    }
 
     return this.promotionModel
       .find(query, null, { sort: { endDate: 1, _id: 1 }, lean: true })
