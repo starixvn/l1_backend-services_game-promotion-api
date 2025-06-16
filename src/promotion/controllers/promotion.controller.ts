@@ -21,7 +21,7 @@ import {
 import { PromotionService } from '../services/promotion.service';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
-import { Promotion } from '../schemas/promotion.schema';
+import { Promotion, PromotionExpiryDocument } from '../schemas/promotion.schema';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
 import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 import { PaginationResponse } from '../responses/pagination.response';
@@ -116,6 +116,31 @@ export class PromotionController {
   })
   async findAll(@Query() filterDto: PromotionFilterDto): Promise<PaginationResponse<Promotion>> {
     return this.promotionService.findAll(filterDto);
+  }
+
+  /**
+   * Get running promotions sorted by priority
+   * @param operatorId - Operator ID to filter by (optional - if provided, filter by operatorId, otherwise get all)
+   * @param gameId - Game ID to filter by (optional - if provided, filter by gameId, otherwise get all)
+   * @returns Array of running promotions sorted by priority rules
+   */
+  @Get('expiring')
+  @ApiOperation({ summary: 'Get running promotions sorted by priority' })
+  @ApiQuery({
+    name: 'gameId',
+    required: false,
+    description: 'Filter by game ID (optional - if provided, filter by gameId, otherwise get all)',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns running promotions sorted by priority (earliest end date first)',
+    type: [Promotion],
+  })
+  async getExpiringPromotions(
+    @Query('gameId') gameId?: string,
+  ): Promise<PromotionExpiryDocument[]> {
+    return this.promotionService.getExpiringPromotions(gameId);
   }
 
   /**

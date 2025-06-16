@@ -6,12 +6,17 @@ import { Promotion, PromotionSchema } from './schemas/promotion.schema';
 import { PlayerPromotion, PlayerPromotionSchema } from './schemas/player-promotion.schema';
 import { PlayerPromotionController } from './controllers/player-promotion.controller';
 import { PlayerPromotionService } from './services/player-promotion.service';
+import {
+  PromotionTicket,
+  PromotionTicketSchema,
+} from '../promotion-ticket/schemas/promotion-ticket.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Promotion.name, schema: PromotionSchema },
       { name: PlayerPromotion.name, schema: PlayerPromotionSchema },
+      { name: PromotionTicket.name, schema: PromotionTicketSchema },
     ]),
   ],
   controllers: [PromotionController, PlayerPromotionController],

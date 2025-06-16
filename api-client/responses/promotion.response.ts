@@ -20,3 +20,12 @@ export interface PromotionResponse {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface PlayerStats {
+  playerId: string;
+  totalWin: number;
+}
+
+export interface PromotionExpiryResponse extends PromotionResponse {
+  players: PlayerStats[];
+}

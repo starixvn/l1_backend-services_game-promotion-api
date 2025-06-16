@@ -17,6 +17,7 @@ import {
   PromotionResponse,
 } from './responses';
 import { TotalWinDto } from './dtos/total-win.dto';
+import { PromotionExpiryResponse } from './responses/promotion.response';
 
 export class GamePromotionApiClient {
   private readonly httpClient: AxiosInstance;
@@ -114,6 +115,14 @@ export class GamePromotionApiClient {
     const response: AxiosResponse<PromotionResponse[]> = await this.httpClient.get(
       '/promotions/running',
       { params: { operatorId, gameId } },
+    );
+    return response.data;
+  }
+
+  async getExpiringPromotions(gameId?: string): Promise<PromotionExpiryResponse[]> {
+    const response: AxiosResponse<PromotionExpiryResponse[]> = await this.httpClient.get(
+      '/promotions/expiring',
+      { params: { gameId } },
     );
     return response.data;
   }
