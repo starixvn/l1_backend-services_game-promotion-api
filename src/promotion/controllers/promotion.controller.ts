@@ -128,7 +128,7 @@ export class PromotionController {
   @ApiOperation({ summary: 'Get running promotions sorted by priority' })
   @ApiQuery({
     name: 'gameId',
-    required: false,
+    required: true,
     description: 'Filter by game ID (optional - if provided, filter by gameId, otherwise get all)',
     type: String,
   })
@@ -137,9 +137,10 @@ export class PromotionController {
     description: 'Returns running promotions sorted by priority (earliest end date first)',
     type: [Promotion],
   })
-  async getExpiringPromotions(
-    @Query('gameId') gameId?: string,
-  ): Promise<PromotionExpiryDocument[]> {
+  async getExpiringPromotions(@Query('gameId') gameId: string): Promise<PromotionExpiryDocument[]> {
+    if (!gameId) {
+      throw new BadRequestException('gameId is required');
+    }
     return this.promotionService.getExpiringPromotions(gameId);
   }
 

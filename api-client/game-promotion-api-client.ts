@@ -113,16 +113,14 @@ export class GamePromotionApiClient {
 
   async getRunningPromotions(operatorId?: string, gameId?: string): Promise<PromotionResponse[]> {
     const response: AxiosResponse<PromotionResponse[]> = await this.httpClient.get(
-      '/promotions/running',
-      { params: { operatorId, gameId } },
+      `/promotions/running?operatorId=${operatorId}&gameId=${gameId}`,
     );
     return response.data;
   }
 
   async getExpiringPromotions(gameId?: string): Promise<PromotionExpiryResponse[]> {
     const response: AxiosResponse<PromotionExpiryResponse[]> = await this.httpClient.get(
-      '/promotions/expiring',
-      { params: { gameId } },
+      `/promotions/expiring?gameId=${gameId}`,
     );
     return response.data;
   }
