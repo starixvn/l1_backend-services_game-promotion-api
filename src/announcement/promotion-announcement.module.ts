@@ -11,7 +11,7 @@ import { Promotion, PromotionSchema } from '../promotion/schemas/promotion.schem
 import {
   PromotionTicket,
   PromotionTicketSchema,
-} from 'src/promotion-ticket/schemas/promotion-ticket.schema';
+} from '../promotion-ticket/schemas/promotion-ticket.schema';
 @Module({
   imports: [
     MongooseModule.forFeature([

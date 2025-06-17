@@ -9,7 +9,7 @@ import { PaginationResponse } from '../responses/pagination.response';
 import {
   PromotionTicket,
   PromotionTicketDocument,
-} from 'src/promotion-ticket/schemas/promotion-ticket.schema';
+} from '../../promotion-ticket/schemas/promotion-ticket.schema';
 
 @Injectable()
 export class PromotionService {

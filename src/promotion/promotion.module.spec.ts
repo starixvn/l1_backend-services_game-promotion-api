@@ -5,6 +5,7 @@ import * as request from 'supertest';
 import { PromotionModule } from './promotion.module';
 import { Promotion } from './schemas/promotion.schema';
 import { PlayerPromotion } from './schemas/player-promotion.schema';
+import { PromotionTicket } from '../promotion-ticket/schemas/promotion-ticket.schema';
 // Used in query parameters: /promotions?status=running
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { PromotionStatus } from './models/promotion-filter.dto';
@@ -17,6 +18,7 @@ describe('PromotionModule (Integration)', () => {
   let app: INestApplication;
   // mockPromotionModel is assigned using app.get() in the test cases
   let mockPlayerPromotionModel: any;
+  let mockPromotionTicketModel: any;
 
   // Sample promotion data with string dates for JSON comparison
   const mockPromotion = {
@@ -106,6 +108,16 @@ describe('PromotionModule (Integration)', () => {
       }),
     };
 
+    // Mock for the Promotion Ticket model (required by the module)
+    mockPromotionTicketModel = {
+      find: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+      aggregate: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [PromotionModule],
     })
@@ -113,6 +125,8 @@ describe('PromotionModule (Integration)', () => {
       .useValue(MockPromotionModel)
       .overrideProvider(getModelToken(PlayerPromotion.name))
       .useValue(mockPlayerPromotionModel)
+      .overrideProvider(getModelToken(PromotionTicket.name))
+      .useValue(mockPromotionTicketModel)
       .compile();
 
     app = moduleFixture.createNestApplication();

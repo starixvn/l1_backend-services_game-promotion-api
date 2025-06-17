@@ -201,7 +201,7 @@ export class PlayerPromotionService {
     // Filter out promotions that have been claimed before
     return promotions.filter(
       promotion =>
-        !claimedPromotions.some(
+        !claimedPromotions?.some(
           claimedPromotion =>
             claimedPromotion.promotionCode.toString() === promotion.code.toString(),
         ),
