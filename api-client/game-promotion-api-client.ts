@@ -118,12 +118,23 @@ export class GamePromotionApiClient {
     return response.data;
   }
 
+  /**
+   * Get a specific promotion by ID
+   */
+  async getPromotionById(promotionId: string): Promise<PromotionResponse> {
+    const response: AxiosResponse<PromotionResponse> = await this.httpClient.get(
+      `/promotions/${promotionId}`,
+    );
+    return response.data;
+  }
+
   async getExpiringPromotions(gameId?: string): Promise<PromotionExpiryResponse[]> {
     const response: AxiosResponse<PromotionExpiryResponse[]> = await this.httpClient.get(
       `/promotions/expiring?gameId=${gameId}`,
     );
     return response.data;
   }
+
   // ===== PROMOTION TICKET METHODS =====
 
   /**
