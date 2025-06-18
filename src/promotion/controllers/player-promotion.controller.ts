@@ -84,7 +84,6 @@ export class PlayerPromotionController {
   })
   async rollbackBonusItem(@Body() rollbackDto: RollbackBonusItemDto): Promise<RollbackResponse> {
     const rollbackData = {
-      previousRemainingItems: rollbackDto.previousRemainingItems,
       previousLastUsedDate: rollbackDto.previousLastUsedDate
         ? new Date(rollbackDto.previousLastUsedDate)
         : null,

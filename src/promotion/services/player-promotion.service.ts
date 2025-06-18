@@ -366,7 +366,6 @@ export class PlayerPromotionService {
     playerId: string,
     promotionId: string,
     rollbackData: {
-      previousRemainingItems: number;
       previousLastUsedDate: Date | null;
     },
   ): Promise<RollbackResponse> {
@@ -377,8 +376,8 @@ export class PlayerPromotionService {
         promotionId,
       },
       {
+        $inc: { remainingBonusItems: 1 },
         $set: {
-          remainingBonusItems: rollbackData.previousRemainingItems,
           lastUsedDate: rollbackData.previousLastUsedDate,
         },
       },
