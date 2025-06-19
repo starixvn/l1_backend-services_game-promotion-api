@@ -71,82 +71,62 @@ export class PromotionService {
       }
     }
 
-    const aggregationPipeline = [
-      { $match: query },
-      {
-        $lookup: {
-          from: 'promotion_announcements',
-          let: { promotionCode: '$code' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $in: ['$$promotionCode', '$promotionMappings'],
-                },
-              },
-            },
-            {
-              $project: {
-                announcementTitle: { $ifNull: ['$promotionTitle.en-US', ''] },
-              },
-            },
-          ],
-          as: 'announcements',
-        },
-      },
-      {
-        $addFields: {
-          announcementTitle: {
-            $ifNull: [{ $arrayElemAt: ['$announcements.announcementTitle', 0] }, ''],
-          },
-        },
-      },
-      {
-        $project: {
-          announcements: 0,
-        },
-      },
-      {
-        $addFields: {
-          statusOrder: {
-            $switch: {
-              branches: [
-                {
-                  case: {
-                    $and: [{ $lte: ['$startDate', now] }, { $gt: ['$endDate', now] }],
-                  },
-                  then: 1,
-                },
-                {
-                  case: { $gt: ['$startDate', now] },
-                  then: 2,
-                },
-                {
-                  case: { $lte: ['$endDate', now] },
-                  then: 3,
-                },
-              ],
-              default: 4,
-            },
-          },
-        },
-      },
-      {
-        $sort: {
-          statusOrder: 1 as const,
-          endDate: 1 as const,
-          startDate: 1 as const,
-        },
-      },
-      {
-        $skip: skip,
-      },
-      {
-        $limit: pageSize,
-      },
-    ];
+    // Get promotions with pagination and sorting
+    const promotions = await this.promotionModel
+      .find(query)
+      .sort({ endDate: 1, startDate: 1, _id: 1 })
+      .skip(skip)
+      .limit(pageSize)
+      .lean()
+      .exec();
 
-    const items = await this.promotionModel.aggregate(aggregationPipeline).exec();
+    // Get all promotion codes that are mapped to announcements with their titles
+    const announcementMappings = await this.promotionModel.db
+      .collection('promotion_announcements')
+      .find({})
+      .project({ promotionMappings: 1, 'promotionTitle.en-US': 1 })
+      .toArray();
+
+    // Create a map for quick lookup
+    const announcementMap = new Map<string, string>();
+    announcementMappings.forEach((announcement: any) => {
+      announcement.promotionMappings?.forEach((code: string) => {
+        announcementMap.set(code, announcement.promotionTitle?.['en-US'] || '');
+      });
+    });
+
+    // Add announcementTitle and statusOrder to each promotion
+    const items = promotions.map(promotion => {
+      const announcementTitle = announcementMap.get(promotion.code) || '';
+
+      // Calculate status order
+      let statusOrder = 4; // default
+      if (promotion.startDate <= now && promotion.endDate > now) {
+        statusOrder = 1; // RUNNING
+      } else if (promotion.startDate > now) {
+        statusOrder = 2; // NOT_STARTED
+      } else if (promotion.endDate <= now) {
+        statusOrder = 3; // EXPIRED
+      }
+
+      return {
+        ...promotion,
+        announcementTitle,
+        statusOrder,
+      };
+    });
+
+    // Sort by statusOrder, endDate, startDate
+    items.sort((a, b) => {
+      if (a.statusOrder !== b.statusOrder) {
+        return a.statusOrder - b.statusOrder;
+      }
+      if (a.endDate !== b.endDate) {
+        return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
+      }
+      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    });
+
     const total = await this.promotionModel.countDocuments(query);
 
     return {
@@ -250,29 +230,25 @@ export class PromotionService {
    */
   async getUnmappedNotStartedPromotions(): Promise<Promotion[]> {
     const now = new Date();
-    const aggregationPipeline = [
-      { $match: { startDate: { $gt: now } } }, // NOT_STARTED
-      {
-        $lookup: {
-          from: 'promotion_announcements',
-          let: { promotionCode: '$code' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $in: ['$$promotionCode', '$promotionMappings'],
-                },
-              },
-            },
-          ],
-          as: 'announcements',
-        },
-      },
-      { $match: { 'announcements.0': { $exists: false } } }, // Chưa mapping announcement nào
-      { $project: { announcements: 0 } },
-      { $sort: { startDate: 1 as const } },
-    ];
-    return this.promotionModel.aggregate(aggregationPipeline).exec();
+
+    // Get all NOT_STARTED promotions
+    const notStartedPromotions = await this.promotionModel
+      .find({ startDate: { $gt: now } })
+      .sort({ startDate: 1 })
+      .lean()
+      .exec();
+
+    // Get all promotion codes that are mapped to announcements
+    const mappedPromotionCodes = await this.promotionModel.db
+      .collection('promotion_announcements')
+      .distinct('promotionMappings');
+
+    // Filter out promotions that are already mapped
+    const unmappedPromotions = notStartedPromotions.filter(
+      promotion => !mappedPromotionCodes.includes(promotion.code),
+    );
+
+    return unmappedPromotions;
   }
 
   async findManyByCodes(codes: string[]): Promise<Promotion[]> {
@@ -314,19 +290,8 @@ export class PromotionService {
       const lookupPlayerPromotionStage = {
         $lookup: {
           from: 'game_player_promotions',
-          let: { playerId: '$playerId' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$playerId', '$$playerId'] },
-                    { $eq: ['$promotionId', { $toObjectId: promotion._id.toString() }] },
-                  ],
-                },
-              },
-            },
-          ],
+          localField: 'playerId',
+          foreignField: 'playerId',
           as: 'playerPromotion',
         },
       };
@@ -336,8 +301,13 @@ export class PromotionService {
           $or: [
             // Include players who don't have a promotion record yet
             { playerPromotion: { $size: 0 } },
-            // Include players who still have remaining bonus items
-            { 'playerPromotion.remainingBonusItems': { $gt: 0 } },
+            // Include players who still have remaining bonus items and match the promotion
+            {
+              $and: [
+                { 'playerPromotion.remainingBonusItems': { $gt: 0 } },
+                { 'playerPromotion.promotionId': promotion._id.toString() },
+              ],
+            },
           ],
         },
       };
