@@ -82,13 +82,25 @@ describe('PromotionModule (Integration)', () => {
 
     // Add static methods to the model
     MockPromotionModel.find = jest.fn().mockReturnValue({
-      exec: jest.fn().mockResolvedValue(mockModelPromotion),
+      exec: jest.fn().mockResolvedValue([mockModelPromotion]),
       lean: jest.fn().mockReturnValue({
-        exec: jest.fn().mockResolvedValue(mockModelPromotion),
+        exec: jest.fn().mockResolvedValue([mockModelPromotion]),
+      }),
+      sort: jest.fn().mockReturnValue({
+        skip: jest.fn().mockReturnValue({
+          limit: jest.fn().mockReturnValue({
+            lean: jest.fn().mockReturnValue({
+              exec: jest.fn().mockResolvedValue([mockModelPromotion]),
+            }),
+          }),
+        }),
       }),
     });
     MockPromotionModel.findById = jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue(mockModelPromotion),
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockModelPromotion),
+      }),
     });
     MockPromotionModel.findByIdAndUpdate = jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue(mockModelPromotion),
@@ -97,9 +109,26 @@ describe('PromotionModule (Integration)', () => {
       exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
     });
     MockPromotionModel.aggregate = jest.fn().mockReturnValue({
-      exec: jest.fn().mockResolvedValue(mockModelPromotion),
+      exec: jest.fn().mockResolvedValue([mockModelPromotion]),
     });
     MockPromotionModel.countDocuments = jest.fn().mockResolvedValue(1);
+
+    // Mock db.collection for announcement mappings
+    MockPromotionModel.db = {
+      collection: jest.fn().mockReturnValue({
+        find: jest.fn().mockReturnValue({
+          project: jest.fn().mockReturnValue({
+            toArray: jest.fn().mockResolvedValue([
+              {
+                promotionMappings: ['test-promotion'],
+                promotionTitle: { 'en-US': 'Test Announcement' },
+              },
+            ]),
+          }),
+        }),
+        distinct: jest.fn().mockResolvedValue(['test-promotion']),
+      }),
+    };
 
     // Mock for the Player Promotion model (required by the module)
     mockPlayerPromotionModel = {
@@ -299,6 +328,12 @@ describe('PromotionModule (Integration)', () => {
         status: 'ok',
         message: 'Promotion API test endpoint is working',
       });
+    });
+  });
+
+  describe('/promotions/admin/unmapped-not-started (POST)', () => {
+    it('should return unmapped not started promotions', () => {
+      return request(app.getHttpServer()).post('/promotions/unmapped-not-started').expect(201);
     });
   });
 });
