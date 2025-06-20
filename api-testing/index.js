@@ -27,6 +27,7 @@ async function runCollection(collectionPath, environmentPath) {
 async function main() {
     try {
         const ciEnvName = process.env.CI_ENVIRONMENT_NAME;
+        console.log(`\n🔎 process.env: ${ process.env}`);
         if (!ciEnvName) {
             console.error('❌ CI_ENVIRONMENT_NAME environment variable is not set.');
             console.error('This script must be run in a GitLab CI environment with CI_ENVIRONMENT_NAME defined (e.g., LOCAL, LOCAL_1).');
