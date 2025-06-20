@@ -26,6 +26,8 @@ async function runCollection(collectionPath, environmentPath) {
 
 async function main() {
     try {
+        console.log(`\n🔎 Complete process.env object:\n${JSON.stringify(process.env, null, 2)}`);
+
         const ciEnvName = process.env.CI_ENVIRONMENT_NAME;
         console.log(`\n🔎 process.env: ${ process.env}`);
         if (!ciEnvName) {
