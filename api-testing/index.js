@@ -28,11 +28,11 @@ async function main() {
     try {
         console.log(`\n🔎 Complete process.env object:\n${JSON.stringify(process.env, null, 2)}`);
 
-        const ciEnvName = process.env.CI_ENVIRONMENT_NAME;
+        const ciEnvName = process.env.TRANSFORM_CONFIG;
         console.log(`\n🔎 process.env: ${ process.env}`);
         if (!ciEnvName) {
-            console.error('❌ CI_ENVIRONMENT_NAME environment variable is not set.');
-            console.error('This script must be run in a GitLab CI environment with CI_ENVIRONMENT_NAME defined (e.g., LOCAL, LOCAL_1).');
+            console.error('❌ TRANSFORM_CONFIG environment variable is not set.');
+            console.error('This script must be run in a GitLab CI environment with TRANSFORM_CONFIG defined (e.g., LOCAL, LOCAL_1).');
             process.exit(1);
         }
 
@@ -59,7 +59,7 @@ async function main() {
 
         const fileEnvPart = envNameMapping[ciEnvName];
         if (!fileEnvPart) {
-            console.error(`❌ Invalid CI_ENVIRONMENT_NAME: "${ciEnvName}". Expected one of ${Object.keys(envNameMapping).join(', ')}.`);
+            console.error(`❌ Invalid TRANSFORM_CONFIG: "${ciEnvName}". Expected one of ${Object.keys(envNameMapping).join(', ')}.`);
             process.exit(1);
         }
 

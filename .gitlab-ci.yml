@@ -10,7 +10,7 @@ api_tests:
   image: hub.lumigame.com/base/node:22-alpine-25h1.1
   stage: .post # Runs within the deploy stage
   variables:
-    CI_ENVIRONMENT_NAME: $DEPLOY_ENV
+    TRANSFORM_CONFIG: $DEPLOY_ENV
     STACK_NAME: $STACK_NAME
   before_script:
     - cd api-testing
@@ -19,7 +19,7 @@ api_tests:
     - |
       set -e
       echo "--- Verifying variables ---"
-      echo "CI_ENVIRONMENT_NAME is: '$CI_ENVIRONMENT_NAME'"
+      echo "TRANSFORM_CONFIG is: '$TRANSFORM_CONFIG'"
       echo "STACK_NAME is: '$STACK_NAME'"
       echo "---------------------------"
       node index.js
