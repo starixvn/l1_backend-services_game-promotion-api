@@ -9,8 +9,12 @@ include:
 api_tests:
   image: hub.lumigame.com/base/node:22-alpine-25h1.1
   stage: .post # Runs within the deploy stage
+  rules:
+    - if: $ENV_NAME =~ /LOCAL/
+      when: always
+    - when: never
   variables:
-    TRANSFORM_CONFIG: $DEPLOY_ENV
+    TRANSFORM_CONFIG: $TRANSFORM_CONFIG
     STACK_NAME: $STACK_NAME
   before_script:
     - cd api-testing
