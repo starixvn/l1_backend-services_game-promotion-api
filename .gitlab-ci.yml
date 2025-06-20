@@ -6,11 +6,26 @@ include:
     ref: main
     file: 'luminet.gitlab-ci.yml'
 
-# api_tests:
-#   image: hub.lumigame.com/base/node:22-alpine-25h1.1
-#   stage: test
-#   before_script:
-#     - cd api-testing
-#     - npm install
-#   script:
-#     - node index.js
+api_tests:
+  image: hub.lumigame.com/base/node:22-alpine-25h1.1
+  stage: deploy # Runs within the deploy stage
+  needs:
+    # Inherits variables from prepare_vars
+    - job: prepare_vars
+      artifacts: true
+    # Ensures it runs after the main deployment is complete
+    - job: deploy_k8s
+  variables:
+    CI_ENVIRONMENT_NAME: $DEPLOY_ENV
+    STACK_NAME: $STACK_NAME
+  before_script:
+    - cd api-testing
+    - npm install
+  script:
+    - |
+      set -e
+      echo "--- Verifying variables ---"
+      echo "CI_ENVIRONMENT_NAME is: '$CI_ENVIRONMENT_NAME'"
+      echo "STACK_NAME is: '$STACK_NAME'"
+      echo "---------------------------"
+      node index.js
