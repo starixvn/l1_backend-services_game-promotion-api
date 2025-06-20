@@ -8,13 +8,7 @@ include:
 
 api_tests:
   image: hub.lumigame.com/base/node:22-alpine-25h1.1
-  stage: deploy # Runs within the deploy stage
-  needs:
-    # Inherits variables from prepare_vars
-    - job: prepare_vars
-      artifacts: true
-    # Ensures it runs after the main deployment is complete
-    - job: deploy_k8s
+  stage: .post # Runs within the deploy stage
   variables:
     CI_ENVIRONMENT_NAME: $DEPLOY_ENV
     STACK_NAME: $STACK_NAME
