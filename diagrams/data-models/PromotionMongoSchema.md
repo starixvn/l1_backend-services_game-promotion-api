@@ -2,7 +2,8 @@
 
 ## Collections
 
-### 1. Promotions Collection
+### 1. game_promotions Collection
+
 ```javascript
 {
     _id: ObjectId,                    // PromotionId
@@ -21,14 +22,15 @@
     updatedAt: ISODate,
     betLevels: [                    // List of bet levels apply for this promotion
         {
-            currencyGroup : ObjectId, 
+            currencyGroup : ObjectId,
             betLevel: Number
-        } 
+        }
     ]
 }
 ```
 
-### 2. PlayerPromotions Collection
+### 2. game_player_promotions Collection
+
 ```javascript
 {
     _id: ObjectId,
@@ -39,7 +41,12 @@
     promotionCode: String,           // Promotion code for quick reference
     currencyGroup: ObjectId,         // Currency group ObjectId for this player's promotion
     remainingBonusItems: Number,     // Number of remaining bonus items (0 means promotion is completed)
+    initialBonusItem: Number,        // The initial number of bonus items
+    betLevel: Number,                // Bet level for this promotion
+    startDate: ISODate,              // Start date and time
+    endDate: ISODate,                // End date and time
     lastUsedDate: ISODate,
+    isGiftCode: Boolean,             // true if this promotion is from a gift code
     createdAt: ISODate,
     updatedAt: ISODate
 }
@@ -48,6 +55,7 @@
 ## Example Data
 
 ### 1. Promotion for All Players
+
 ```javascript
 // Promotion document
 {
@@ -82,18 +90,24 @@
     _id: ObjectId("65f1a2b3c4d5e6f7g8h9i0j2"),
     playerId: "player123",
     operatorId: "op123",
-    siteId: "site456",
+    siteName: "site456",
     promotionId: ObjectId("65f1a2b3c4d5e6f7g8h9i0j1"),
     promotionCode: "summer-classic-free-spins",
     currencyGroup: ObjectId("EUR_123"),
     remainingBonusItems: 50,
+    initialBonusItem: 50,
+    betLevel: 0.20,
+    startDate: ISODate("2024-06-01T00:00:00Z"),
+    endDate: ISODate("2024-06-01T00:00:00Z"),
     lastUsedDate: null,
+    isGiftCode: false,
     createdAt: ISODate("2024-06-01T00:00:00Z"),
     updatedAt: ISODate("2024-06-01T00:00:00Z")
 }
 ```
 
 ### 2. Promotion for Limited Players
+
 ```javascript
 // Promotion document
 {
@@ -128,12 +142,17 @@
     _id: ObjectId("65f1a2b3c4d5e6f7g8h9i0j4"),
     playerId: "player123",
     operatorId: "op123",
-    siteId: "site456",
+    siteName: "site456",
     promotionId: ObjectId("65f1a2b3c4d5e6f7g8h9i0j3"),
     promotionCode: "vip-classic-free-spins",
     currencyGroup: ObjectId("USD_456"),
     remainingBonusItems: 100,
+    initialBonusItem: 100,
+    betLevel: 0.25,
+    startDate: ISODate("2024-06-15T00:00:00Z"),
+    endDate: ISODate("2024-06-15T00:00:00Z"),
     lastUsedDate: null,
+    isGiftCode: false,
     createdAt: ISODate("2024-06-15T00:00:00Z"),
     updatedAt: ISODate("2024-06-15T00:00:00Z")
 }
@@ -142,57 +161,61 @@
 ## Example Queries
 
 ### 1. Check Player's Active Promotion
+
 ```javascript
 db.playerPromotions.findOne({
-    operatorId: "op123",
-    siteId: "site456",
-    playerId: "player123",
-    remainingBonusItems: { $gt: 0 }  // Active promotion has remaining bonus items
-})
+  operatorId: 'op123',
+  siteName: 'site456',
+  playerId: 'player123',
+  remainingBonusItems: { $gt: 0 }, // Active promotion has remaining bonus items
+});
 ```
 
 ### 2. Find Available Promotions
+
 ```javascript
 db.promotions.find({
-    operatorId: "op123",
-    offeredSiteNames: { $in: ["site456"] },  // Will match if site456 is in the offeredSiteNames array
-    currencyGroups: ObjectId("EUR_123"),  // Will match if EUR_123 is in the currencyGroups array
-    startDate: { $lte: new Date() },
-    endDate: { $gt: new Date() }
-})
+  operatorId: 'op123',
+  offeredSiteNames: { $in: ['site456'] }, // Will match if site456 is in the offeredSiteNames array
+  currencyGroups: ObjectId('EUR_123'), // Will match if EUR_123 is in the currencyGroups array
+  startDate: { $lte: new Date() },
+  endDate: { $gt: new Date() },
+});
 ```
 
 ### 3. Check Player Eligibility
+
 ```javascript
 // For specific player list promotions
 db.promotions.find({
-    operatorId: "op123",
-    offeredSiteNames: { $in: ["site456"] },  // Will match if site456 is in the offeredSiteNames array
-    currencyGroups: ObjectId("EUR_123"),  // Will match if EUR_123 is in the currencyGroups array
-    startDate: { $lte: new Date() },
-    endDate: { $gt: new Date() },
-    offeredPlayerIds: { $in: ["player123"] }  // Will match if player123 is in the offeredPlayerIds array
-})
+  operatorId: 'op123',
+  offeredSiteNames: { $in: ['site456'] }, // Will match if site456 is in the offeredSiteNames array
+  currencyGroups: ObjectId('EUR_123'), // Will match if EUR_123 is in the currencyGroups array
+  startDate: { $lte: new Date() },
+  endDate: { $gt: new Date() },
+  offeredPlayerIds: { $in: ['player123'] }, // Will match if player123 is in the offeredPlayerIds array
+});
 
 // For all players promotions
 db.promotions.find({
-    operatorId: "op123",
-    offeredSiteNames: { $in: ["site456"] },  // Will match if site456 is in the offeredSiteNames array
-    currencyGroups: ObjectId("EUR_123"),  // Will match if EUR_123 is in the currencyGroups array
-    startDate: { $lte: new Date() },
-    endDate: { $gt: new Date() },
-    offeredPlayerIds: []  // Empty array means all players
-})
+  operatorId: 'op123',
+  offeredSiteNames: { $in: ['site456'] }, // Will match if site456 is in the offeredSiteNames array
+  currencyGroups: ObjectId('EUR_123'), // Will match if EUR_123 is in the currencyGroups array
+  startDate: { $lte: new Date() },
+  endDate: { $gt: new Date() },
+  offeredPlayerIds: [], // Empty array means all players
+});
 ```
 
 ### 4. Check Game Availability
+
 ```javascript
 db.promotions.find({
-    operatorId: "op123",
-    offeredSiteNames: { $in: ["site456"] },  // Will match if site456 is in the offeredSiteNames array
-    currencyGroups: ObjectId("EUR_123"),  // Will match if EUR_123 is in the currencyGroups array
-    startDate: { $lte: new Date() },
-    endDate: { $gt: new Date() },
-    gameIds: 1001  // Will match if 1001 is in the gameIds array
-})
-``` 
+  operatorId: 'op123',
+  offeredSiteNames: { $in: ['site456'] }, // Will match if site456 is in the offeredSiteNames array
+  currencyGroups: ObjectId('EUR_123'), // Will match if EUR_123 is in the currencyGroups array
+  startDate: { $lte: new Date() },
+  endDate: { $gt: new Date() },
+  gameIds: 1001, // Will match if 1001 is in the gameIds array
+});
+```
