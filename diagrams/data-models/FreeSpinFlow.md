@@ -1,52 +1,12 @@
-# Free Spin Count Deduction Flow
+# FreeSpin Flow
 
-## Player Promotion Insertion Flow
+This document describes the flow for handling free spins in the promotion system.
 
-```mermaid
-sequenceDiagram
-    participant Player
-    participant Auth
-    participant Promotions
-    participant PlayerPromotions
-    participant System
+## Overview
 
-    Player->>Auth: Sign In
-    Auth->>System: Authenticate Player
+Free spins are bonus items that allow players to play games without placing real money bets. The system tracks the usage of free spins and ensures proper validation and settlement.
 
-    System->>Promotions: Find Running Promotions
-    Note over Promotions: Check:
-    Note over Promotions: - Current date between startDate and endDate
-    Note over Promotions: - Player's site in offeredSiteNames
-    Note over Promotions: - Player's currency in currencyGroups
-    Note over Promotions: - Player in offeredPlayerIds or all players
-
-    Promotions-->>System: Return Active Promotions
-
-    loop For Each Active Promotion
-        System->>PlayerPromotions: Check Existing Record
-        Note over PlayerPromotions: Check:
-        Note over PlayerPromotions: - Same playerId
-        Note over PlayerPromotions: - Same promotionId
-        Note over PlayerPromotions: - Same siteName
-
-        alt No Existing Record
-            System->>PlayerPromotions: Create New Record
-            Note over PlayerPromotions: Set:
-            Note over PlayerPromotions: - playerId
-            Note over PlayerPromotions: - operatorId
-            Note over PlayerPromotions: - siteName
-            Note over PlayerPromotions: - promotionId
-            Note over PlayerPromotions: - promotionCode
-            Note over PlayerPromotions: - currencyGroup
-            Note over PlayerPromotions: - remainingBonusItems = bonusItemCount
-            Note over PlayerPromotions: - lastUsedDate = null
-        else Existing Record Found
-            Note over System: Skip - Already has promotion
-        end
-    end
-```
-
-## Updated Free Spin Deduction Flow (Robust with Rollback)
+## Flow Diagram
 
 ```mermaid
 sequenceDiagram
@@ -106,152 +66,146 @@ sequenceDiagram
 
     else Bet Placement Failed
         B->>Game: Bet creation failed
-
-        %% Step 2b: Rollback deduction
-        Game->>PP: Rollback - Add 1 bonus item back
+        Game->>PP: Rollback bonus item deduction
         Note over PP: remainingBonusItems: 50 (restored)
-        Note over PP: lastUsedDate: reverted
         PP->>Game: Rollback successful
-
-        Game->>Player: Free spin failed - bonus restored
-    end
-
-    Note over PP: Check Completion
-    alt All bonus items used
-        Note over PP: remainingBonusItems: 0
-        Note over PP: Promotion completed
-    else Bonus items remaining
-        Note over PP: Continue promotion
+        Game->>Player: Free spin failed - bonus item restored
     end
 ```
 
-## New Service Methods Required
-
-### PlayerPromotionService
-
-```typescript
-// New method for rollback functionality
-async rollbackBonusItemDeduction(
-  operatorId: string,
-  playerId: string,
-  promotionId: string
-): Promise<RollbackResponse>
-
-// Enhanced deduct method that returns previous state for rollback
-async deductBonusItemWithRollbackData(
-  operatorId: string,
-  playerId: string,
-  promotionId: string
-): Promise<DeductWithRollbackResponse>
-```
-
-### PromotionTicketService
-
-```typescript
-// Create promotion ticket after settlement (uses standard createTicket method)
-async createTicket(
-  createTicketDto: CreatePromotionTicketDto
-): Promise<CreatePromotionTicketResponse>
-```
-
-## State Transitions
-
-### 1. Promotion Creation
+## TO Requirement Flow
 
 ```mermaid
-stateDiagram-v2
-    [*] --> PromotionCreated
-    PromotionCreated --> Active: Start date reached
-    Active --> Ended: End date reached
+sequenceDiagram
+    participant Player
+    participant Game
+    participant PP as PlayerPromotion
+    participant B as BetSystem
+    participant PT as PromotionTicket
+
+    Note over PP: Initial State
+    Note over PP: remainingBonusItems: 50
+    Note over PP: totalTurnover: 0.00
+    Note over PP: totalWinAmount: 0.00
+    Note over PP: minRequiredTurnover: 0.00
+
+    Player->>Game: Use All Bonus Items
+    Game->>PT: Create tickets for each bonus
+    Note over PT: Record win amounts
+    Game->>PP: Update totalWinAmount
+    Note over PP: totalWinAmount: 25.00
+    Game->>PP: Calculate TO requirement
+    Note over PP: minRequiredTurnover: 50.00 (25.00 * 2.0)
+
+    Player->>Game: Place Bet on Target Game (First in gameIds array)
+    Game->>B: Create Bet
+    B->>Game: Bet created successfully
+    Note over B: betAmount: 0.50
+    Note over B: gameId: 1001 (first in gameIds)
+
+    Game->>PP: Update Total Turnover
+    Note over PP: totalTurnover: 0.50
+    Note over PP: remainingTO: 49.50
+    PP->>Game: TO updated
+
+    Player->>Game: Place Another Bet on Target Game
+    Game->>B: Create Bet
+    B->>Game: Bet created successfully
+    Note over B: betAmount: 1.00
+    Note over B: gameId: 1001 (first in gameIds)
+
+    Game->>PP: Update Total Turnover
+    Note over PP: totalTurnover: 1.50
+    Note over PP: remainingTO: 48.50
+    PP->>Game: TO updated
+
+    Player->>Game: Try to Claim Bonus Win
+    Game->>PP: Check TO Requirement
+    alt TO Requirement Not Met (1.50 < 50.00)
+        PP->>Game: TO requirement not met
+        Game->>Player: Cannot claim bonus wins yet
+        Note over Player: Need 48.50 more TO
+    else TO Requirement Met
+        PP->>Game: TO requirement satisfied
+        Game->>Player: Bonus win claimed successfully
+    end
 ```
 
-### 2. Player Promotion States
+## TO Requirement Validation Flow
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Available: Promotion assigned
-    Available --> InProgress: First free spin used
-    InProgress --> Completed: All spins used
-    InProgress --> Available: More spins available
-    Completed --> [*]
+sequenceDiagram
+    participant Player
+    participant Game
+    participant PP as PlayerPromotion
+    participant B as BetSystem
+
+    Player->>Game: Complete All Bonus Items
+    Game->>PP: Update totalWinAmount
+    Note over PP: totalWinAmount: 25.00
+    Game->>PP: Calculate TO requirement
+    Note over PP: minRequiredTurnover: 50.00
+
+    Player->>Game: Request Bonus Win Claim
+    Game->>PP: Check Promotion Status
+    PP->>Game: Return promotion details
+    Note over Game: Check:
+    Note over Game: - totalWinAmount > 0
+    Note over Game: - totalTurnover >= minRequiredTurnover
+    Note over Game: - promotion is active
+    Note over Game: - game is first in gameIds array
+
+    alt TO Requirement Met
+        Game->>PP: Allow bonus win claim
+        Game->>Player: Bonus win claimed successfully
+    else TO Requirement Not Met
+        Game->>Player: TO requirement not met
+        Note over Player: Need more bets on target game
+    end
 ```
 
-### 3. Enhanced Free Spin Bet States
+## Data Models
 
-```mermaid
-stateDiagram-v2
-    [*] --> BonusDeducted: Deduct bonus item
-    BonusDeducted --> BetCreated: Bet placement success
-    BonusDeducted --> Rollback: Bet placement failed
-    Rollback --> [*]: Bonus restored
-    BetCreated --> Settled: Game settlement
-    Settled --> TicketCreated: Promotion ticket logged
-    TicketCreated --> [*]: Process complete
-```
-
-## Data Flow
-
-1. **Pre-Bet Phase**:
-
-   - Player opens game
-   - Game checks available bonus items
-   - Player initiates free spin
-
-2. **Deduction Phase**:
-
-   - Deduct bonus item BEFORE bet creation
-   - Store rollback data for potential restoration
-
-3. **Bet Phase**:
-
-   - Attempt to create bet
-   - If successful: proceed to settlement
-   - If failed: rollback bonus deduction
-
-4. **Settlement Phase**:
-
-   - Process game result
-   - Calculate win/loss amounts
-   - Update bet status
-
-5. **Tracking Phase**:
-   - Create promotion ticket for analytics
-   - Record all transaction details
-
-## Example Scenarios
-
-### 1. Successful Free Spin Flow
+### Player Promotion State
 
 ```javascript
-// Step 1: Before deduction
-PlayerPromotion: { remainingBonusItems: 50 }
-
-// Step 2: After deduction (before bet)
-PlayerPromotion: { remainingBonusItems: 49, lastUsedDate: "2024-06-01T11:00:00Z" }
-
-// Step 3: After successful bet & settlement
-Bet: { isFreeSpin: true, amount: 0.00, winAmount: 5.00, status: "settled" }
-PromotionTicket: { playerId: "123", betAmount: 0.00, winAmount: 5.00 }
+{
+    playerId: "player123",
+    operatorId: "op123",
+    siteName: "site456",
+    promotionId: ObjectId("65f1a2b3c4d5e6f7g8h9i0j1"),
+    remainingBonusItems: 0, // All bonus items used
+    initialBonusItem: 50,
+    betLevel: 0.20,
+    totalTurnover: 15.50,        // Current TO amount
+    totalWinAmount: 25.00,       // Total win from all bonus items
+    minRequiredTurnover: 50.00,  // Required TO (25.00 * 2.0)
+    lastUsedDate: ISODate("2024-06-15T10:30:00Z"),
+    isGiftCode: false
+}
 ```
 
-### 2. Failed Bet with Rollback
+### Promotion Configuration
 
 ```javascript
-// Step 1: Before deduction
-PlayerPromotion: { remainingBonusItems: 50 }
-
-// Step 2: After deduction
-PlayerPromotion: { remainingBonusItems: 49, lastUsedDate: "2024-06-01T11:00:00Z" }
-
-// Step 3: Bet fails, rollback triggered
-PlayerPromotion: { remainingBonusItems: 50, lastUsedDate: null } // Restored
-// No bet record created
-// No promotion ticket created
+{
+    _id: ObjectId("65f1a2b3c4d5e6f7g8h9i0j1"),
+    name: "Summer Classic Free Spins",
+    bonusItemCount: 50,
+    betLevels: [
+        {
+            currencyGroup: ObjectId("EUR_123"),
+            betLevel: 0.20
+        }
+    ],
+    minTurnoverMultiplier: 2.0,  // 2X TO required
+    gameIds: [1001, 1002],       // First game (1001) is target for TO calculation
+}
 ```
 
 ## Validation Rules
 
-1. **Pre-Deduction Validation**:
+1. **Bonus Item Availability**:
 
    - Check if player has available bonus items > 0
    - Verify game is eligible for promotion
@@ -276,6 +230,74 @@ PlayerPromotion: { remainingBonusItems: 50, lastUsedDate: null } // Restored
    - Restore exact previous state
 
 5. **Ticket Creation**:
+
    - Always create ticket after settlement
    - Record actual win/loss amounts
    - Include all relevant game metadata
+
+6. **TO Requirement Validation**:
+   - Check if totalTurnover >= minRequiredTurnover
+   - Only count bets on first game in gameIds array
+   - Update totalTurnover after each bet placement
+   - Calculate minRequiredTurnover after bonus completion
+   - Prevent bonus win claim if TO requirement not met
+
+## TO Calculation Examples
+
+### Example 1: Standard Promotion
+
+- **Total Win Amount**: 25.00 (after completing all bonus items)
+- **Min Turnover Multiplier**: 2.0X
+- **Min Required TO**: 25.00 × 2.0 = 50.00
+- **Target Game**: First game in gameIds array (e.g., Game ID 1001)
+
+### Example 2: VIP Promotion
+
+- **Total Win Amount**: 75.00 (after completing all bonus items)
+- **Min Turnover Multiplier**: 3.0X
+- **Min Required TO**: 75.00 × 3.0 = 225.00
+- **Target Game**: First game in gameIds array (e.g., Game ID 1001)
+
+### Example 3: Gift Code
+
+- **Total Win Amount**: 4.00 (after completing all bonus items)
+- **Min Turnover Multiplier**: 2.0X (minimum)
+- **Min Required TO**: 4.00 × 2.0 = 8.00
+- **Target Game**: First game in gameIds array (e.g., Game ID 2001)
+
+## Error Handling
+
+### TO Requirement Not Met
+
+- **Error Code**: `TO_REQUIREMENT_NOT_MET`
+- **Message**: "Minimum turnover requirement not met. Need {remainingTO} more bets on target game."
+- **Action**: Player must place more bets on target game before claiming bonus wins
+
+### Invalid Target Game
+
+- **Error Code**: `INVALID_TARGET_GAME`
+- **Message**: "Bet must be placed on target game {targetGameId} (first in gameIds array) for TO calculation."
+- **Action**: Player must place bets on the correct target game
+
+### Promotion Expired
+
+- **Error Code**: `PROMOTION_EXPIRED`
+- **Message**: "Promotion has expired. Cannot use remaining bonus items."
+- **Action**: Promotion is no longer valid
+
+### Bonus Not Completed
+
+- **Error Code**: `BONUS_NOT_COMPLETED`
+- **Message**: "All bonus items must be completed before calculating TO requirement."
+- **Action**: Player must complete all bonus items first
+
+## Implementation Notes
+
+1. **TO Tracking**: Total turnover is updated atomically after each bet placement on the target game
+2. **Win Amount Tracking**: Total win amount is calculated after all bonus items are completed
+3. **TO Calculation**: TO requirement is calculated as totalWinAmount × minTurnoverMultiplier
+4. **Game Specificity**: Only bets on the first game in gameIds array count toward TO requirement
+5. **Minimum Multiplier**: All promotions must have at least 2.0X TO multiplier
+6. **Real-time Updates**: TO progress is updated in real-time as bets are placed
+7. **Target Game**: The first game in the gameIds array is always used as the target game for TO calculation
+8. **Bonus Completion**: TO requirement is only calculated after all bonus items are used

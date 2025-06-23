@@ -17,7 +17,7 @@
     bonusItemCount: Number,              // Number of free spins per player
     offeredPlayerIds: [String],             // List of eligible player IDs (if not all players), empty means all
     gameConfigType: Number ,        // 2: "ClassicSlot" | 3: "CascadingSlot",
-    gameIds: [Number],              // List of eligible games, not null
+    gameIds: [Number],              // List of eligible games, not null (first game is target for TO calculation)
     createdAt: ISODate,
     updatedAt: ISODate,
     betLevels: [                    // List of bet levels apply for this promotion
@@ -29,7 +29,8 @@
     isGiftCode: Boolean,              // Indicates if this promotion is a gift code
     maxRedemptions: Number,           // Optional: Maximum total redemptions for this gift code
     totalRedemptions: Number,         // Current number of times the gift code has been redeemed
-    maxRedemptionsPerPlayer: Number   // Optional: Maximum redemptions per player (e.g., 1 for single-use)
+    maxRedemptionsPerPlayer: Number,   // Optional: Maximum redemptions per player (e.g., 1 for single-use)
+    minTurnoverMultiplier: Number     // Minimum TO multiplier required (at least 2X) to claim bonus wins
 }
 ```
 
@@ -51,6 +52,9 @@
     endDate: ISODate,                // End date and time
     lastUsedDate: ISODate,
     isGiftCode: Boolean,             // true if this promotion is from a gift code
+    totalTurnover: Number,           // Total bet amount placed on target game (for TO calculation)
+    totalWinAmount: Number,          // Total win amount from bonus items
+    minRequiredTurnover: Number,     // Minimum TO required (totalWinAmount * minTurnoverMultiplier)
     createdAt: ISODate,
     updatedAt: ISODate
 }
@@ -72,7 +76,7 @@
     bonusItemCount: 20,
     offeredPlayerIds: [], // Not player specific, anyone with code can redeem.
     gameConfigType: 3,  // CascadingSlot
-    gameIds: [2001],
+    gameIds: [2001], // First game (2001) is target for TO calculation
     betLevels: [
         {
             currencyGroup: ObjectId("USD_456"),
@@ -83,6 +87,7 @@
     maxRedemptions: 1000, // Can be redeemed 1000 times in total
     totalRedemptions: 450,
     maxRedemptionsPerPlayer: 1, // Each player can only redeem it once
+    minTurnoverMultiplier: 3.0, // 3X TO required to claim bonus wins
     createdAt: ISODate("2024-01-01T10:00:00Z"),
     updatedAt: ISODate("2024-05-15T11:00:00Z")
 }
@@ -103,6 +108,9 @@
     endDate: ISODate("2024-12-31T23:59:59Z"),
     lastUsedDate: null,
     isGiftCode: true,
+    totalTurnover: 0.00, // Initial TO amount
+    totalWinAmount: 0.00, // Initial win amount
+    minRequiredTurnover: 0.00, // Will be calculated after bonus completion
     createdAt: ISODate("2024-06-20T14:00:00Z"),
     updatedAt: ISODate("2024-06-20T14:00:00Z")
 }
@@ -126,7 +134,7 @@
     bonusItemCount: 50,
     offeredPlayerIds: [],  // Offer to all players
     gameConfigType: 2,  // ClassicSlot
-    gameIds: [1001, 1002],
+    gameIds: [1001, 1002], // First game (1001) is target for TO calculation
     betLevels: [
         {
             currencyGroup: ObjectId("EUR_123"),
@@ -137,6 +145,7 @@
             betLevel: 0.25
         }
     ],
+    minTurnoverMultiplier: 2.5, // 2.5X TO required
     createdAt: ISODate("2024-05-15T10:00:00Z"),
     updatedAt: ISODate("2024-05-15T10:00:00Z")
 }
@@ -157,6 +166,9 @@
     endDate: ISODate("2024-06-01T00:00:00Z"),
     lastUsedDate: null,
     isGiftCode: false,
+    totalTurnover: 0.00, // Initial TO amount
+    totalWinAmount: 0.00, // Initial win amount
+    minRequiredTurnover: 0.00, // Will be calculated after bonus completion
     createdAt: ISODate("2024-06-01T00:00:00Z"),
     updatedAt: ISODate("2024-06-01T00:00:00Z")
 }
@@ -178,7 +190,7 @@
     bonusItemCount: 100,
     offeredPlayerIds: ["player123", "player456", "player789"],
     gameConfigType: 2,  // ClassicSlot
-    gameIds: [1001],
+    gameIds: [1001], // Single game (1001) is target for TO calculation
     betLevels: [
         {
             currencyGroup: ObjectId("USD_456"),
@@ -189,6 +201,7 @@
             betLevel: 0.20
         }
     ],
+    minTurnoverMultiplier: 2.0, // 2X TO required (minimum)
     createdAt: ISODate("2024-06-10T10:00:00Z"),
     updatedAt: ISODate("2024-06-10T10:00:00Z")
 }
@@ -209,6 +222,9 @@
     endDate: ISODate("2024-06-15T00:00:00Z"),
     lastUsedDate: null,
     isGiftCode: false,
+    totalTurnover: 0.00, // Initial TO amount
+    totalWinAmount: 0.00, // Initial win amount
+    minRequiredTurnover: 0.00, // Will be calculated after bonus completion
     createdAt: ISODate("2024-06-15T00:00:00Z"),
     updatedAt: ISODate("2024-06-15T00:00:00Z")
 }
@@ -276,7 +292,97 @@ db.game_promotions.find({
 });
 ```
 
-### 5. Redeem a Gift Code
+### 5. Check TO Requirements
+
+```javascript
+// Check if player has met minimum TO requirement
+db.game_player_promotions.findOne({
+  playerId: 'player123',
+  operatorId: 'op123',
+  siteName: 'site456',
+  promotionId: ObjectId('65f1a2b3c4d5e6f7g8h9i0j1'),
+  totalTurnover: { $gte: '$minRequiredTurnover' }, // TO requirement met
+});
+
+// Calculate remaining TO needed
+db.game_player_promotions.aggregate([
+  {
+    $match: {
+      playerId: 'player123',
+      operatorId: 'op123',
+      siteName: 'site456',
+      promotionId: ObjectId('65f1a2b3c4d5e6f7g8h9i0j1'),
+    },
+  },
+  {
+    $project: {
+      remainingTO: { $subtract: ['$minRequiredTurnover', '$totalTurnover'] },
+      totalTurnover: 1,
+      minRequiredTurnover: 1,
+      totalWinAmount: 1,
+    },
+  },
+]);
+```
+
+### 6. Update TO after bet placement
+
+```javascript
+// Update player's total TO when they place a bet on the target game
+db.game_player_promotions.updateOne(
+  {
+    playerId: 'player123',
+    operatorId: 'op123',
+    siteName: 'site456',
+    promotionId: ObjectId('65f1a2b3c4d5e6f7g8h9i0j1'),
+  },
+  {
+    $inc: { totalTurnover: 0.5 }, // Add bet amount to total TO
+  },
+);
+```
+
+### 7. Update win amount and calculate TO requirement after bonus completion
+
+```javascript
+// After all bonus items are used, update total win amount and calculate TO requirement
+db.game_player_promotions.updateOne(
+  {
+    playerId: 'player123',
+    operatorId: 'op123',
+    siteName: 'site456',
+    promotionId: ObjectId('65f1a2b3c4d5e6f7g8h9i0j1'),
+  },
+  {
+    $set: {
+      totalWinAmount: 25.0, // Total win amount from all bonus items
+      minRequiredTurnover: 62.5, // 25.00 * 2.5 = 62.50
+    },
+  },
+);
+```
+
+### 8. Get target game for TO calculation
+
+```javascript
+// Get the target game (first game in gameIds array) for TO calculation
+db.game_promotions.aggregate([
+  {
+    $match: {
+      _id: ObjectId('65f1a2b3c4d5e6f7g8h9i0j1'),
+    },
+  },
+  {
+    $project: {
+      targetGameId: { $arrayElemAt: ['$gameIds', 0] }, // First game is target
+      minTurnoverMultiplier: 1,
+      gameIds: 1,
+    },
+  },
+]);
+```
+
+### 9. Redeem a Gift Code
 
 ```javascript
 // Step 1: Find the promotion by its code.
@@ -308,7 +414,7 @@ if (promotion) {
   // - Create a new document in game_player_promotions.
   // - Atomically increment totalRedemptions in the promotion.
   db.game_promotions.updateOne({ _id: promotion._id }, { $inc: { totalRedemptions: 1 } });
-  // ... logic to create game_player_promotions document ...
+  // ... logic to create game_player_promotions document with TO requirements ...
 } else {
   // Handle error: Invalid or expired gift code
 }
