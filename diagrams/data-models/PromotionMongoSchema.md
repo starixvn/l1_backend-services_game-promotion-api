@@ -346,6 +346,7 @@ db.game_player_promotions.updateOne(
 
 ```javascript
 // After all bonus items are used, update total win amount and calculate TO requirement
+// This is now handled via stream events (bonusWin stream)
 db.game_player_promotions.updateOne(
   {
     playerId: 'player123',
@@ -362,7 +363,25 @@ db.game_player_promotions.updateOne(
 );
 ```
 
-### 8. Get target game for TO calculation
+### 8. Update TO after bet placement via stream
+
+```javascript
+// Update player's total TO when they place a bet on the target game
+// This is now handled via stream events (bet.settled stream)
+db.game_player_promotions.updateOne(
+  {
+    playerId: 'player123',
+    operatorId: 'op123',
+    siteName: 'site456',
+    promotionId: ObjectId('65f1a2b3c4d5e6f7g8h9i0j1'),
+  },
+  {
+    $inc: { totalTurnover: 0.5 }, // Add bet amount to total TO
+  },
+);
+```
+
+### 9. Get target game for TO calculation
 
 ```javascript
 // Get the target game (first game in gameIds array) for TO calculation
@@ -382,7 +401,140 @@ db.game_promotions.aggregate([
 ]);
 ```
 
-### 9. Redeem a Gift Code
+### 10. Stream Event Processing
+
+#### BonusWin Stream Event
+
+```javascript
+// Event pushed to bonusWin stream after promotion ticket creation
+{
+    eventType: "bonusWin",
+    playerId: "player123",
+    operatorId: "op123",
+    siteName: "site456",
+    promotionId: "65f1a2b3c4d5e6f7g8h9i0j1",
+    gameId: 1001,
+    gameRoundId: 789,
+    winAmount: 5.00,
+    betAmount: 0.00,
+    timestamp: "2024-06-15T10:30:00Z",
+    metadata: {
+        isFreeSpin: true,
+        promotionCode: "vip-classic-free-spins"
+    }
+}
+
+// Consumer processes the event and updates totalWinAmount
+db.game_player_promotions.updateOne(
+  {
+    playerId: 'player123',
+    operatorId: 'op123',
+    siteName: 'site456',
+    promotionId: ObjectId('65f1a2b3c4d5e6f7g8h9i0j1'),
+  },
+  {
+    $inc: { totalWinAmount: 5.00 }, // Add win amount to total
+  },
+);
+```
+
+#### BetSettled Stream Event
+
+```javascript
+// Event pushed to bet.settled stream after bet settlement
+{
+    eventType: "bet.settled",
+    playerId: "player123",
+    operatorId: "op123",
+    siteName: "site456",
+    promotionId: "65f1a2b3c4d5e6f7g8h9i0j1",
+    gameId: 1001,
+    gameRoundId: 790,
+    betAmount: 0.50,
+    winAmount: 0.00,
+    timestamp: "2024-06-15T10:35:00Z",
+    metadata: {
+        isFreeSpin: false,
+        isTargetGame: true
+    }
+}
+
+// Consumer processes the event and updates totalTurnover (only for target game)
+db.game_player_promotions.updateOne(
+  {
+    playerId: 'player123',
+    operatorId: 'op123',
+    siteName: 'site456',
+    promotionId: ObjectId('65f1a2b3c4d5e6f7g8h9i0j1'),
+  },
+  {
+    $inc: { totalTurnover: 0.50 }, // Add bet amount to total TO
+  },
+);
+```
+
+### 11. Check TO requirement status
+
+```javascript
+// Check if player has met minimum TO requirement
+db.game_player_promotions.aggregate([
+  {
+    $match: {
+      playerId: 'player123',
+      operatorId: 'op123',
+      siteName: 'site456',
+      promotionId: ObjectId('65f1a2b3c4d5e6f7g8h9i0j1'),
+    },
+  },
+  {
+    $project: {
+      toRequirementMet: { $gte: ['$totalTurnover', '$minRequiredTurnover'] },
+      remainingTO: { $subtract: ['$minRequiredTurnover', '$totalTurnover'] },
+      totalTurnover: 1,
+      minRequiredTurnover: 1,
+      totalWinAmount: 1,
+      remainingBonusItems: 1,
+    },
+  },
+]);
+```
+
+### 12. Calculate TO requirement after bonus completion
+
+```javascript
+// Calculate TO requirement after all bonus items are completed
+// This is triggered by the BonusWin consumer when remainingBonusItems reaches 0
+db.game_player_promotions.aggregate([
+  {
+    $match: {
+      playerId: 'player123',
+      operatorId: 'op123',
+      siteName: 'site456',
+      promotionId: ObjectId('65f1a2b3c4d5e6f7g8h9i0j1'),
+      remainingBonusItems: 0, // All bonus items completed
+    },
+  },
+  {
+    $lookup: {
+      from: 'game_promotions',
+      localField: 'promotionId',
+      foreignField: '_id',
+      as: 'promotion',
+    },
+  },
+  {
+    $project: {
+      calculatedTO: {
+        $multiply: ['$totalWinAmount', { $arrayElemAt: ['$promotion.minTurnoverMultiplier', 0] }],
+      },
+      totalWinAmount: 1,
+      minTurnoverMultiplier: { $arrayElemAt: ['$promotion.minTurnoverMultiplier', 0] },
+    },
+  },
+]);
+```
+
+### 13. Redeem a Gift Code
 
 ```javascript
 // Step 1: Find the promotion by its code.

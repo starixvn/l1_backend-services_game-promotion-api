@@ -73,7 +73,7 @@ sequenceDiagram
     end
 ```
 
-## TO Requirement Flow
+## TO Requirement Flow with Stream Messaging
 
 ```mermaid
 sequenceDiagram
@@ -82,6 +82,10 @@ sequenceDiagram
     participant PP as PlayerPromotion
     participant B as BetSystem
     participant PT as PromotionTicket
+    participant BonusWinStream
+    participant BetSettledStream
+    participant BonusWinConsumer
+    participant TurnoverConsumer
 
     Note over PP: Initial State
     Note over PP: remainingBonusItems: 50
@@ -92,9 +96,13 @@ sequenceDiagram
     Player->>Game: Use All Bonus Items
     Game->>PT: Create tickets for each bonus
     Note over PT: Record win amounts
-    Game->>PP: Update totalWinAmount
+    PT->>BonusWinStream: Push bonusWin event
+    Note over BonusWinStream: Event: {playerId, promotionId, winAmount, gameId}
+
+    BonusWinStream->>BonusWinConsumer: Consume bonusWin event
+    BonusWinConsumer->>PP: Update totalWinAmount
     Note over PP: totalWinAmount: 25.00
-    Game->>PP: Calculate TO requirement
+    BonusWinConsumer->>PP: Calculate TO requirement
     Note over PP: minRequiredTurnover: 50.00 (25.00 * 2.0)
 
     Player->>Game: Place Bet on Target Game (First in gameIds array)
@@ -103,7 +111,11 @@ sequenceDiagram
     Note over B: betAmount: 0.50
     Note over B: gameId: 1001 (first in gameIds)
 
-    Game->>PP: Update Total Turnover
+    B->>BetSettledStream: Push bet.settled event
+    Note over BetSettledStream: Event: {playerId, promotionId, betAmount, gameId, isSettled}
+
+    BetSettledStream->>TurnoverConsumer: Consume bet.settled event
+    TurnoverConsumer->>PP: Update Total Turnover
     Note over PP: totalTurnover: 0.50
     Note over PP: remainingTO: 49.50
     PP->>Game: TO updated
@@ -114,7 +126,9 @@ sequenceDiagram
     Note over B: betAmount: 1.00
     Note over B: gameId: 1001 (first in gameIds)
 
-    Game->>PP: Update Total Turnover
+    B->>BetSettledStream: Push bet.settled event
+    BetSettledStream->>TurnoverConsumer: Consume bet.settled event
+    TurnoverConsumer->>PP: Update Total Turnover
     Note over PP: totalTurnover: 1.50
     Note over PP: remainingTO: 48.50
     PP->>Game: TO updated
@@ -131,6 +145,116 @@ sequenceDiagram
     end
 ```
 
+## Stream Event Models
+
+### BonusWin Event
+
+```javascript
+{
+    eventType: "bonusWin",
+    playerId: "player123",
+    operatorId: "op123",
+    siteName: "site456",
+    promotionId: "65f1a2b3c4d5e6f7g8h9i0j1",
+    gameId: 1001,
+    gameRoundId: 789,
+    winAmount: 5.00,
+    betAmount: 0.00,
+    timestamp: "2024-06-15T10:30:00Z",
+    metadata: {
+        isFreeSpin: true,
+        promotionCode: "vip-classic-free-spins"
+    }
+}
+```
+
+### BetSettled Event
+
+```javascript
+{
+    eventType: "bet.settled",
+    playerId: "player123",
+    operatorId: "op123",
+    siteName: "site456",
+    promotionId: "65f1a2b3c4d5e6f7g8h9i0j1",
+    gameId: 1001,
+    gameRoundId: 790,
+    betAmount: 0.50,
+    winAmount: 0.00,
+    timestamp: "2024-06-15T10:35:00Z",
+    metadata: {
+        isFreeSpin: false,
+        isTargetGame: true
+    }
+}
+```
+
+## Event Consumer Implementation
+
+### BonusWin Consumer
+
+```javascript
+// Consumer for bonusWin events
+class BonusWinConsumer {
+  async consume(event) {
+    const { playerId, operatorId, siteName, promotionId, winAmount } = event;
+
+    // Update totalWinAmount
+    await this.playerPromotionService.updateTotalWinAmount(
+      playerId,
+      operatorId,
+      siteName,
+      promotionId,
+      winAmount,
+    );
+
+    // Check if all bonus items are completed
+    const playerPromotion = await this.playerPromotionService.findByPromotion(
+      playerId,
+      operatorId,
+      siteName,
+      promotionId,
+    );
+
+    if (playerPromotion.remainingBonusItems === 0) {
+      // Calculate TO requirement
+      await this.playerPromotionService.calculateTORequirement(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+    }
+  }
+}
+```
+
+### Turnover Consumer
+
+```javascript
+// Consumer for bet.settled events
+class TurnoverConsumer {
+  async consume(event) {
+    const { playerId, operatorId, siteName, promotionId, betAmount, gameId } = event;
+
+    // Check if this is the target game for TO calculation
+    const promotion = await this.promotionService.findById(promotionId);
+    const targetGameId = promotion.gameIds[0]; // First game is target
+
+    if (gameId === targetGameId) {
+      // Update totalTurnover
+      await this.playerPromotionService.updateTotalTurnover(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        betAmount,
+      );
+    }
+  }
+}
+```
+
 ## TO Requirement Validation Flow
 
 ```mermaid
@@ -139,11 +263,16 @@ sequenceDiagram
     participant Game
     participant PP as PlayerPromotion
     participant B as BetSystem
+    participant BonusWinStream
+    participant BetSettledStream
 
     Player->>Game: Complete All Bonus Items
-    Game->>PP: Update totalWinAmount
+    Game->>BonusWinStream: Push bonusWin events
+    Note over BonusWinStream: Multiple events for each bonus
+
+    BonusWinStream->>PP: Update totalWinAmount
     Note over PP: totalWinAmount: 25.00
-    Game->>PP: Calculate TO requirement
+    PP->>PP: Calculate TO requirement
     Note over PP: minRequiredTurnover: 50.00
 
     Player->>Game: Request Bonus Win Claim
@@ -238,8 +367,8 @@ sequenceDiagram
 6. **TO Requirement Validation**:
    - Check if totalTurnover >= minRequiredTurnover
    - Only count bets on first game in gameIds array
-   - Update totalTurnover after each bet placement
-   - Calculate minRequiredTurnover after bonus completion
+   - Update totalTurnover after each bet placement via stream
+   - Calculate minRequiredTurnover after bonus completion via stream
    - Prevent bonus win claim if TO requirement not met
 
 ## TO Calculation Examples
@@ -291,13 +420,21 @@ sequenceDiagram
 - **Message**: "All bonus items must be completed before calculating TO requirement."
 - **Action**: Player must complete all bonus items first
 
+### Stream Processing Error
+
+- **Error Code**: `STREAM_PROCESSING_ERROR`
+- **Message**: "Error processing stream event. Please try again."
+- **Action**: Retry stream processing or manual intervention
+
 ## Implementation Notes
 
-1. **TO Tracking**: Total turnover is updated atomically after each bet placement on the target game
-2. **Win Amount Tracking**: Total win amount is calculated after all bonus items are completed
+1. **TO Tracking**: Total turnover is updated atomically after each bet placement on the target game via stream
+2. **Win Amount Tracking**: Total win amount is calculated after all bonus items are completed via stream
 3. **TO Calculation**: TO requirement is calculated as totalWinAmount × minTurnoverMultiplier
 4. **Game Specificity**: Only bets on the first game in gameIds array count toward TO requirement
 5. **Minimum Multiplier**: All promotions must have at least 2.0X TO multiplier
-6. **Real-time Updates**: TO progress is updated in real-time as bets are placed
+6. **Real-time Updates**: TO progress is updated in real-time as bets are placed via stream
 7. **Target Game**: The first game in the gameIds array is always used as the target game for TO calculation
 8. **Bonus Completion**: TO requirement is only calculated after all bonus items are used
+9. **Stream Resilience**: Implement retry logic and dead letter queues for failed stream processing
+10. **Event Ordering**: Ensure proper ordering of events for accurate calculations
