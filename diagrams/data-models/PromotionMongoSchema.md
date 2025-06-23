@@ -25,7 +25,11 @@
             currencyGroup : ObjectId,
             betLevel: Number
         }
-    ]
+    ],
+    isGiftCode: Boolean,              // Indicates if this promotion is a gift code
+    maxRedemptions: Number,           // Optional: Maximum total redemptions for this gift code
+    totalRedemptions: Number,         // Current number of times the gift code has been redeemed
+    maxRedemptionsPerPlayer: Number   // Optional: Maximum redemptions per player (e.g., 1 for single-use)
 }
 ```
 
@@ -49,6 +53,58 @@
     isGiftCode: Boolean,             // true if this promotion is from a gift code
     createdAt: ISODate,
     updatedAt: ISODate
+}
+```
+
+### 3. Gift Code Promotion
+
+```javascript
+// Promotion document for a gift code that can be redeemed multiple times by different players, but only once per player.
+{
+    _id: ObjectId("65f1a2b3c4d5e6f7g8h9i0j5"),
+    name: "Welcome Gift Code",
+    code: "WELCOME2024",
+    operatorId: "op123",
+    offeredSiteNames: [],
+    currencyGroups: [ObjectId("USD_456")],
+    startDate: ISODate("2024-01-01T00:00:00Z"),
+    endDate: ISODate("2024-12-31T23:59:59Z"),
+    bonusItemCount: 20,
+    offeredPlayerIds: [], // Not player specific, anyone with code can redeem.
+    gameConfigType: 3,  // CascadingSlot
+    gameIds: [2001],
+    betLevels: [
+        {
+            currencyGroup: ObjectId("USD_456"),
+            betLevel: 0.10
+        }
+    ],
+    isGiftCode: true,
+    maxRedemptions: 1000, // Can be redeemed 1000 times in total
+    totalRedemptions: 450,
+    maxRedemptionsPerPlayer: 1, // Each player can only redeem it once
+    createdAt: ISODate("2024-01-01T10:00:00Z"),
+    updatedAt: ISODate("2024-05-15T11:00:00Z")
+}
+
+// Example player promotion document after redemption
+{
+    _id: ObjectId("65f1a2b3c4d5e6f7g8h9i0j6"),
+    playerId: "player789",
+    operatorId: "op123",
+    siteName: "site789",
+    promotionId: ObjectId("65f1a2b3c4d5e6f7g8h9i0j5"),
+    promotionCode: "WELCOME2024",
+    currencyGroup: ObjectId("USD_456"),
+    remainingBonusItems: 20,
+    initialBonusItem: 20,
+    betLevel: 0.10,
+    startDate: ISODate("2024-01-01T00:00:00Z"),
+    endDate: ISODate("2024-12-31T23:59:59Z"),
+    lastUsedDate: null,
+    isGiftCode: true,
+    createdAt: ISODate("2024-06-20T14:00:00Z"),
+    updatedAt: ISODate("2024-06-20T14:00:00Z")
 }
 ```
 
@@ -163,7 +219,7 @@
 ### 1. Check Player's Active Promotion
 
 ```javascript
-db.playerPromotions.findOne({
+db.game_player_promotions.findOne({
   operatorId: 'op123',
   siteName: 'site456',
   playerId: 'player123',
@@ -174,7 +230,7 @@ db.playerPromotions.findOne({
 ### 2. Find Available Promotions
 
 ```javascript
-db.promotions.find({
+db.game_promotions.find({
   operatorId: 'op123',
   offeredSiteNames: { $in: ['site456'] }, // Will match if site456 is in the offeredSiteNames array
   currencyGroups: ObjectId('EUR_123'), // Will match if EUR_123 is in the currencyGroups array
@@ -187,7 +243,7 @@ db.promotions.find({
 
 ```javascript
 // For specific player list promotions
-db.promotions.find({
+db.game_promotions.find({
   operatorId: 'op123',
   offeredSiteNames: { $in: ['site456'] }, // Will match if site456 is in the offeredSiteNames array
   currencyGroups: ObjectId('EUR_123'), // Will match if EUR_123 is in the currencyGroups array
@@ -197,7 +253,7 @@ db.promotions.find({
 });
 
 // For all players promotions
-db.promotions.find({
+db.game_promotions.find({
   operatorId: 'op123',
   offeredSiteNames: { $in: ['site456'] }, // Will match if site456 is in the offeredSiteNames array
   currencyGroups: ObjectId('EUR_123'), // Will match if EUR_123 is in the currencyGroups array
@@ -210,7 +266,7 @@ db.promotions.find({
 ### 4. Check Game Availability
 
 ```javascript
-db.promotions.find({
+db.game_promotions.find({
   operatorId: 'op123',
   offeredSiteNames: { $in: ['site456'] }, // Will match if site456 is in the offeredSiteNames array
   currencyGroups: ObjectId('EUR_123'), // Will match if EUR_123 is in the currencyGroups array
@@ -218,4 +274,42 @@ db.promotions.find({
   endDate: { $gt: new Date() },
   gameIds: 1001, // Will match if 1001 is in the gameIds array
 });
+```
+
+### 5. Redeem a Gift Code
+
+```javascript
+// Step 1: Find the promotion by its code.
+const promotion = db.game_promotions.findOne({
+  code: 'WELCOME2024',
+  isGiftCode: true,
+  startDate: { $lte: new Date() },
+  endDate: { $gte: new Date() },
+});
+
+if (promotion) {
+  // Step 2: Check if the promotion has reached its total redemption limit.
+  if (promotion.maxRedemptions && promotion.totalRedemptions >= promotion.maxRedemptions) {
+    // Handle error: Gift code limit reached
+  }
+
+  // Step 3: Check if the player has already redeemed this gift code.
+  const playerRedemptions = db.game_player_promotions.count({
+    playerId: 'player789',
+    promotionId: promotion._id,
+    isGiftCode: true,
+  });
+
+  if (playerRedemptions >= promotion.maxRedemptionsPerPlayer) {
+    // Handle error: Player has already redeemed this code the maximum number of times.
+  }
+
+  // Step 4: If all checks pass, redeem the code.
+  // - Create a new document in game_player_promotions.
+  // - Atomically increment totalRedemptions in the promotion.
+  db.game_promotions.updateOne({ _id: promotion._id }, { $inc: { totalRedemptions: 1 } });
+  // ... logic to create game_player_promotions document ...
+} else {
+  // Handle error: Invalid or expired gift code
+}
 ```
