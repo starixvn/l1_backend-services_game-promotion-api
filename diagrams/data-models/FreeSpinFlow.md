@@ -75,50 +75,94 @@ sequenceDiagram
 
 ## TO Requirement Flow with Stream Messaging
 
+### Flow 1: Bonus Win Processing Stream
+
 ```mermaid
 sequenceDiagram
     participant Player
     participant Game
-    participant PP as PlayerPromotion
-    participant B as BetSystem
     participant PT as PromotionTicket
     participant BonusWinStream
-    participant BetSettledStream
     participant BonusWinConsumer
-    participant TurnoverConsumer
+    participant PP as PlayerPromotion
 
     Note over PP: Initial State
     Note over PP: remainingBonusItems: 50
-    Note over PP: totalTurnover: 0.00
     Note over PP: totalWinAmount: 0.00
     Note over PP: minRequiredTurnover: 0.00
 
-    Player->>Game: Use All Bonus Items
-    Game->>PT: Create tickets for each bonus
-    Note over PT: Record win amounts
+    Player->>Game: Use Bonus Item 1
+    Game->>PT: Create ticket for bonus 1
+    Note over PT: Record win amount: 5.00
     PT->>BonusWinStream: Push bonusWin event
-    Note over BonusWinStream: Event: {playerId, promotionId, winAmount, gameId}
+    Note over BonusWinStream: Event: {playerId, promotionId, winAmount: 5.00, gameId}
+
+    BonusWinStream->>BonusWinConsumer: Consume bonusWin event
+    BonusWinConsumer->>PP: Update totalWinAmount
+    Note over PP: totalWinAmount: 5.00
+    Note over PP: remainingBonusItems: 49
+
+    Player->>Game: Use Bonus Item 2
+    Game->>PT: Create ticket for bonus 2
+    Note over PT: Record win amount: 3.50
+    PT->>BonusWinStream: Push bonusWin event
+    Note over BonusWinStream: Event: {playerId, promotionId, winAmount: 3.50, gameId}
+
+    BonusWinStream->>BonusWinConsumer: Consume bonusWin event
+    BonusWinConsumer->>PP: Update totalWinAmount
+    Note over PP: totalWinAmount: 8.50
+    Note over PP: remainingBonusItems: 48
+
+    Note over Player,PP: ... Continue until all bonus items are used ...
+
+    Player->>Game: Use Final Bonus Item (50th)
+    Game->>PT: Create ticket for final bonus
+    Note over PT: Record win amount: 2.00
+    PT->>BonusWinStream: Push bonusWin event
+    Note over BonusWinStream: Event: {playerId, promotionId, winAmount: 2.00, gameId}
 
     BonusWinStream->>BonusWinConsumer: Consume bonusWin event
     BonusWinConsumer->>PP: Update totalWinAmount
     Note over PP: totalWinAmount: 25.00
+    Note over PP: remainingBonusItems: 0
+
+    BonusWinConsumer->>PP: Check if all bonus items completed
+    Note over PP: remainingBonusItems: 0 ✓
     BonusWinConsumer->>PP: Calculate TO requirement
     Note over PP: minRequiredTurnover: 50.00 (25.00 * 2.0)
+    Note over PP: Bonus completion: DONE
+    Note over PP: TO requirement: CALCULATED
+```
 
-    Player->>Game: Place Bet on Target Game (First in gameIds array)
+### Flow 2: Turnover Tracking Stream
+
+```mermaid
+sequenceDiagram
+    participant Player
+    participant Game
+    participant B as BetSystem
+    participant BetSettledStream
+    participant TurnoverConsumer
+    participant PP as PlayerPromotion
+
+    Note over PP: After Bonus Completion
+    Note over PP: totalTurnover: 0.00
+    Note over PP: minRequiredTurnover: 50.00
+    Note over PP: remainingTO: 50.00
+
+    Player->>Game: Place Bet on Target Game (Game ID 1001)
+    Note over Game: Bet Amount: 0.50
     Game->>B: Create Bet
     B->>Game: Bet created successfully
-    Note over B: betAmount: 0.50
-    Note over B: gameId: 1001 (first in gameIds)
-
     B->>BetSettledStream: Push bet.settled event
-    Note over BetSettledStream: Event: {playerId, promotionId, betAmount, gameId, isSettled}
+    Note over BetSettledStream: Event: {playerId, promotionId, betAmount: 0.50, gameId: 1001}
 
     BetSettledStream->>TurnoverConsumer: Consume bet.settled event
+    TurnoverConsumer->>PP: Check if target game (first in gameIds)
+    Note over PP: Target Game: 1001 ✓
     TurnoverConsumer->>PP: Update Total Turnover
     Note over PP: totalTurnover: 0.50
     Note over PP: remainingTO: 49.50
-    PP->>Game: TO updated
 
     Player->>Game: Place Another Bet on Target Game
     Game->>B: Create Bet
