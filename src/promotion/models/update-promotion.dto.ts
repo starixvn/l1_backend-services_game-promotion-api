@@ -8,7 +8,7 @@ import {
   IsEnum,
   IsBoolean,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { Types } from 'mongoose';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { BetLevelDto } from './bet-level.dto';
@@ -25,10 +25,11 @@ export class UpdatePromotionDto {
 
   @ApiPropertyOptional({
     description: 'Code of the promotion',
-    example: 'summer-class-free-spins',
+    example: 'SUMMER-CLASSIC-FREE-SPINS',
   })
   @IsString()
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
   code?: string;
 
   @ApiPropertyOptional({
