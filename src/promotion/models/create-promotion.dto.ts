@@ -7,6 +7,7 @@ import {
   IsOptional,
   ValidateNested,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Types } from 'mongoose';
@@ -133,4 +134,23 @@ export class CreatePromotionDto {
   @Type(() => BetLevelDto)
   @IsOptional()
   betLevels?: BetLevelDto[];
+
+  @ApiPropertyOptional({
+    description: 'Indicates if this promotion is a gift code',
+    example: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  @Type(() => Boolean)
+  isGiftCode?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Minimum TO multiplier required (at least 2X) to claim bonus wins',
+    example: 2,
+    minimum: 2,
+  })
+  @IsNumber()
+  @Type(() => Number)
+  @IsOptional()
+  minTurnoverMultiplier?: number;
 }

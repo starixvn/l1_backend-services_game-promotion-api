@@ -36,6 +36,8 @@ describe('PromotionModule (Integration)', () => {
     gameConfigType: 2,
     gameIds: [1001],
     betLevels: [],
+    isGiftCode: false,
+    minTurnoverMultiplier: 2,
   };
 
   // Used for testing multiple promotion scenarios - referenced in tests via spread operator
@@ -67,6 +69,8 @@ describe('PromotionModule (Integration)', () => {
     gameConfigType: 2,
     gameIds: [1001],
     betLevels: [],
+    isGiftCode: false,
+    minTurnoverMultiplier: 2,
     save: jest.fn().mockReturnThis(),
   };
 
@@ -252,6 +256,8 @@ describe('PromotionModule (Integration)', () => {
         bonusItemCount: 10,
         gameConfigType: 2,
         gameIds: [1001],
+        isGiftCode: false,
+        minTurnoverMultiplier: 2,
       };
 
       // Skip validation of the response body as it's causing issues

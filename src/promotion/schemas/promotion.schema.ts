@@ -118,6 +118,21 @@ export class Promotion {
   })
   @Prop({ type: [{ type: BetLevel }], default: [] })
   betLevels: BetLevel[];
+
+  @ApiProperty({
+    description: 'Indicates if this promotion is a gift code',
+    example: false,
+  })
+  @Prop({ default: false, required: true })
+  isGiftCode: boolean;
+
+  @ApiProperty({
+    description: 'Minimum TO multiplier required (at least 2X) to claim bonus wins',
+    example: 2,
+    minimum: 2,
+  })
+  @Prop({ type: Number, default: 2, required: true })
+  minTurnoverMultiplier: number;
 }
 
 export const PromotionSchema = SchemaFactory.createForClass(Promotion);

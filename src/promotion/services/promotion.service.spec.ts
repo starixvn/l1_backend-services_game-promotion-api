@@ -28,6 +28,8 @@ interface MockPromotionType {
   gameConfigType?: number;
   gameIds?: number[];
   betLevels?: any[];
+  isGiftCode?: boolean;
+  minTurnoverMultiplier?: number;
 }
 
 const mockPromotion: MockPromotionType = {
@@ -44,6 +46,8 @@ const mockPromotion: MockPromotionType = {
   gameConfigType: 2,
   gameIds: [1001],
   betLevels: [],
+  isGiftCode: false,
+  minTurnoverMultiplier: 2,
 };
 
 const mockPromotionArray: MockPromotionType[] = [
@@ -166,6 +170,8 @@ describe('PromotionService', () => {
         bonusItemCount: 10,
         gameConfigType: 2,
         gameIds: [1001],
+        isGiftCode: false,
+        minTurnoverMultiplier: 2,
       };
 
       const result = await service.createPromotion(createPromotionDto);
@@ -183,6 +189,8 @@ describe('PromotionService', () => {
         bonusItemCount: 10,
         gameConfigType: 2,
         gameIds: [1001],
+        isGiftCode: false,
+        minTurnoverMultiplier: 2,
       };
 
       const expectedPromotion = {

@@ -102,6 +102,8 @@ describe('PromotionController', () => {
         bonusItemCount: 10,
         gameConfigType: 2,
         gameIds: [1001],
+        isGiftCode: false,
+        minTurnoverMultiplier: 2,
       };
 
       jest.spyOn(service, 'createPromotion').mockResolvedValueOnce(mockPromotion as any);
