@@ -104,7 +104,7 @@ describe('PromotionController', () => {
         gameIds: [1001],
         isGiftCode: false,
         minTurnoverMultiplier: 2,
-        expireClaimableDate: futureDate,
+        claimExpirationDate: futureDate,
       };
 
       jest.spyOn(service, 'createPromotion').mockResolvedValueOnce(mockPromotion as any);

@@ -87,7 +87,7 @@ export class Promotion {
     example: '2024-07-15T23:59:59Z',
   })
   @Prop({ required: true })
-  expireClaimableDate: Date;
+  claimExpirationDate: Date;
 
   @ApiProperty({
     description: 'Number of free spins per player',

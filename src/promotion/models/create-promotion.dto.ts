@@ -90,7 +90,7 @@ export class CreatePromotionDto {
   @IsDate()
   @Type(() => Date)
   @IsNotEmpty()
-  expireClaimableDate: Date;
+  claimExpirationDate: Date;
 
   @ApiProperty({
     description: 'Number of free spins per player',
