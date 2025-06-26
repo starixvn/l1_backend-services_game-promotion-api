@@ -31,6 +31,7 @@ describe('PromotionModule (Integration)', () => {
     currencyGroups: ['currency1'],
     startDate: mockDate.toISOString(),
     endDate: futureDate.toISOString(),
+    expireClaimableDate: new Date(futureDate.getTime() + 86400000).toISOString(), // 1 day after endDate
     bonusItemCount: 10,
     offeredPlayerIds: ['player1'],
     gameConfigType: 2,
@@ -64,6 +65,7 @@ describe('PromotionModule (Integration)', () => {
     currencyGroups: ['currency1'],
     startDate: mockDate,
     endDate: futureDate,
+    expireClaimableDate: new Date(futureDate.getTime() + 86400000), // 1 day after endDate
     bonusItemCount: 10,
     offeredPlayerIds: ['player1'],
     gameConfigType: 2,
@@ -253,6 +255,7 @@ describe('PromotionModule (Integration)', () => {
         currencyGroups: ['currency1'],
         startDate: mockDate.toISOString(),
         endDate: futureDate.toISOString(),
+        expireClaimableDate: new Date(futureDate.getTime() + 86400000).toISOString(), // 1 day after endDate
         bonusItemCount: 10,
         gameConfigType: 2,
         gameIds: [1001],
