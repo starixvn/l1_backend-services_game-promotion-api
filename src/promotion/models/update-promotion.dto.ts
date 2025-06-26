@@ -79,6 +79,15 @@ export class UpdatePromotionDto {
   endDate?: Date;
 
   @ApiPropertyOptional({
+    description: 'Date and time when bonus items become unclaimable',
+    example: '2024-07-15T23:59:59Z',
+  })
+  @IsDate()
+  @Type(() => Date)
+  @IsOptional()
+  expireClaimableDate?: Date;
+
+  @ApiPropertyOptional({
     description: 'Number of free spins per player',
     example: 50,
   })

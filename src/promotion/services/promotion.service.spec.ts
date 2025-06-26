@@ -172,6 +172,7 @@ describe('PromotionService', () => {
         gameIds: [1001],
         isGiftCode: false,
         minTurnoverMultiplier: 2,
+        expireClaimableDate: futureDate,
       };
 
       const result = await service.createPromotion(createPromotionDto);
@@ -191,6 +192,7 @@ describe('PromotionService', () => {
         gameIds: [1001],
         isGiftCode: false,
         minTurnoverMultiplier: 2,
+        expireClaimableDate: futureDate,
       };
 
       const expectedPromotion = {
