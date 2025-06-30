@@ -3,3 +3,4 @@ export { EligiblePromotion, EligiblePromotionsResponse } from './eligible-promot
 export { AssignmentResponse } from './assignment.response';
 export { DeductBonusItemResponse, RollbackResponse } from './bonus-item.response';
 export { PromotionTicket, CreatePromotionTicketResponse } from './promotion-ticket.response';
+export { PromotionResponse, BetLevelResponse } from './promotion.response';

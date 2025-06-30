@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { PromotionTicket, PromotionTicketDocument } from '../schemas/promotion-ticket.schema';
 import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto';
+import { TotalWinDto } from '../models/total-win.dto';
 import { CreatePromotionTicketResponse } from '../responses/promotion-ticket.response';
 import { PROMOTION_TICKET_ERROR_CODES } from '../../constants/error-codes';
 import { LoggerService } from '../../core/logger/logger.service';
@@ -33,7 +34,6 @@ export class PromotionTicketService {
       return {
         success: true,
         ticket: savedTicket,
-        ...PROMOTION_TICKET_ERROR_CODES.CREATION_SUCCESS,
       };
     } catch (error) {
       // Log the exception to Sentry with context
@@ -48,5 +48,24 @@ export class PromotionTicketService {
         ...PROMOTION_TICKET_ERROR_CODES.CREATION_FAILED,
       };
     }
+  }
+
+  /**
+   * Get total win amount for a player by promotionId, playerId, operatorId
+   * @param promotionId Promotion ID
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @returns Total win amount (number)
+   */
+  async calculateTotalWin(totalWinDto: TotalWinDto): Promise<number> {
+    const tickets = await this.promotionTicketModel
+      .find({
+        promotionId: totalWinDto.promotionId,
+        playerId: totalWinDto.playerId,
+        operatorId: totalWinDto.operatorId,
+      })
+      .lean()
+      .exec();
+    return tickets.reduce((sum, ticket) => sum + (ticket.winAmount || 0), 0);
   }
 }

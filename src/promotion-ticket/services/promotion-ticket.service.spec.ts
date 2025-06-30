@@ -58,6 +58,7 @@ describe('PromotionTicketService', () => {
     const inputDto: CreatePromotionTicketDto = {
       playerId: 'player123',
       operatorId: 'operator456',
+      promotionId: 'promo789',
       gameId: 1001,
       gameRoundId: 789,
       appType: 1,
@@ -83,7 +84,6 @@ describe('PromotionTicketService', () => {
       const expectedResult: CreatePromotionTicketResponse = {
         success: true,
         ticket: mockSavedTicket,
-        ...PROMOTION_TICKET_ERROR_CODES.CREATION_SUCCESS,
       };
 
       // Act
@@ -146,6 +146,7 @@ describe('PromotionTicketService', () => {
       expect(mockPromotionTicketModel).toHaveBeenCalledWith({
         playerId: 'player123',
         operatorId: 'operator456',
+        promotionId: 'promo789',
         gameId: 1001,
         gameRoundId: 789,
         appType: 1,

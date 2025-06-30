@@ -34,6 +34,7 @@ describe('PromotionTicketController', () => {
     const inputDto: CreatePromotionTicketDto = {
       playerId: 'player123',
       operatorId: 'operator456',
+      promotionId: 'promo789',
       gameId: 1001,
       gameRoundId: 789,
       appType: 1,
@@ -51,7 +52,6 @@ describe('PromotionTicketController', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
         } as any,
-        ...PROMOTION_TICKET_ERROR_CODES.CREATION_SUCCESS,
       };
       mockPromotionTicketService.createTicket.mockResolvedValue(expectedServiceResponse);
 
@@ -93,7 +93,6 @@ describe('PromotionTicketController', () => {
       // Arrange
       const expectedServiceResponse: CreatePromotionTicketResponse = {
         success: true,
-        ...PROMOTION_TICKET_ERROR_CODES.CREATION_SUCCESS,
       };
       mockPromotionTicketService.createTicket.mockResolvedValue(expectedServiceResponse);
 
@@ -105,6 +104,7 @@ describe('PromotionTicketController', () => {
       expect(mockPromotionTicketService.createTicket).toHaveBeenCalledWith({
         playerId: 'player123',
         operatorId: 'operator456',
+        promotionId: 'promo789',
         gameId: 1001,
         gameRoundId: 789,
         appType: 1,

@@ -145,13 +145,29 @@ describe('PromotionController', () => {
 
       const result = await controller.getRunningPromotions(operatorId);
       expect(result).toEqual(mockRunningPromotions);
-      expect(service.getRunningPromotions).toHaveBeenCalledWith(operatorId);
+      expect(service.getRunningPromotions).toHaveBeenCalledWith(operatorId, undefined);
     });
 
-    it('should throw an error if operatorId is not provided', async () => {
-      await expect(controller.getRunningPromotions(undefined as any)).rejects.toThrow(
-        BadRequestException,
-      );
+    it('should return running promotions for a given operator and gameId', async () => {
+      const operatorId = 'op123';
+      const gameId = '1001';
+      jest
+        .spyOn(service, 'getRunningPromotions')
+        .mockResolvedValueOnce(mockRunningPromotions as any);
+
+      const result = await controller.getRunningPromotions(operatorId, gameId);
+      expect(result).toEqual(mockRunningPromotions);
+      expect(service.getRunningPromotions).toHaveBeenCalledWith(operatorId, gameId);
+    });
+
+    it('should return all running promotions when no parameters are provided', async () => {
+      jest
+        .spyOn(service, 'getRunningPromotions')
+        .mockResolvedValueOnce(mockRunningPromotions as any);
+
+      const result = await controller.getRunningPromotions();
+      expect(result).toEqual(mockRunningPromotions);
+      expect(service.getRunningPromotions).toHaveBeenCalledWith(undefined, undefined);
     });
   });
 

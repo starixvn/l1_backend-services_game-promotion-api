@@ -3,6 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { PromotionService } from './promotion.service';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
+import { PromotionTicket } from '../../promotion-ticket/schemas/promotion-ticket.schema';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionStatus } from '../models/promotion-filter.dto';
@@ -126,6 +127,17 @@ describe('PromotionService', () => {
         {
           provide: getModelToken(Promotion.name),
           useValue: mockModel,
+        },
+        {
+          provide: getModelToken(PromotionTicket.name),
+          useValue: {
+            find: jest.fn().mockReturnValue({
+              exec: jest.fn().mockResolvedValue([]),
+            }),
+            aggregate: jest.fn().mockReturnValue({
+              exec: jest.fn().mockResolvedValue([]),
+            }),
+          },
         },
       ],
     }).compile();
@@ -380,7 +392,7 @@ describe('PromotionService', () => {
   });
 
   describe('getRunningPromotions', () => {
-    it('should query for running promotions with correct parameters and sort options', async () => {
+    it('should query for running promotions with operatorId filter', async () => {
       // Arrange
       const testNow = new Date('2023-01-15T12:00:00Z');
       jest.spyOn(global.Date, 'now').mockImplementation(() => testNow.getTime());
@@ -409,8 +421,11 @@ describe('PromotionService', () => {
       );
     });
 
-    it('should filter by exact operatorId match', async () => {
+    it('should query for running promotions with gameId filter', async () => {
       // Arrange
+      const testNow = new Date('2023-01-15T12:00:00Z');
+      jest.spyOn(global.Date, 'now').mockImplementation(() => testNow.getTime());
+
       const mockExec = jest.fn().mockResolvedValue([]);
       const mockFind = jest.fn().mockReturnValue({
         exec: mockExec,
@@ -418,17 +433,78 @@ describe('PromotionService', () => {
       model.find = mockFind;
 
       // Act
-      await service.getRunningPromotions('op456');
+      await service.getRunningPromotions(undefined, '1001');
 
       // Assert
       expect(mockFind).toHaveBeenCalledWith(
-        expect.objectContaining({
-          operatorId: 'op456',
-        }),
+        {
+          startDate: { $lte: expect.any(Date) },
+          endDate: { $gt: expect.any(Date) },
+          gameIds: { $in: [1001] },
+        },
         null,
-        expect.objectContaining({
+        {
+          sort: { endDate: 1, _id: 1 },
           lean: true,
-        }),
+        },
+      );
+    });
+
+    it('should query for running promotions with both operatorId and gameId filters', async () => {
+      // Arrange
+      const testNow = new Date('2023-01-15T12:00:00Z');
+      jest.spyOn(global.Date, 'now').mockImplementation(() => testNow.getTime());
+
+      const mockExec = jest.fn().mockResolvedValue([]);
+      const mockFind = jest.fn().mockReturnValue({
+        exec: mockExec,
+      });
+      model.find = mockFind;
+
+      // Act
+      await service.getRunningPromotions('op123', '1001');
+
+      // Assert
+      expect(mockFind).toHaveBeenCalledWith(
+        {
+          startDate: { $lte: expect.any(Date) },
+          endDate: { $gt: expect.any(Date) },
+          operatorId: 'op123',
+          gameIds: { $in: [1001] },
+        },
+        null,
+        {
+          sort: { endDate: 1, _id: 1 },
+          lean: true,
+        },
+      );
+    });
+
+    it('should query for all running promotions when no filters are provided', async () => {
+      // Arrange
+      const testNow = new Date('2023-01-15T12:00:00Z');
+      jest.spyOn(global.Date, 'now').mockImplementation(() => testNow.getTime());
+
+      const mockExec = jest.fn().mockResolvedValue([]);
+      const mockFind = jest.fn().mockReturnValue({
+        exec: mockExec,
+      });
+      model.find = mockFind;
+
+      // Act
+      await service.getRunningPromotions();
+
+      // Assert
+      expect(mockFind).toHaveBeenCalledWith(
+        {
+          startDate: { $lte: expect.any(Date) },
+          endDate: { $gt: expect.any(Date) },
+        },
+        null,
+        {
+          sort: { endDate: 1, _id: 1 },
+          lean: true,
+        },
       );
     });
   });

@@ -1,60 +1,84 @@
-# Game Promotion API - Postman Flow Tests
+# Game Promotion API - Postman Test Collections
 
-This Postman collection contains comprehensive positive test scenarios for the complete promotion flow.
+This directory contains two comprehensive Postman collections for testing different aspects of the Game Promotion API.
 
-## Test Flow Overview
+## Collections Overview
 
-The collection tests the following complete flow:
+### 📋 Collection 1: Complete Lifecycle Flow
 
-1. **Create Promotion** → 2. **Claim Promotion** → 3. **Deduct Bonus Item** → 4. **Insert Promotion Ticket**
+**File:** `Game-Promotion-API-Complete-Flow.postman_collection.json`
 
-## Test Scenarios
+Tests the complete end-to-end promotion lifecycle:
 
-### 1. Create Promotion
+1. **Create Promotion** (50 bonus items)
+2. **Claim Promotion**
+3. **Check Available Promotions**
+4. **Deduct Bonus Item** (1st spin)
+5. **Create Promotion Ticket** (1st result)
+6. **Deduct Bonus Item** (2nd spin)
+7. **Create Promotion Ticket** (2nd result)
+8. **Verify Final State** (48 remaining items)
 
-- Creates a new promotion with 50 free spins
-- Uses dynamic timestamp for unique promotion codes
-- Validates promotion creation response
+### 🎯 Collection 2: Deduction Verification Flow
 
-### 2. Claim Promotion
+**File:** `Game-Promotion-API-Deduction-Verification.postman_collection.json`
 
-- Player claims the created promotion (returns 201 Created)
-- Verifies initial state (50 remaining bonus items, null lastUsedDate)
-- Saves promotion data for subsequent tests
+Focuses on testing deduction accuracy and state verification:
 
-### 3. Check Available Promotions
+1. **Create Promotion** (25 bonus items)
+2. **Claim Promotion** (record initial state)
+3. **Deduct Bonus Item** (first deduction)
+4. **Verify Deduction** (claim again to check)
+5. **Multiple Deductions Test** (second deduction)
+6. **Final Verification** (comprehensive state check)
 
-- Verifies player has no available promotions (already has one active)
-- Confirms promotion claiming logic works correctly
+## Key Features
 
-### 4-5. First Free Spin Flow
+### ✅ Enhanced Response Validation
 
-- **Deduct Bonus Item**: Removes 1 bonus item (49 remaining)
-- **Create Promotion Ticket**: Records the spin result (bet: $0.01, win: $15.50)
+Both collections now validate the **new response format**:
 
-### 6-7. Second Free Spin Flow
+- ✅ **Success responses**: Only `{ success: true }` (no unnecessary codes)
+- ✅ **Error responses**: Include proper error codes and messages
+- ✅ **Field integrity**: All promotion fields maintained correctly
 
-- **Deduct Bonus Item**: Removes another bonus item (48 remaining)
-- **Create Promotion Ticket**: Records the spin result (bet: $0.01, win: $0.00)
+### 🔄 Smart Variable Management
 
-### 8. Final State Verification
+- **Shared variables**: `operatorId`, `siteName`, `currencyGroup`, etc.
+- **Unique test runs**: Each collection generates unique player IDs
+- **State tracking**: Variables maintain test state across requests
+- **Cross-collection compatibility**: Same base configuration
 
-- Verifies final promotion state
-- Confirms 48 remaining bonus items after successful flow
+### 📊 Comprehensive Testing
+
+- **State verification**: Before/after comparisons
+- **Multiple deductions**: Sequential deduction testing
+- **Field integrity**: All promotion fields remain correct
+- **Timestamp validation**: `lastUsedDate` updates properly
+- **Business logic**: Atomic operations and data consistency
 
 ## Collection Variables
 
-The collection uses the following variables that you can customize:
+Both collections use these configurable variables:
 
 | Variable        | Default Value           | Description         |
 | --------------- | ----------------------- | ------------------- |
 | `baseUrl`       | `http://localhost:3000` | API base URL        |
 | `operatorId`    | `operator123`           | Test operator ID    |
-| `playerId`      | `player456`             | Test player ID      |
 | `siteName`      | `testsite`              | Test site name      |
 | `currencyGroup` | `USD`                   | Currency group      |
 | `gameId`        | `1001`                  | Game ID for tickets |
-| `gameRoundId`   | `round789`              | Game round ID       |
+
+### Additional Variables (Deduction Collection)
+
+| Variable                 | Description                      |
+| ------------------------ | -------------------------------- |
+| `testRunId`              | Unique identifier for test run   |
+| `existingPromotionId`    | ID of existing promotion to test |
+| `playerId`               | Player ID for deduction tests    |
+| `initialRemainingItems`  | Starting bonus item count        |
+| `expectedRemainingItems` | Expected count after deductions  |
+| `initialBonusItemCount`  | Initial bonus items of promotion |
 
 ## How to Use
 
@@ -62,64 +86,90 @@ The collection uses the following variables that you can customize:
 
 1. Ensure your Game Promotion API is running on `http://localhost:3000`
 2. Have MongoDB running with the required collections
-3. Import the collection into Postman
+3. Import both collections into Postman
 
 ### Running the Tests
 
-#### Option 1: Run Complete Collection
+#### Option 1: Complete Lifecycle Flow
 
-1. Import `Game-Promotion-API-Flow-Tests.postman_collection.json` into Postman
+1. Import `Game-Promotion-API-Complete-Flow.postman_collection.json`
 2. Click "Run Collection"
-3. Select all requests
-4. Click "Run Game Promotion API - Flow Tests"
-5. Watch all tests execute in sequence
+3. Select all 8 requests
+4. Click "Run" to execute the complete lifecycle
+5. Expected result: **48 remaining bonus items** after full flow
 
-#### Option 2: Run Individual Requests
+#### Option 2: Deduction Verification Flow
 
-1. Execute requests in order (1-8)
-2. Each request depends on the previous ones
-3. Variables are automatically set between requests
+1. Import `Game-Promotion-API-Deduction-Verification.postman_collection.json`
+2. **Set `existingPromotionId` variable** to an existing promotion ID
+3. Click "Run Collection"
+4. Select all 6 requests
+5. Click "Run" to execute deduction verification
+6. Expected result: **2 items deducted** from the existing promotion
+
+#### Option 3: Run Both Collections
+
+1. Import both collections
+2. Run them in any order (they use different players)
+3. Compare results and verify different scenarios
 
 ### Expected Results
 
-When all tests pass, you should see:
+#### Complete Lifecycle Flow
 
-- ✅ 20+ test assertions passing
-- Promotion created with unique code
-- Player promotion claimed successfully
-- 2 bonus items deducted and tickets created
-- Final state: 48 remaining bonus items
+- ✅ **16+ test assertions** passing
+- ✅ Promotion created with **50 bonus items**
+- ✅ Player claims promotion successfully
+- ✅ **2 bonus items deducted** and **2 tickets created**
+- ✅ Final state: **48 remaining bonus items**
+- ✅ All response formats validated
 
-## Test Assertions
+#### Deduction Verification Flow
 
-Each request includes multiple test assertions:
+- ✅ **12+ test assertions** passing
+- ✅ Uses **existing promotion** (no creation needed)
+- ✅ **Precise deduction tracking** (initial → -1 → -2)
+- ✅ **Multiple deduction verification**
+- ✅ **Field integrity** maintained throughout
+- ✅ **State consistency** verified
 
-### Status Code Checks
+## API Response Formats
 
-- All requests verify correct HTTP status codes (201)
-- All POST endpoints return 201 Created (NestJS default behavior)
+### ✅ Updated Response Structure
 
-### Response Structure Validation
+The API now uses **cleaner response formats**:
 
-- Validates required fields in responses
-- Checks data types and values
-- Ensures proper error code responses
+#### Success Responses (Simplified)
 
-### Business Logic Verification
+```json
+{
+  "success": true
+}
+```
 
-- Confirms bonus item counts decrease correctly
-- Validates promotion ticket data accuracy
-- Tests rollback restoration logic
+#### Success Responses (With Data)
 
-### State Management
+```json
+{
+  "success": true,
+  "promotion": { ... },
+  "ticket": { ... }
+}
+```
 
-- Verifies promotion state transitions
-- Confirms atomic operations work correctly
-- Tests data consistency across requests
+#### Error Responses (Detailed)
 
-## API Response Structures
+```json
+{
+  "success": false,
+  "code": "SB3001",
+  "message": "Cannot deduct bonus item"
+}
+```
 
-### Create Promotion Response
+### Response Examples
+
+#### Create Promotion Response
 
 ```json
 {
@@ -136,46 +186,44 @@ Each request includes multiple test assertions:
 }
 ```
 
-### Claim Promotion Response
+#### Claim Promotion Response
 
 ```json
 {
-  "success": true,
-  "code": "SB3002",
-  "message": "Player promotion claimed successfully",
   "promotion": {
-    "_id": "507f1f77bcf86cd799439012",
     "playerId": "player456",
     "operatorId": "operator123",
     "siteName": "testsite",
     "promotionId": "507f1f77bcf86cd799439011",
+    "promotionCode": "FREE_SPINS_1234567890",
     "remainingBonusItems": 50,
+    "initialBonusItem": 50,
+    "betLevel": 1,
+    "startDate": "2024-01-01T00:00:00.000Z",
+    "endDate": "2024-12-31T23:59:59.000Z",
     "lastUsedDate": null
   }
 }
 ```
 
-### Deduct Bonus Item Response
+#### Deduct Bonus Item Response (Success)
 
 ```json
 {
-  "success": true,
-  "code": "SB3002",
-  "message": "Bonus item deducted successfully"
+  "success": true
 }
 ```
 
-### Create Promotion Ticket Response
+#### Create Promotion Ticket Response
 
 ```json
 {
   "success": true,
-  "code": "PT3300",
-  "message": "Promotion ticket created successfully",
   "ticket": {
     "_id": "507f1f77bcf86cd799439013",
     "playerId": "player456",
     "operatorId": "operator123",
+    "promotionId": "507f1f77bcf86cd799439011",
     "gameId": 1001,
     "gameRoundId": 789,
     "appType": 1,
@@ -187,92 +235,70 @@ Each request includes multiple test assertions:
 }
 ```
 
-### Response Structure Patterns
+## Test Coverage
 
-The API follows consistent response patterns:
+### Complete Lifecycle Flow Coverage
 
-1. **Direct Object Response** (Create Promotion):
+- ✅ **End-to-end workflow**: Full promotion lifecycle
+- ✅ **Promotion ticket integration**: Complete ticket creation flow
+- ✅ **Business logic validation**: Comprehensive state verification
+- ✅ **Response format validation**: New simplified success responses
 
-   - Returns the created object directly
-   - No wrapper properties
-   - Example: `{ "_id": "...", "name": "...", "code": "..." }`
+### Deduction Verification Flow Coverage
 
-2. **Wrapped Response with Success Info** (Claim Promotion, Deduct Bonus, Create Ticket):
+- ✅ **Deduction accuracy**: Precise item count tracking
+- ✅ **State persistence**: Database consistency verification
+- ✅ **Multiple operations**: Sequential deduction testing
+- ✅ **Field integrity**: All promotion data maintained
+- ✅ **Timestamp tracking**: `lastUsedDate` updates correctly
 
-   - Includes `success`, `code`, and `message` fields
-   - Main data wrapped in descriptive property (`promotion`, `ticket`)
-   - Example: `{ "success": true, "code": "...", "message": "...", "promotion": {...} }`
+## Benefits of Split Collections
 
-3. **Status Codes**:
-   - All POST endpoints return `201 Created` (NestJS default)
-   - GET endpoints return `200 OK`
+### 🎯 **Focused Testing**
 
-## Error Codes Tested
+- Each collection targets specific functionality
+- Easier to debug specific issues
+- Cleaner test organization
 
-The collection validates these error codes:
+### 🔄 **Better Maintainability**
 
-- `SB3002`: Bonus item deducted successfully
-- `PT3300`: Promotion ticket created successfully
+- Smaller, more manageable files
+- Independent test execution
+- Specific variable scoping
 
-## Customization
+### 📊 **Enhanced Coverage**
 
-### Changing Test Data
+- Two different test scenarios
+- Complementary validation approaches
+- Comprehensive API testing
 
-Update collection variables to test with different:
+### 🚀 **Improved Usability**
 
-- Player IDs
-- Operator IDs
-- Game configurations
-- Win amounts
-
-### Adding More Scenarios
-
-You can extend the collection by:
-
-- Adding more deduction/ticket cycles
-- Testing edge cases (0 remaining items)
-- Adding negative test scenarios
-- Testing different game types
+- Choose the right collection for your needs
+- Faster individual test execution
+- Clear separation of concerns
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Connection Refused**: Ensure API is running on correct port
-2. **Database Errors**: Verify MongoDB is running and accessible
-3. **Validation Errors**: Check request body formats match API expectations
-4. **Sequence Errors**: Run requests in order, don't skip steps
+1. **"Promotion not found" errors**
+
+   - Ensure the API is running and accessible
+   - Check that MongoDB is running with proper collections
+
+2. **Variable not set errors**
+
+   - Run tests in sequence (variables are set by previous tests)
+   - Check that collection variables are properly configured
+
+3. **Deduction failed errors**
+   - Verify the promotion has remaining bonus items
+   - Check that the promotion is still active (not expired)
 
 ### Debug Tips
 
-- Check Postman Console for detailed request/response logs
-- Verify collection variables are set correctly
-- Ensure database has required test data
-- Check API logs for server-side errors
-
-## Integration with CI/CD
-
-This collection can be run in automated environments using Newman:
-
-```bash
-# Install Newman
-npm install -g newman
-
-# Run collection
-newman run Game-Promotion-API-Flow-Tests.postman_collection.json \
-  --environment your-environment.json \
-  --reporters cli,json \
-  --reporter-json-export results.json
-```
-
-## Real-World Usage Simulation
-
-This test collection simulates a realistic free spins promotion scenario:
-
-1. Casino creates a 50 free spins promotion
-2. Player logs in and automatically gets the promotion
-3. Player plays 2 free spins successfully
-4. System tracks all spin results for analytics
-5. Final state shows accurate remaining spins (48 remaining)
-
-This mirrors the actual game flow where players use free spins and the system tracks everything accurately for proper promotion management.
+1. **Check Console Output**: Both collections include detailed console logging
+2. **Verify Variables**: Use the Postman console to check variable values
+3. **Run Individual Tests**: Execute tests one by one to isolate issues
+4. **Compare Collections**: Run both flows to compare different scenarios

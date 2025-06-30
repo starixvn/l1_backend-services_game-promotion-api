@@ -25,13 +25,16 @@ export class PlayerPromotionService {
    * @param playerDto Player information
    * @returns Current player promotion or null if none available
    */
-  async claimPromotion(playerDto: PlayerDto): Promise<PlayerPromotionDocument | null> {
+  async claimPromotion(playerDto: PlayerDto): Promise<any> {
     const { operatorId, siteName, playerId, currencyGroup } = playerDto;
 
     // Step 1: Check if player already has an active promotion
     const existingPromotion = await this.findExistingPromotion(playerId, operatorId, siteName);
     if (existingPromotion) {
-      return existingPromotion;
+      const result = { ...existingPromotion };
+      delete result._id;
+      delete result.__v;
+      return result;
     }
 
     // Step 2: Find available promotions for the player
@@ -42,13 +45,17 @@ export class PlayerPromotionService {
 
     // Step 3: Claim the first available promotion
     const firstPromotion = availablePromotions[0];
-    return this.assignPromotionToPlayer(
+    const playerPromotion = await this.assignPromotionToPlayer(
       playerId,
       firstPromotion._id,
       operatorId,
       siteName,
       currencyGroup,
     );
+    const result = playerPromotion.toObject ? playerPromotion.toObject() : { ...playerPromotion };
+    delete result._id;
+    delete result.__v;
+    return result;
   }
 
   async getCurrentPromotion(playerDto: PlayerDto): Promise<PlayerPromotionDocument | null> {
@@ -97,6 +104,7 @@ export class PlayerPromotionService {
     return promotions.map(promotion => {
       return {
         _id: promotion._id,
+        betLevels: promotion.betLevels,
         name: promotion.name,
         code: promotion.code,
         bonusItemCount: promotion.bonusItemCount,
@@ -118,45 +126,18 @@ export class PlayerPromotionService {
     siteName: string,
   ): Promise<PlayerPromotionDocument | null> {
     const now = new Date();
+
     return this.playerPromotionModel
-      .aggregate([
-        {
-          $match: {
-            playerId,
-            operatorId,
-            siteName,
-            remainingBonusItems: { $gt: 0 },
-          },
-        },
-        {
-          $lookup: {
-            from: 'promotions',
-            localField: 'promotionId',
-            foreignField: '_id',
-            as: 'promotion',
-          },
-        },
-        {
-          $match: {
-            'promotion.0.startDate': { $lte: now },
-            'promotion.0.endDate': { $gt: now },
-          },
-        },
-        {
-          $replaceRoot: {
-            newRoot: {
-              $mergeObjects: [{ $arrayElemAt: ['$promotion', 0] }, '$$ROOT'],
-            },
-          },
-        },
-        {
-          $project: {
-            promotion: 0,
-          },
-        },
-      ])
-      .exec()
-      .then(results => results[0] || null);
+      .findOne({
+        playerId,
+        operatorId,
+        siteName,
+        remainingBonusItems: { $gt: 0 },
+        startDate: { $lte: now },
+        endDate: { $gt: now },
+      })
+      .lean()
+      .exec();
   }
 
   /**
@@ -173,10 +154,58 @@ export class PlayerPromotionService {
       currencyGroup,
     );
     const hasPromotion = await this.hasCurrentPromotion(playerId, operatorId, siteName);
+
     if (hasPromotion) {
       return [];
     }
-    return this.mapPromotionsToEligible(runningPromotions, currencyGroup);
+
+    // Filter out promotions that have been claimed before by this player
+    const unclaimedPromotions = await this.filterUnclaimedPromotions(
+      runningPromotions,
+      playerId,
+      operatorId,
+      siteName,
+    );
+
+    return this.mapPromotionsToEligible(unclaimedPromotions, currencyGroup);
+  }
+
+  /**
+   * Filter out promotions that have been claimed before by the player
+   * @param promotions List of running promotions
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @returns List of unclaimed promotions
+   */
+  private async filterUnclaimedPromotions(
+    promotions: PromotionDocument[],
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+  ): Promise<PromotionDocument[]> {
+    if (promotions.length === 0) {
+      return [];
+    }
+
+    // Get all promotion IDs that this player has ever claimed
+    const claimedPromotions = await this.playerPromotionModel
+      .find({
+        playerId,
+        operatorId,
+        siteName,
+      })
+      .lean()
+      .exec();
+
+    // Filter out promotions that have been claimed before
+    return promotions.filter(
+      promotion =>
+        !claimedPromotions?.some(
+          claimedPromotion =>
+            claimedPromotion.promotionCode.toString() === promotion.code.toString(),
+        ),
+    );
   }
 
   /**
@@ -246,6 +275,12 @@ export class PlayerPromotionService {
     currencyGroup: string,
   ): Promise<PlayerPromotionDocument> {
     const promotion = await this.getPromotionById(promotionId);
+
+    // Find the bet level for the player's currency group
+    const betLevelInfo = promotion.betLevels.find(
+      betLevel => betLevel.currencyGroup.toString() === currencyGroup.toString(),
+    );
+
     const playerPromotion = new this.playerPromotionModel({
       playerId,
       operatorId,
@@ -254,7 +289,12 @@ export class PlayerPromotionService {
       promotionCode: promotion.code,
       currencyGroup,
       remainingBonusItems: promotion.bonusItemCount,
+      initialBonusItem: promotion.bonusItemCount,
+      betLevel: betLevelInfo?.betLevel || 0,
+      startDate: promotion.startDate,
+      endDate: promotion.endDate,
       lastUsedDate: null,
+      isGiftCode: true,
     });
 
     return playerPromotion.save();
@@ -304,7 +344,6 @@ export class PlayerPromotionService {
     if (result) {
       return {
         success: true,
-        ...PLAYER_PROMOTION_ERROR_CODES.DEDUCTION_SUCCESS,
       };
     }
 
@@ -327,7 +366,6 @@ export class PlayerPromotionService {
     playerId: string,
     promotionId: string,
     rollbackData: {
-      previousRemainingItems: number;
       previousLastUsedDate: Date | null;
     },
   ): Promise<RollbackResponse> {
@@ -338,8 +376,8 @@ export class PlayerPromotionService {
         promotionId,
       },
       {
+        $inc: { remainingBonusItems: 1 },
         $set: {
-          remainingBonusItems: rollbackData.previousRemainingItems,
           lastUsedDate: rollbackData.previousLastUsedDate,
         },
       },
@@ -351,7 +389,6 @@ export class PlayerPromotionService {
     if (result) {
       return {
         success: true,
-        ...PLAYER_PROMOTION_ERROR_CODES.ROLLBACK_SUCCESS,
       };
     }
 

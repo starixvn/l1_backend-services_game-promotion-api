@@ -10,6 +10,13 @@ import {
 import { UpdatePromotionAnnouncementDto } from '../models/update-promotion-announcement.dto';
 import { PromotionService } from '../../promotion/services/promotion.service';
 
+// Mock the entire promotion module to avoid import issues
+jest.mock('../../promotion/services/promotion.service', () => ({
+  PromotionService: jest.fn().mockImplementation(() => ({
+    findManyByCodes: jest.fn(),
+  })),
+}));
+
 const mockDate = new Date();
 const futureDate = new Date(mockDate.getTime() + 86400000); // tomorrow
 
@@ -75,7 +82,7 @@ describe('PromotionAnnouncementController', () => {
         {
           provide: PromotionService,
           useValue: {
-            findManyByCodes: jest.fn(), // <- mock hàm này nếu cần
+            findManyByCodes: jest.fn(),
           },
         },
       ],

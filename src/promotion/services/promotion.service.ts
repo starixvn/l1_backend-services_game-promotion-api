@@ -1,17 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
+import { Promotion, PromotionDocument, PromotionExpiryDocument } from '../schemas/promotion.schema';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
 import { PaginationResponse } from '../responses/pagination.response';
+import {
+  PromotionTicket,
+  PromotionTicketDocument,
+} from '../../promotion-ticket/schemas/promotion-ticket.schema';
 
 @Injectable()
 export class PromotionService {
   constructor(
     @InjectModel(Promotion.name)
     private readonly promotionModel: Model<PromotionDocument>,
+    @InjectModel(PromotionTicket.name)
+    private readonly promotionTicketModel: Model<PromotionTicketDocument>,
   ) {}
 
   /**
@@ -156,16 +162,26 @@ export class PromotionService {
 
   /**
    * Gets only running promotions (active at current time) sorted by priority
-   * @param operatorId - Operator ID to filter by (required for performance)
+   * @param operatorId - Operator ID to filter by (optional - if provided, filter by operatorId, otherwise get all)
+   * @param gameId - Game ID to filter by (optional - if provided, filter by gameId, otherwise get all)
    * @returns Array of running promotions sorted by priority rules
    */
-  async getRunningPromotions(operatorId: string): Promise<Promotion[]> {
+  async getRunningPromotions(operatorId?: string, gameId?: string): Promise<Promotion[]> {
     const now = new Date();
     const query: Record<string, any> = {
       startDate: { $lte: now },
       endDate: { $gt: now },
-      operatorId: operatorId,
     };
+
+    // Add operatorId filter if provided
+    if (operatorId) {
+      query.operatorId = operatorId;
+    }
+
+    // Add gameId filter if provided
+    if (gameId) {
+      query.gameIds = { $in: [parseInt(gameId)] };
+    }
 
     return this.promotionModel
       .find(query, null, { sort: { endDate: 1, _id: 1 }, lean: true })
@@ -264,5 +280,89 @@ export class PromotionService {
       .find({ code: { $in: codes } })
       .lean()
       .exec();
+  }
+
+  /**
+   * Gets promotions that are expiring soon (endDate within now and now+days)
+   * @param operatorId - Operator ID to filter by (optional)
+   * @param gameId - Game ID to filter by (optional)
+   * @param days - Number of days to consider as expiring soon (default: 3)
+   * @returns Array of expiring promotions
+   */
+  async getExpiringPromotions(gameId?: string): Promise<PromotionExpiryDocument[]> {
+    const now = new Date();
+    const query: Record<string, any> = {
+      endDate: { $lt: now },
+    };
+
+    // Add gameId filter if provided
+    if (gameId) {
+      query.gameIds = { $in: [parseInt(gameId)] };
+    }
+
+    const promotionExpirys = (await this.promotionModel
+      .find(query, null, { sort: { endDate: 1, _id: 1 }, lean: true })
+      .exec()) as unknown as PromotionExpiryDocument[];
+
+    for (const promotion of promotionExpirys) {
+      const matchPromotionStage = {
+        $match: {
+          promotionId: promotion._id.toString(),
+        },
+      };
+
+      const lookupPlayerPromotionStage = {
+        $lookup: {
+          from: 'game_player_promotions',
+          localField: 'playerId',
+          foreignField: 'playerId',
+          as: 'playerPromotion',
+        },
+      };
+
+      const filterActivePlayersStage = {
+        $match: {
+          $or: [
+            // Include players who don't have a promotion record yet
+            { playerPromotion: { $size: 0 } },
+            // Include players who still have remaining bonus items and match the promotion
+            {
+              $and: [
+                { 'playerPromotion.remainingBonusItems': { $gt: 0 } },
+                { 'playerPromotion.promotionId': promotion._id.toString() },
+              ],
+            },
+          ],
+        },
+      };
+
+      const groupByPlayerStage = {
+        $group: {
+          _id: '$playerId',
+          totalWin: { $sum: '$winAmount' },
+        },
+      };
+
+      const projectFinalStage = {
+        $project: {
+          playerId: '$_id',
+          totalWin: 1,
+          _id: 0,
+        },
+      };
+
+      const playerStats = await this.promotionTicketModel
+        .aggregate([
+          matchPromotionStage,
+          lookupPlayerPromotionStage,
+          filterActivePlayersStage,
+          groupByPlayerStage,
+          projectFinalStage,
+        ])
+        .exec();
+      promotion.players = playerStats;
+    }
+
+    return promotionExpirys;
   }
 }

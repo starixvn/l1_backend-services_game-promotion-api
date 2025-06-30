@@ -14,7 +14,10 @@ import {
   DeductBonusItemResponse,
   RollbackResponse,
   CreatePromotionTicketResponse,
+  PromotionResponse,
 } from './responses';
+import { TotalWinDto } from './dtos/total-win.dto';
+import { PromotionExpiryResponse } from './responses/promotion.response';
 
 export class GamePromotionApiClient {
   private readonly httpClient: AxiosInstance;
@@ -106,6 +109,32 @@ export class GamePromotionApiClient {
     return response.data;
   }
 
+  // ===== PROMOTION METHODS =====
+
+  async getRunningPromotions(operatorId?: string, gameId?: string): Promise<PromotionResponse[]> {
+    const response: AxiosResponse<PromotionResponse[]> = await this.httpClient.get(
+      `/promotions/running?operatorId=${operatorId}&gameId=${gameId}`,
+    );
+    return response.data;
+  }
+
+  /**
+   * Get a specific promotion by ID
+   */
+  async getPromotionById(promotionId: string): Promise<PromotionResponse> {
+    const response: AxiosResponse<PromotionResponse> = await this.httpClient.get(
+      `/promotions/${promotionId}`,
+    );
+    return response.data;
+  }
+
+  async getExpiringPromotions(gameId?: string): Promise<PromotionExpiryResponse[]> {
+    const response: AxiosResponse<PromotionExpiryResponse[]> = await this.httpClient.get(
+      `/promotions/expiring?gameId=${gameId}`,
+    );
+    return response.data;
+  }
+
   // ===== PROMOTION TICKET METHODS =====
 
   /**
@@ -117,6 +146,17 @@ export class GamePromotionApiClient {
     const response: AxiosResponse<CreatePromotionTicketResponse> = await this.httpClient.post(
       '/promotion-tickets',
       createTicketDto,
+    );
+    return response.data;
+  }
+
+  /**
+   * Get total win amount for a player by promotion and operator
+   */
+  async getTotalWin(totalWinDto: TotalWinDto): Promise<{ totalWin: number }> {
+    const response: AxiosResponse<{ totalWin: number }> = await this.httpClient.post(
+      '/promotion-tickets/total-win',
+      totalWinDto,
     );
     return response.data;
   }

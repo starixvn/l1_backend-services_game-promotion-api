@@ -3,6 +3,13 @@ import { Document, Schema as MongooseSchema } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 
 export type PromotionDocument = Promotion & Document;
+export type PromotionExpiryDocument = Promotion & {
+  _id: string;
+  players: {
+    playerId: string;
+    totalWin: number;
+  }[];
+};
 
 @Schema({ timestamps: true })
 export class BetLevel {

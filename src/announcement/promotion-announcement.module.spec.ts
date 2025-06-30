@@ -4,6 +4,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import * as request from 'supertest';
 import { PromotionAnnouncement } from './schemas/promotion-announcement.schema';
 import { PromotionAnnouncementModule } from './promotion-announcement.module';
+import { PromotionTicket } from '../promotion-ticket/schemas/promotion-ticket.schema';
 
 const mockDate = new Date();
 const futureDate = new Date(mockDate.getTime() + 86400000);
@@ -61,6 +62,15 @@ describe('PromotionAnnouncementModule (Integration)', () => {
       }),
     };
 
+    const MockPromotionTicketModel = {
+      find: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+      aggregate: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [PromotionAnnouncementModule],
     })
@@ -68,6 +78,8 @@ describe('PromotionAnnouncementModule (Integration)', () => {
       .useValue(MockPromotionAnnouncementModel)
       .overrideProvider(getModelToken('Promotion'))
       .useValue(MockPromotionModel)
+      .overrideProvider(getModelToken(PromotionTicket.name))
+      .useValue(MockPromotionTicketModel)
       .compile();
 
     app = moduleFixture.createNestApplication();

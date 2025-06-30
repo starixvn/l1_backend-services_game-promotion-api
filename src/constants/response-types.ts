@@ -7,11 +7,11 @@ export class BaseApiResponse {
   @ApiProperty({ description: 'Whether the operation was successful' })
   success: boolean;
 
-  @ApiProperty({ description: 'Error or success code' })
-  code: string;
+  @ApiProperty({ description: 'Error or success code', required: false })
+  code?: string;
 
-  @ApiProperty({ description: 'Human-readable message' })
-  message: string;
+  @ApiProperty({ description: 'Human-readable message', required: false })
+  message?: string;
 }
 
 /**

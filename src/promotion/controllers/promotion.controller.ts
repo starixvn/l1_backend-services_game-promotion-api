@@ -21,7 +21,7 @@ import {
 import { PromotionService } from '../services/promotion.service';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
-import { Promotion } from '../schemas/promotion.schema';
+import { Promotion, PromotionExpiryDocument } from '../schemas/promotion.schema';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
 import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 import { PaginationResponse } from '../responses/pagination.response';
@@ -120,15 +120,16 @@ export class PromotionController {
 
   /**
    * Get running promotions sorted by priority
-   * @param operatorId - Operator ID to filter by (required for performance)
+   * @param operatorId - Operator ID to filter by (optional - if provided, filter by operatorId, otherwise get all)
+   * @param gameId - Game ID to filter by (optional - if provided, filter by gameId, otherwise get all)
    * @returns Array of running promotions sorted by priority rules
    */
-  @Get('running')
+  @Get('expiring')
   @ApiOperation({ summary: 'Get running promotions sorted by priority' })
   @ApiQuery({
-    name: 'operatorId',
+    name: 'gameId',
     required: true,
-    description: 'Filter by operator ID (required for performance)',
+    description: 'Filter by game ID (optional - if provided, filter by gameId, otherwise get all)',
     type: String,
   })
   @ApiResponse({
@@ -136,15 +137,44 @@ export class PromotionController {
     description: 'Returns running promotions sorted by priority (earliest end date first)',
     type: [Promotion],
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad request - operatorId is required',
-  })
-  async getRunningPromotions(@Query('operatorId') operatorId: string): Promise<Promotion[]> {
-    if (!operatorId) {
-      throw new BadRequestException('operatorId is required for performance reasons');
+  async getExpiringPromotions(@Query('gameId') gameId: string): Promise<PromotionExpiryDocument[]> {
+    if (!gameId) {
+      throw new BadRequestException('gameId is required');
     }
-    return this.promotionService.getRunningPromotions(operatorId);
+    return this.promotionService.getExpiringPromotions(gameId);
+  }
+
+  /**
+   * Get running promotions sorted by priority
+   * @param operatorId - Operator ID to filter by (optional - if provided, filter by operatorId, otherwise get all)
+   * @param gameId - Game ID to filter by (optional - if provided, filter by gameId, otherwise get all)
+   * @returns Array of running promotions sorted by priority rules
+   */
+  @Get('running')
+  @ApiOperation({ summary: 'Get running promotions sorted by priority' })
+  @ApiQuery({
+    name: 'operatorId',
+    required: false,
+    description:
+      'Filter by operator ID (optional - if provided, filter by operatorId, otherwise get all)',
+    type: String,
+  })
+  @ApiQuery({
+    name: 'gameId',
+    required: false,
+    description: 'Filter by game ID (optional - if provided, filter by gameId, otherwise get all)',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns running promotions sorted by priority (earliest end date first)',
+    type: [Promotion],
+  })
+  async getRunningPromotions(
+    @Query('operatorId') operatorId?: string,
+    @Query('gameId') gameId?: string,
+  ): Promise<Promotion[]> {
+    return this.promotionService.getRunningPromotions(operatorId, gameId);
   }
 
   @Get('check-code')
