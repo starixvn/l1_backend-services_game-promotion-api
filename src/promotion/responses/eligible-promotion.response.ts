@@ -31,6 +31,24 @@ export class EligiblePromotion {
     example: '60d21b4667d0d01ce67a7e3c',
   })
   currencyGroup: MongooseSchema.Types.ObjectId | string;
+
+  @ApiProperty({
+    description: 'Start date of the promotion',
+    example: '2021-01-01',
+  })
+  startDate: Date;
+
+  @ApiProperty({
+    description: 'End date of the promotion',
+    example: '2021-01-01',
+  })
+  endDate: Date;
+
+  @ApiProperty({
+    description: 'Is gift code',
+    example: true,
+  })
+  isGiftCode: boolean;
 }
 
 export class EligiblePromotionsResponse {

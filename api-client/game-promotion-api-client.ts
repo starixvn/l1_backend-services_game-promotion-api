@@ -6,6 +6,7 @@ import {
   DeductBonusItemDto,
   RollbackBonusItemDto,
   CreatePromotionTicketDto,
+  RedeemGiftCodeDto,
 } from './dtos';
 import {
   PlayerPromotionResponse,
@@ -72,6 +73,17 @@ export class GamePromotionApiClient {
     const response: AxiosResponse<EligiblePromotionsResponse> = await this.httpClient.post(
       '/player-promotions/has-promotion',
       playerDto,
+    );
+    return response.data;
+  }
+
+  /**
+   * Redeem a gift code promotion
+   */
+  async redeemGiftCode(redeemDto: RedeemGiftCodeDto): Promise<PlayerPromotionResponse> {
+    const response: AxiosResponse<PlayerPromotionResponse> = await this.httpClient.post(
+      '/player-promotions/redeem-gift-code',
+      redeemDto,
     );
     return response.data;
   }

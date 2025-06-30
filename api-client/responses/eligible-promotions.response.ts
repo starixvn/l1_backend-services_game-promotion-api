@@ -4,8 +4,10 @@ export interface EligiblePromotion {
   code: string;
   operatorId: string;
   bonusItemCount: number;
+  currencyGroup: string;
   startDate: string;
   endDate: string;
+  isGiftCode: boolean;
 }
 
 export interface EligiblePromotionsResponse {

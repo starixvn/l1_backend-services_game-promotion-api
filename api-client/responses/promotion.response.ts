@@ -12,11 +12,14 @@ export interface PromotionResponse {
   currencyGroups: string[];
   startDate: string;
   endDate: string;
+  claimExpirationDate: string;
   bonusItemCount: number;
   offeredPlayerIds: string[];
   gameConfigType: number;
   gameIds: number[];
   betLevels: BetLevelResponse[];
+  isGiftCode: boolean;
+  minTurnoverMultiplier: number;
   createdAt?: string;
   updatedAt?: string;
 }

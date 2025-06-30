@@ -39,12 +39,14 @@ export class PlayerPromotionService {
 
     // Step 2: Find available promotions for the player
     const availablePromotions = await this.getAvailablePromotions(playerDto);
-    if (availablePromotions.length === 0) {
+    const nonGiftCodePromotions = availablePromotions.filter(promotion => !promotion.isGiftCode);
+
+    if (nonGiftCodePromotions.length === 0) {
       return null;
     }
 
     // Step 3: Claim the first available promotion
-    const firstPromotion = availablePromotions[0];
+    const firstPromotion = nonGiftCodePromotions[0];
     const playerPromotion = await this.assignPromotionToPlayer(
       playerId,
       firstPromotion._id,
@@ -56,10 +58,6 @@ export class PlayerPromotionService {
     delete result._id;
     delete result.__v;
     return result;
-  }
-
-  async getCurrentPromotion(playerDto: PlayerDto): Promise<PlayerPromotionDocument | null> {
-    return this.claimPromotion(playerDto);
   }
 
   /**
@@ -109,6 +107,9 @@ export class PlayerPromotionService {
         code: promotion.code,
         bonusItemCount: promotion.bonusItemCount,
         currencyGroup: playerCurrencyGroup,
+        isGiftCode: promotion.isGiftCode,
+        startDate: promotion.startDate,
+        endDate: promotion.endDate,
       };
     });
   }
@@ -294,7 +295,10 @@ export class PlayerPromotionService {
       startDate: promotion.startDate,
       endDate: promotion.endDate,
       lastUsedDate: null,
-      isGiftCode: true,
+      isGiftCode: promotion.isGiftCode,
+      totalTurnover: 0,
+      totalWinAmount: 0,
+      minRequiredTurnover: 0,
     });
 
     return playerPromotion.save();
@@ -396,5 +400,103 @@ export class PlayerPromotionService {
       success: false,
       ...PLAYER_PROMOTION_ERROR_CODES.ROLLBACK_FAILED,
     };
+  }
+
+  /**
+   * Redeem a gift code promotion
+   * @param playerDto Player information
+   * @param giftCode Gift code to redeem
+   * @returns Player promotion or null if invalid
+   */
+  async redeemPromotion(
+    playerDto: PlayerDto,
+    giftCode: string,
+  ): Promise<PlayerPromotionDocument | null> {
+    const { operatorId, siteName, playerId, currencyGroup } = playerDto;
+
+    // Step 1: Check if player already has an active promotion
+    const existingPromotion = await this.findExistingPromotion(playerId, operatorId, siteName);
+    if (existingPromotion) {
+      return existingPromotion;
+    }
+
+    // Step 2: Find promotion by gift code
+    const promotion = await this.findPromotionByGiftCode(giftCode, operatorId, currencyGroup);
+    if (!promotion) {
+      return null;
+    }
+
+    // Step 3: Check if player has already claimed this promotion
+    const hasClaimed = await this.hasPlayerClaimedPromotion(
+      playerId,
+      operatorId,
+      siteName,
+      promotion.code,
+    );
+    if (hasClaimed) {
+      return null;
+    }
+
+    // Step 4: Claim the promotion
+    return await this.assignPromotionToPlayer(
+      playerId,
+      promotion._id,
+      operatorId,
+      siteName,
+      currencyGroup,
+    );
+  }
+
+  /**
+   * Find promotion by gift code
+   * @param giftCode Gift code
+   * @param operatorId Operator ID
+   * @param currencyGroup Currency group
+   * @returns Promotion or null
+   */
+  private async findPromotionByGiftCode(
+    giftCode: string,
+    operatorId: string,
+    currencyGroup: string,
+  ): Promise<PromotionDocument | null> {
+    const now = new Date();
+    return this.promotionModel
+      .findOne({
+        code: giftCode,
+        operatorId,
+        isGiftCode: true,
+        startDate: { $lte: now },
+        endDate: { $gt: now },
+        currencyGroups: { $in: [currencyGroup] },
+      })
+      .lean()
+      .exec();
+  }
+
+  /**
+   * Check if player has already claimed a specific promotion
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionCode Promotion code
+   * @returns Boolean indicating if claimed
+   */
+  private async hasPlayerClaimedPromotion(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionCode: string,
+  ): Promise<boolean> {
+    const claimedPromotion = await this.playerPromotionModel
+      .findOne({
+        playerId,
+        operatorId,
+        siteName,
+        promotionCode: promotionCode,
+      })
+      .lean()
+      .exec();
+
+    return !!claimedPromotion;
   }
 }

@@ -9,6 +9,8 @@ import { PlayerPromotionResponse } from '../responses/player-promotion.response'
 import { DeductBonusItemDto } from '../models/deduct-bonus-item.dto';
 import { RollbackBonusItemDto } from '../models/rollback-bonus-item.dto';
 import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
+import { RedeemGiftCodeDto } from '../models/redeem-gift-code.dto';
+import { GIFT_CODE_ERROR_CODES } from '../../constants/error-codes';
 
 @ApiTags('player-promotions')
 @Controller('player-promotions')
@@ -24,7 +26,7 @@ export class PlayerPromotionController {
   })
   async claimPromotion(@Body() playerDto: PlayerDto): Promise<PlayerPromotionResponse> {
     const promotion = await this.playerPromotionService.claimPromotion(playerDto);
-    return { promotion };
+    return { promotion, success: true };
   }
 
   @Post('has-promotion')
@@ -95,5 +97,30 @@ export class PlayerPromotionController {
       rollbackDto.promotionId,
       rollbackData,
     );
+  }
+
+  @Post('redeem-promotion')
+  @ApiOperation({ summary: 'Redeem a promotion' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Gift code redeemed successfully',
+    type: PlayerPromotionResponse,
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Invalid gift code or already claimed',
+  })
+  async redeemPromotion(@Body() redeemDto: RedeemGiftCodeDto): Promise<PlayerPromotionResponse> {
+    const { giftCode, ...playerDto } = redeemDto;
+    const promotion = await this.playerPromotionService.redeemPromotion(playerDto, giftCode);
+
+    if (!promotion) {
+      return {
+        success: false,
+        ...GIFT_CODE_ERROR_CODES.INVALID_GIFT_CODE,
+      };
+    }
+
+    return { promotion, success: true };
   }
 }

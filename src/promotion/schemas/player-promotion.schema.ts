@@ -43,6 +43,15 @@ export class PlayerPromotion {
 
   @Prop({ type: Boolean, required: true })
   isGiftCode: boolean;
+
+  @Prop({ type: Number, default: 0 })
+  totalTurnover: number;
+
+  @Prop({ type: Number, default: 0 })
+  totalWinAmount: number;
+
+  @Prop({ type: Number, default: 0 })
+  minRequiredTurnover: number;
 }
 
 export const PlayerPromotionSchema = SchemaFactory.createForClass(PlayerPromotion);

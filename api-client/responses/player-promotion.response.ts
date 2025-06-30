@@ -6,11 +6,22 @@ export interface PlayerPromotion {
   promotionCode: string;
   currencyGroup: string;
   remainingBonusItems: number;
-  lastUsedDate: Date;
+  initialBonusItem: number;
   betLevel: number;
+  startDate: Date;
+  endDate: Date;
+  lastUsedDate: Date | null;
   isGiftCode: boolean;
+  totalTurnover: number;
+  totalWinAmount: number;
+  minRequiredTurnover: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface PlayerPromotionResponse {
-  promotion: PlayerPromotion | null;
+  success: boolean;
+  code?: string;
+  message?: string;
+  promotion?: PlayerPromotion | null;
 }

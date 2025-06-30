@@ -137,11 +137,68 @@ describe('PromotionModule (Integration)', () => {
     };
 
     // Mock for the Player Promotion model (required by the module)
-    mockPlayerPromotionModel = {
-      find: jest.fn().mockReturnValue({
+    function MockPlayerPromotionModel() {
+      return {
+        _id: 'player-promotion-id',
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        promotionId: 'a-promotion-id',
+        promotionCode: 'test-promotion',
+        currencyGroup: 'currency1',
+        remainingBonusItems: 10,
+        initialBonusItem: 10,
+        betLevel: 1,
+        startDate: mockDate,
+        endDate: futureDate,
+        lastUsedDate: null,
+        isGiftCode: false,
+        totalTurnover: 0,
+        totalWinAmount: 0,
+        minRequiredTurnover: 20,
+        save: jest.fn().mockResolvedValue({
+          _id: 'player-promotion-id',
+          playerId: 'player1',
+          operatorId: 'op123',
+          siteName: 'site1',
+          promotionId: 'a-promotion-id',
+          promotionCode: 'test-promotion',
+          currencyGroup: 'currency1',
+          remainingBonusItems: 10,
+          initialBonusItem: 10,
+          betLevel: 1,
+          startDate: mockDate,
+          endDate: futureDate,
+          lastUsedDate: null,
+          isGiftCode: false,
+          totalTurnover: 0,
+          totalWinAmount: 0,
+          minRequiredTurnover: 20,
+        }),
+      };
+    }
+
+    // Add static methods to the PlayerPromotion model
+    MockPlayerPromotionModel.find = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue([]),
+      lean: jest.fn().mockReturnValue({
         exec: jest.fn().mockResolvedValue([]),
       }),
-    };
+    });
+    MockPlayerPromotionModel.findOne = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue(null),
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      }),
+    });
+    MockPlayerPromotionModel.findOneAndUpdate = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue(null),
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      }),
+    });
+
+    mockPlayerPromotionModel = MockPlayerPromotionModel;
 
     // Mock for the Promotion Ticket model (required by the module)
     mockPromotionTicketModel = {
