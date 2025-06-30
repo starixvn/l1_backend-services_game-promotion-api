@@ -10,6 +10,7 @@ import {
   PromotionTicket,
   PromotionTicketSchema,
 } from '../promotion-ticket/schemas/promotion-ticket.schema';
+import { CoreModule } from '../core/core.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import {
       { name: PlayerPromotion.name, schema: PlayerPromotionSchema },
       { name: PromotionTicket.name, schema: PromotionTicketSchema },
     ]),
+    CoreModule,
   ],
   controllers: [PromotionController, PlayerPromotionController],
   providers: [PromotionService, PlayerPromotionService],

@@ -10,6 +10,7 @@ import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-b
 import { UpdateTotalWinResponse } from '../responses/update-total-win.response';
 import { UpdateTotalTurnoverResponse } from '../responses/update-total-turnover.response';
 import { CalculateTORequirementResponse } from '../responses/calculate-to-requirement.response';
+import { LoggerService } from '../../core/logger/logger.service';
 
 /**
  * Service for managing player promotions
@@ -21,6 +22,7 @@ export class PlayerPromotionService {
     private readonly playerPromotionModel: Model<PlayerPromotionDocument>,
     @InjectModel(Promotion.name)
     private readonly promotionModel: Model<PromotionDocument>,
+    private readonly loggerService: LoggerService,
   ) {}
 
   /**
@@ -548,14 +550,13 @@ export class PlayerPromotionService {
         };
       }
     } catch (error) {
-      console.error('Error in updateTotalWinAmount:', {
+      this.loggerService.error('Error in updateTotalWinAmount', error.stack, {
         playerId,
         operatorId,
         siteName,
         promotionId,
         winAmount,
         error: error.message,
-        stack: error.stack,
       });
     }
 
@@ -608,14 +609,13 @@ export class PlayerPromotionService {
         };
       }
     } catch (error) {
-      console.error('Error in updateTotalTurnover:', {
+      this.loggerService.error('Error in updateTotalTurnover', error.stack, {
         playerId,
         operatorId,
         siteName,
         promotionId,
         betAmount,
         error: error.message,
-        stack: error.stack,
       });
     }
 
@@ -676,13 +676,12 @@ export class PlayerPromotionService {
         };
       }
     } catch (error) {
-      console.error('Error in calculateTORequirement:', {
+      this.loggerService.error('Error in calculateTORequirement', error.stack, {
         playerId,
         operatorId,
         siteName,
         promotionId,
         error: error.message,
-        stack: error.stack,
       });
     }
 
