@@ -280,13 +280,8 @@ export class PlayerPromotionService {
   ): Promise<PlayerPromotionDocument> {
     const promotion = await this.getPromotionById(promotionId);
 
-    // Validate turnover multiplier
     const turnoverMultiplier = promotion.minTurnoverMultiplier;
-    if (!turnoverMultiplier || turnoverMultiplier < 2.0) {
-      throw new Error(`Invalid turnover multiplier: ${turnoverMultiplier}. Must be at least 2.0`);
-    }
 
-    // Find the bet level for the player's currency group
     const betLevelInfo = promotion.betLevels.find(
       betLevel => betLevel.currencyGroup.toString() === currencyGroup.toString(),
     );
