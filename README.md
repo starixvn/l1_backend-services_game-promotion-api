@@ -86,6 +86,23 @@ This interactive UI allows you to:
 - See request/response schemas
 - Test API endpoints directly from the browser
 
+## Documentation
+
+### API Endpoints Documentation
+
+- **[Promotion API](diagrams/api-endpoints/PromotionAPI.md)** - Core promotion management endpoints
+- **[Turnover Tracking APIs](diagrams/api-endpoints/TurnoverTrackingAPIs.md)** - Turnover tracking and bonus win claim APIs
+
+### Sequence Diagrams
+
+- **[Turnover Tracking Flow](diagrams/sequence/TurnoverTrackingFlow.md)** - Complete flow of turnover tracking system
+
+### Architecture Diagrams
+
+- **[Data Models](diagrams/data-models/)** - Database schemas and data models
+- **[Architecture](diagrams/architecture/)** - System architecture diagrams
+- **[Deployment](diagrams/deployment/)** - Deployment and infrastructure diagrams
+
 ## API Endpoints
 
 ### Health Check

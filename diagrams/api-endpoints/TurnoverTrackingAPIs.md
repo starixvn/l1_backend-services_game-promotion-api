@@ -1,4 +1,4 @@
-# TO Tracking APIs
+# Turnover Tracking APIs
 
 This document describes the new APIs for tracking Turnover (TO) requirements in the promotion system, following the Turnover Tracking stream flow.
 
@@ -243,7 +243,7 @@ The TO tracking system consists of six main APIs that work together to manage th
 
 **Endpoint:** `POST /player-promotions/claim-bonus-wins`
 
-**Description:** Claims bonus wins after TO requirement is met. This marks the bonus as claimed and returns the claimed amount. This is the final step in the TO tracking flow.
+**Description:** Claims bonus wins after TO requirement is met. This marks the bonus as claimed and returns the claimed amount. This is the final step in the turnover tracking flow.
 
 **Request Body:**
 
@@ -360,7 +360,7 @@ class TurnoverConsumer {
 
 ### Player Promotion Schema
 
-The player promotion schema has been updated to include the new TO tracking fields:
+The player promotion schema has been updated to include the new turnover tracking fields:
 
 ```typescript
 export class PlayerPromotion {
@@ -400,7 +400,7 @@ export class PlayerPromotion {
 
 ### New Error Codes Added
 
-- **SB3005**: `TO_REQUIREMENT_NOT_MET` - Minimum turnover requirement not met
+- **SB3005**: `TURNOVER_REQUIREMENT_NOT_MET` - Minimum TO requirement not met
 - **SB3006**: `BONUS_NOT_COMPLETED` - All bonus items must be completed before calculating TO requirement
 - **SB3007**: `INVALID_TARGET_GAME` - Bet must be placed on target game for TO calculation
 - **SB3008**: `STREAM_PROCESSING_ERROR` - Error processing stream event
@@ -408,12 +408,12 @@ export class PlayerPromotion {
 - **SB3010**: `UPDATE_TOTAL_WIN_FAILED` - Failed to update total win amount
 - **SB3011**: `CALCULATE_TO_SUCCESS` - TO requirement calculated successfully
 - **SB3012**: `CALCULATE_TO_FAILED` - Failed to calculate TO requirement
-- **SB3013**: `UPDATE_TOTAL_TO_SUCCESS` - Total turnover updated successfully
-- **SB3014**: `UPDATE_TOTAL_TO_FAILED` - Failed to update total turnover
+- **SB3013**: `UPDATE_TOTAL_TURNOVER_SUCCESS` - Total turnover updated successfully
+- **SB3014**: `UPDATE_TOTAL_TURNOVER_FAILED` - Failed to update total turnover
 - **SB3016**: `BONUS_WIN_CLAIM_SUCCESS` - Bonus wins claimed successfully
 - **SB3017**: `BONUS_WIN_CLAIM_FAILED` - Failed to claim bonus wins
 - **SB3018**: `BONUS_ALREADY_CLAIMED` - Bonus wins have already been claimed
-- **SB3019**: `TO_REQUIREMENT_NOT_ALLOWED` - System prevents claiming to avoid exploitation
+- **SB3019**: `TURNOVER_REQUIREMENT_NOT_ALLOWED` - System prevents claiming to avoid exploitation
 
 ## API Client Usage
 
@@ -446,7 +446,7 @@ const turnoverUpdate = await client.updateTotalTurnover({
 });
 
 // Calculate TO requirement
-const toRequirement = await client.calculateTORequirement({
+const turnoverRequirement = await client.calculateTORequirement({
   playerId: 'player123',
   operatorId: 'op123',
   siteName: 'site456',
@@ -477,7 +477,7 @@ const progress = await client.getTOProgress({
 });
 
 console.log(`Progress: ${progress.progressPercentage}%`);
-console.log(`Remaining TO: ${progress.remainingTO}`);
+console.log(`Remaining Turnover: ${progress.remainingTO}`);
 console.log(`Can claim: ${progress.canClaim}`);
 
 // Claim bonus wins after TO requirement is met
@@ -589,62 +589,9 @@ The new APIs are additive and don't break existing functionality. All existing e
 
 ## Complete TO Tracking Flow
 
-### Typical Usage Scenario
+For the complete sequence diagram showing how all six APIs work together, see:
 
-Here's how all five APIs work together in a complete TO tracking scenario:
-
-```mermaid
-sequenceDiagram
-    participant Game
-    participant BonusWinStream
-    participant BetSettledStream
-    participant API as Game Promotion API
-    participant UI as Game UI
-
-    Note over Game,UI: Phase 1: Bonus Items Usage
-    Game->>BonusWinStream: Player uses bonus item (win: 5.0)
-    BonusWinStream->>API: updateTotalWinAmount(winAmount: 5.0)
-    API->>API: Update totalWinAmount += 5.0
-
-    Game->>BonusWinStream: Player uses another bonus item (win: 3.0)
-    BonusWinStream->>API: updateTotalWinAmount(winAmount: 3.0)
-    API->>API: Update totalWinAmount += 3.0
-
-    Note over Game,UI: Phase 2: Bonus Completion
-    Game->>BonusWinStream: Player uses final bonus item (win: 2.0)
-    BonusWinStream->>API: updateTotalWinAmount(winAmount: 2.0)
-    API->>API: Update totalWinAmount += 2.0
-    BonusWinStream->>API: calculateTORequirement()
-    API->>API: Calculate minRequiredTurnover = 20.0 (10.0 * 2.0)
-
-    Note over Game,UI: Phase 3: Turnover Tracking
-    Game->>BetSettledStream: Player places bet on target game (0.5)
-    BetSettledStream->>API: updateTotalTurnover(betAmount: 0.5)
-    API->>API: Update totalTurnover += 0.5
-
-    Game->>BetSettledStream: Player places another bet (1.0)
-    BetSettledStream->>API: updateTotalTurnover(betAmount: 1.0)
-    API->>API: Update totalTurnover += 1.0
-
-    Note over Game,UI: Phase 4: Progress Checking
-    UI->>API: getTOProgress()
-    API->>UI: { progressPercentage: 7.5%, remainingTO: 18.5, canClaim: false }
-
-    Note over Game,UI: Phase 5: Requirement Validation
-    Game->>BetSettledStream: Player places more bets...
-    BetSettledStream->>API: updateTotalTurnover(betAmount: 18.5)
-    API->>API: Update totalTurnover += 18.5
-
-    UI->>API: checkTORequirement()
-    API->>UI: { canClaim: true, totalWinAmount: 10.0 }
-
-    Note over Game,UI: Phase 6: Bonus Win Claim
-    Game->>UI: Player claims bonus wins
-    UI->>API: claimBonusWins()
-    API->>API: Mark bonus as claimed
-    API->>UI: { claimedAmount: 10.0, success: true }
-    UI->>Game: Allow claim (TO requirement met)
-```
+**[TO Tracking Flow Sequence Diagram](../sequence/TO_Tracking_Flow.md)**
 
 ### API Usage Patterns
 
