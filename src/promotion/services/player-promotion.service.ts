@@ -445,7 +445,10 @@ export class PlayerPromotionService {
       siteName,
       currencyGroup,
     );
-    return playerPromotion;
+    const result = playerPromotion.toObject ? playerPromotion.toObject() : { ...playerPromotion };
+    delete result._id;
+    delete result.__v;
+    return result;
   }
 
   /**
