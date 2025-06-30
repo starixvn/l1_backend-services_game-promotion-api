@@ -21,8 +21,5 @@ export interface PlayerPromotion {
 }
 
 export interface PlayerPromotionResponse {
-  success: boolean;
-  code?: string;
-  message?: string;
   promotion?: PlayerPromotion | null;
 }

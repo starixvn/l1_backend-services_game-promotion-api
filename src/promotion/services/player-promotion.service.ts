@@ -12,6 +12,7 @@ import { UpdateTotalTurnoverResponse } from '../responses/update-total-turnover.
 import { CalculateTORequirementResponse } from '../responses/calculate-to-requirement.response';
 import { LoggerService } from '../../core/logger/logger.service';
 import { CheckTORequirementResponse } from '../responses/check-to-requirement.response';
+import * as Responses from '../responses';
 import { GetTOProgressResponse } from '../responses/get-to-progress.response';
 
 /**
@@ -38,10 +39,7 @@ export class PlayerPromotionService {
     // Step 1: Check if player already has an active promotion
     const existingPromotion = await this.findExistingPromotion(playerId, operatorId, siteName);
     if (existingPromotion) {
-      const result = { ...existingPromotion };
-      delete result._id;
-      delete result.__v;
-      return result;
+      return this.mapToPlayerPromotionResponse(existingPromotion);
     }
 
     // Step 2: Find available promotions for the player
@@ -61,10 +59,7 @@ export class PlayerPromotionService {
       siteName,
       currencyGroup,
     );
-    const result = playerPromotion.toObject ? playerPromotion.toObject() : { ...playerPromotion };
-    delete result._id;
-    delete result.__v;
-    return result;
+    return this.mapToPlayerPromotionResponse(playerPromotion);
   }
 
   /**
@@ -284,8 +279,7 @@ export class PlayerPromotionService {
   ): Promise<PlayerPromotionDocument> {
     const promotion = await this.getPromotionById(promotionId);
 
-    const turnoverMultiplier = promotion.minTurnoverMultiplier;
-
+    // Find the bet level for the player's currency group
     const betLevelInfo = promotion.betLevels.find(
       betLevel => betLevel.currencyGroup.toString() === currencyGroup.toString(),
     );
@@ -307,7 +301,7 @@ export class PlayerPromotionService {
       totalTurnover: 0,
       totalWinAmount: 0,
       minRequiredTurnover: 0,
-      turnoverMultiplier,
+      turnoverMultiplier: promotion.minTurnoverMultiplier,
     });
 
     return playerPromotion.save();
@@ -412,21 +406,54 @@ export class PlayerPromotionService {
   }
 
   /**
+   * Map PlayerPromotionDocument to PlayerPromotionResponse
+   * @param playerPromotion Player promotion document
+   * @returns PlayerPromotionResponse
+   */
+  private mapToPlayerPromotionResponse(
+    playerPromotion: PlayerPromotionDocument,
+  ): Responses.PlayerPromotionResponse {
+    const promotionData = {
+      playerId: playerPromotion.playerId,
+      operatorId: playerPromotion.operatorId,
+      siteName: playerPromotion.siteName,
+      promotionId: playerPromotion.promotionId.toString(),
+      promotionCode: playerPromotion.promotionCode,
+      currencyGroup: playerPromotion.currencyGroup.toString(),
+      remainingBonusItems: playerPromotion.remainingBonusItems,
+      initialBonusItem: playerPromotion.initialBonusItem,
+      betLevel: playerPromotion.betLevel,
+      startDate: playerPromotion.startDate,
+      endDate: playerPromotion.endDate,
+      lastUsedDate: playerPromotion.lastUsedDate,
+      isGiftCode: playerPromotion.isGiftCode,
+      totalTurnover: playerPromotion.totalTurnover,
+      totalWinAmount: playerPromotion.totalWinAmount,
+      minRequiredTurnover: playerPromotion.minRequiredTurnover,
+      turnoverMultiplier: playerPromotion.turnoverMultiplier,
+    } as any;
+
+    return {
+      promotion: promotionData,
+    };
+  }
+
+  /**
    * Redeem a gift code promotion
    * @param playerDto Player information
    * @param giftCode Gift code to redeem
-   * @returns Player promotion or null if invalid
+   * @returns Player promotion response or null if invalid
    */
   async redeemPromotion(
     playerDto: PlayerDto,
     giftCode: string,
-  ): Promise<PlayerPromotionDocument | null> {
+  ): Promise<Responses.PlayerPromotionResponse | null> {
     const { operatorId, siteName, playerId, currencyGroup } = playerDto;
 
     // Step 1: Check if player already has an active promotion
     const existingPromotion = await this.findExistingPromotion(playerId, operatorId, siteName);
     if (existingPromotion) {
-      return existingPromotion;
+      return this.mapToPlayerPromotionResponse(existingPromotion);
     }
 
     // Step 2: Find promotion by gift code
@@ -454,10 +481,7 @@ export class PlayerPromotionService {
       siteName,
       currencyGroup,
     );
-    const result = playerPromotion.toObject ? playerPromotion.toObject() : { ...playerPromotion };
-    delete result._id;
-    delete result.__v;
-    return result;
+    return this.mapToPlayerPromotionResponse(playerPromotion);
   }
 
   /**

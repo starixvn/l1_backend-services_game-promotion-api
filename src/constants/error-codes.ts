@@ -121,13 +121,6 @@ export const PROMOTION_TICKET_ERROR_CODES = {
   },
 } as const;
 
-export const GIFT_CODE_ERROR_CODES = {
-  INVALID_GIFT_CODE: {
-    code: 'GC3400',
-    message: 'Invalid Gift Code. Please check your code and try again.',
-  },
-} as const;
-
 // Type definitions for better TypeScript support
 export type PlayerPromotionErrorCode =
   (typeof PLAYER_PROMOTION_ERROR_CODES)[keyof typeof PLAYER_PROMOTION_ERROR_CODES];
