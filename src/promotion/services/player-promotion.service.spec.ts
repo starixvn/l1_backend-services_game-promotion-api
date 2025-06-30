@@ -3,9 +3,26 @@ import { getModelToken } from '@nestjs/mongoose';
 import { PlayerPromotionService } from './player-promotion.service';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
 import { Promotion } from '../schemas/promotion.schema';
-import { PlayerDto } from '../models/player.dto';
+import { PlayerDto } from '../models';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { DeductBonusItemResponse } from '../responses/deduct-bonus-item.response';
+import { LoggerService } from '../../core/logger/logger.service';
+
+// Mock LoggerService
+const mockLoggerService = {
+  error: jest.fn(),
+  warn: jest.fn(),
+  log: jest.fn(),
+  debug: jest.fn(),
+  verbose: jest.fn(),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  setUser: jest.fn(),
+  setTags: jest.fn(),
+  setContext: jest.fn(),
+  flush: jest.fn(),
+};
 
 describe('PlayerPromotionService', () => {
   let service: PlayerPromotionService;
@@ -124,6 +141,10 @@ describe('PlayerPromotionService', () => {
         {
           provide: getModelToken(Promotion.name),
           useValue: mockPromotionModelValue,
+        },
+        {
+          provide: LoggerService,
+          useValue: mockLoggerService,
         },
       ],
     }).compile();

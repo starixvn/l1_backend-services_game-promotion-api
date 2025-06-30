@@ -11,6 +11,8 @@ import { UpdateTotalWinResponse } from '../responses/update-total-win.response';
 import { UpdateTotalTurnoverResponse } from '../responses/update-total-turnover.response';
 import { CalculateTORequirementResponse } from '../responses/calculate-to-requirement.response';
 import { LoggerService } from '../../core/logger/logger.service';
+import { CheckTORequirementResponse } from '../responses/check-to-requirement.response';
+import { GetTOProgressResponse } from '../responses/get-to-progress.response';
 
 /**
  * Service for managing player promotions
@@ -717,5 +719,146 @@ export class PlayerPromotionService {
       })
       .lean()
       .exec();
+  }
+
+  /**
+   * Check if TO requirement is met for bonus claim
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @returns TO requirement validation result
+   */
+  async checkTORequirement(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<CheckTORequirementResponse> {
+    try {
+      const playerPromotion = await this.findByPromotion(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+
+      if (!playerPromotion) {
+        return {
+          success: false,
+          canClaim: false,
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          remainingTO: 0,
+          totalWinAmount: 0,
+          ...PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND,
+        };
+      }
+
+      const { totalTurnover, minRequiredTurnover, totalWinAmount } = playerPromotion;
+      const remainingTO = Math.max(0, minRequiredTurnover - totalTurnover);
+      const canClaim = totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
+
+      return {
+        success: true,
+        canClaim,
+        totalTurnover,
+        minRequiredTurnover,
+        remainingTO,
+        totalWinAmount,
+      };
+    } catch (error) {
+      this.loggerService.error('Error in checkTORequirement', error.stack, {
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        error: error.message,
+      });
+
+      return {
+        success: false,
+        canClaim: false,
+        totalTurnover: 0,
+        minRequiredTurnover: 0,
+        remainingTO: 0,
+        totalWinAmount: 0,
+        ...PLAYER_PROMOTION_ERROR_CODES.STREAM_PROCESSING_ERROR,
+      };
+    }
+  }
+
+  /**
+   * Get TO progress status for a player promotion
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @returns TO progress status
+   */
+  async getTOProgress(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<GetTOProgressResponse> {
+    try {
+      const playerPromotion = await this.findByPromotion(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+
+      if (!playerPromotion) {
+        return {
+          success: false,
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          remainingTO: 0,
+          progressPercentage: 0,
+          canClaim: false,
+          totalWinAmount: 0,
+          ...PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND,
+        };
+      }
+
+      const { totalTurnover, minRequiredTurnover, totalWinAmount } = playerPromotion;
+      const remainingTO = Math.max(0, minRequiredTurnover - totalTurnover);
+      const canClaim = totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
+
+      // Calculate progress percentage (0-100)
+      const progressPercentage =
+        minRequiredTurnover > 0 ? Math.min(100, (totalTurnover / minRequiredTurnover) * 100) : 0;
+
+      return {
+        success: true,
+        totalTurnover,
+        minRequiredTurnover,
+        remainingTO,
+        progressPercentage,
+        canClaim,
+        totalWinAmount,
+      };
+    } catch (error) {
+      this.loggerService.error('Error in getTOProgress', error.stack, {
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        error: error.message,
+      });
+
+      return {
+        success: false,
+        totalTurnover: 0,
+        minRequiredTurnover: 0,
+        remainingTO: 0,
+        progressPercentage: 0,
+        canClaim: false,
+        totalWinAmount: 0,
+        ...PLAYER_PROMOTION_ERROR_CODES.STREAM_PROCESSING_ERROR,
+      };
+    }
   }
 }

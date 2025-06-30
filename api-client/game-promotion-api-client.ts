@@ -10,6 +10,8 @@ import {
   UpdateTotalWinDto,
   UpdateTotalTurnoverDto,
   CalculateTORequirementDto,
+  CheckTORequirementDto,
+  GetTOProgressDto,
 } from './dtos';
 import {
   PlayerPromotionResponse,
@@ -22,6 +24,8 @@ import {
   UpdateTotalWinResponse,
   UpdateTotalTurnoverResponse,
   CalculateTORequirementResponse,
+  CheckTORequirementResponse,
+  GetTOProgressResponse,
 } from './responses';
 import { TotalWinDto } from './dtos/total-win.dto';
 import { PromotionExpiryResponse } from './responses/promotion.response';
@@ -105,6 +109,28 @@ export class GamePromotionApiClient {
     const response: AxiosResponse<CalculateTORequirementResponse> = await this.httpClient.post(
       '/player-promotions/calculate-to-requirement',
       calculateDto,
+    );
+    return response.data;
+  }
+
+  /**
+   * Check if TO requirement is met for bonus claim
+   */
+  async checkTORequirement(checkDto: CheckTORequirementDto): Promise<CheckTORequirementResponse> {
+    const response: AxiosResponse<CheckTORequirementResponse> = await this.httpClient.post(
+      '/player-promotions/check-to-requirement',
+      checkDto,
+    );
+    return response.data;
+  }
+
+  /**
+   * Get TO progress status for a player promotion
+   */
+  async getTOProgress(progressDto: GetTOProgressDto): Promise<GetTOProgressResponse> {
+    const response: AxiosResponse<GetTOProgressResponse> = await this.httpClient.post(
+      '/player-promotions/get-to-progress',
+      progressDto,
     );
     return response.data;
   }

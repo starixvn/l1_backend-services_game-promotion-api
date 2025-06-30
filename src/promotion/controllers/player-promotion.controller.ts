@@ -158,6 +158,42 @@ export class PlayerPromotionController {
     );
   }
 
+  @Post('check-to-requirement')
+  @ApiOperation({ summary: 'Check if TO requirement is met for bonus claim' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'TO requirement validation result',
+    type: Responses.CheckTORequirementResponse,
+  })
+  async checkTORequirement(
+    @Body() checkDto: Models.CheckTORequirementDto,
+  ): Promise<Responses.CheckTORequirementResponse> {
+    return this.playerPromotionService.checkTORequirement(
+      checkDto.playerId,
+      checkDto.operatorId,
+      checkDto.siteName,
+      checkDto.promotionId,
+    );
+  }
+
+  @Post('get-to-progress')
+  @ApiOperation({ summary: 'Get TO progress status for a player promotion' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'TO progress status',
+    type: Responses.GetTOProgressResponse,
+  })
+  async getTOProgress(
+    @Body() progressDto: Models.GetTOProgressDto,
+  ): Promise<Responses.GetTOProgressResponse> {
+    return this.playerPromotionService.getTOProgress(
+      progressDto.playerId,
+      progressDto.operatorId,
+      progressDto.siteName,
+      progressDto.promotionId,
+    );
+  }
+
   @Post('redeem-promotion')
   @ApiOperation({ summary: 'Redeem a promotion' })
   @ApiResponse({
