@@ -55,6 +55,12 @@ export class PlayerPromotion {
 
   @Prop({ type: Number, required: true, min: 2 })
   turnoverMultiplier: number;
+
+  @Prop({ type: Boolean, default: false })
+  bonusClaimed: boolean;
+
+  @Prop({ type: Date, default: null })
+  claimedAt: Date;
 }
 
 export const PlayerPromotionSchema = SchemaFactory.createForClass(PlayerPromotion);

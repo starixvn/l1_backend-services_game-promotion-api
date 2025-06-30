@@ -4,13 +4,14 @@ This document describes the new APIs for tracking Turnover (TO) requirements in 
 
 ## Overview
 
-The TO tracking system consists of five main APIs that work together to manage the turnover requirements for player promotions:
+The TO tracking system consists of six main APIs that work together to manage the turnover requirements for player promotions:
 
 1. **updateTotalWinAmount** - Updates the total win amount from bonus items
 2. **updateTotalTurnover** - Updates the total turnover from bets on target games
 3. **calculateTORequirement** - Calculates the minimum required turnover after bonus completion
 4. **checkTORequirement** - Validates if a player can claim bonus wins based on TO requirement
 5. **getTOProgress** - Gets the current TO progress status for a player promotion
+6. **claimBonusWins** - Claims bonus wins after TO requirement is met
 
 ## API Endpoints
 
@@ -238,6 +239,57 @@ The TO tracking system consists of five main APIs that work together to manage t
 }
 ```
 
+### 6. Claim Bonus Wins
+
+**Endpoint:** `POST /player-promotions/claim-bonus-wins`
+
+**Description:** Claims bonus wins after TO requirement is met. This marks the bonus as claimed and returns the claimed amount. This is the final step in the TO tracking flow.
+
+**Request Body:**
+
+```json
+{
+  "playerId": "player123",
+  "operatorId": "op123",
+  "siteName": "site456",
+  "promotionId": "65f1a2b3c4d5e6f7g8h9i0j1"
+}
+```
+
+**Response (Success):**
+
+```json
+{
+  "success": true,
+  "claimedAmount": 25.0,
+  "totalTurnover": 100.0,
+  "minRequiredTurnover": 100.0,
+  "totalWinAmount": 25.0
+}
+```
+
+**Response (Any Failure):**
+
+```json
+{
+  "success": false,
+  "claimedAmount": 0,
+  "totalTurnover": 0,
+  "minRequiredTurnover": 0,
+  "totalWinAmount": 0,
+  "errorCode": "SB3017",
+  "errorMessage": "Failed to claim bonus wins"
+}
+```
+
+**Validation Conditions (MongoDB Query):**
+
+- `remainingBonusItems: 0` - All bonus items must be completed
+- `totalTurnover >= minRequiredTurnover` - TO requirement must be met
+- `minRequiredTurnover > 0` - Must have valid TO requirement
+- `totalWinAmount > 0` - Must have won something from bonus items
+- `bonusClaimed != true` - Must not have been claimed already
+
 ## Stream Event Flow
 
 ### BonusWin Stream Consumer
@@ -358,6 +410,10 @@ export class PlayerPromotion {
 - **SB3012**: `CALCULATE_TO_FAILED` - Failed to calculate TO requirement
 - **SB3013**: `UPDATE_TOTAL_TO_SUCCESS` - Total turnover updated successfully
 - **SB3014**: `UPDATE_TOTAL_TO_FAILED` - Failed to update total turnover
+- **SB3016**: `BONUS_WIN_CLAIM_SUCCESS` - Bonus wins claimed successfully
+- **SB3017**: `BONUS_WIN_CLAIM_FAILED` - Failed to claim bonus wins
+- **SB3018**: `BONUS_ALREADY_CLAIMED` - Bonus wins have already been claimed
+- **SB3019**: `TO_REQUIREMENT_NOT_ALLOWED` - System prevents claiming to avoid exploitation
 
 ## API Client Usage
 
@@ -423,6 +479,20 @@ const progress = await client.getTOProgress({
 console.log(`Progress: ${progress.progressPercentage}%`);
 console.log(`Remaining TO: ${progress.remainingTO}`);
 console.log(`Can claim: ${progress.canClaim}`);
+
+// Claim bonus wins after TO requirement is met
+const claimResult = await client.claimBonusWins({
+  playerId: 'player123',
+  operatorId: 'op123',
+  siteName: 'site456',
+  promotionId: '65f1a2b3c4d5e6f7g8h9i0j1',
+});
+
+if (claimResult.success) {
+  console.log(`Bonus wins claimed: ${claimResult.claimedAmount}`);
+} else {
+  console.log(`Cannot claim: ${claimResult.errorMessage}`);
+}
 ```
 
 ## Validation Rules
@@ -430,8 +500,9 @@ console.log(`Can claim: ${progress.canClaim}`);
 1. **Bonus Completion Check**: TO requirement can only be calculated after all bonus items are completed
 2. **Target Game Validation**: Only bets on the first game in gameIds array count toward TO requirement
 3. **Minimum Multiplier**: All promotions must have at least 2.0X TO multiplier
-4. **Atomic Updates**: All updates are performed atomically to prevent race conditions
-5. **Error Handling**: Comprehensive error handling with specific error codes and messages
+4. **Security Protection**: `canClaim = false` when minRequiredTurnover = 0 (prevents exploitation)
+5. **Atomic Updates**: All updates are performed atomically to prevent race conditions
+6. **Error Handling**: Comprehensive error handling with specific error codes and messages
 
 ## TO Calculation Examples
 
@@ -456,6 +527,14 @@ console.log(`Can claim: ${progress.canClaim}`);
 - **Min Required TO**: 4.00 × 2.0 = 8.00
 - **Target Game**: First game in gameIds array (e.g., Game ID 2001)
 
+### Example 4: No TO Required (minRequiredTurnover = 0)
+
+- **Total Win Amount**: 10.00 (after completing all bonus items)
+- **Min Turnover Multiplier**: 0.0X (no TO required)
+- **Min Required TO**: 0.00
+- **Behavior**: **Security Protected** - `canClaim = false` when minRequiredTurnover = 0
+- **Result**: Player cannot claim bonus wins (prevents exploitation)
+
 ## Implementation Notes
 
 1. **Stream Integration**: These APIs are designed to be called by stream consumers
@@ -464,6 +543,8 @@ console.log(`Can claim: ${progress.canClaim}`);
 4. **Bonus Completion**: TO requirement is only calculated after all bonus items are used
 5. **Stream Resilience**: Implement retry logic and dead letter queues for failed stream processing
 6. **Event Ordering**: Ensure proper ordering of events for accurate calculations
+7. **Security Protection**: `canClaim = false` when minRequiredTurnover = 0 prevents exploitation
+8. **Atomic Claims**: claimBonusWins uses MongoDB query conditions for atomic validation and update
 
 ## Testing
 
@@ -481,8 +562,9 @@ The new APIs are included in the updated Postman collection:
 3. **Turnover Tracking**: Test updating total turnover for target game bets
 4. **TO Requirement Validation**: Test checking if player can claim bonus wins
 5. **TO Progress Tracking**: Test getting progress status for UI display
-6. **Error Handling**: Test various error scenarios and edge cases
-7. **Stream Integration**: Test integration with stream consumers
+6. **Bonus Win Claim**: Test claiming bonus wins after TO requirement is met
+7. **Error Handling**: Test various error scenarios and edge cases
+8. **Stream Integration**: Test integration with stream consumers
 
 ## Migration Notes
 
@@ -558,6 +640,9 @@ sequenceDiagram
 
     Note over Game,UI: Phase 6: Bonus Win Claim
     Game->>UI: Player claims bonus wins
+    UI->>API: claimBonusWins()
+    API->>API: Mark bonus as claimed
+    API->>UI: { claimedAmount: 10.0, success: true }
     UI->>Game: Allow claim (TO requirement met)
 ```
 
@@ -573,6 +658,7 @@ sequenceDiagram
 
 - `checkTORequirement` - Called before allowing bonus win claim
 - `getTOProgress` - Called for UI progress display
+- `claimBonusWins` - Called when player claims bonus wins
 
 #### For Monitoring/Debugging
 

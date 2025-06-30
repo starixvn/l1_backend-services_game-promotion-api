@@ -12,6 +12,7 @@ import {
   CalculateTORequirementDto,
   CheckTORequirementDto,
   GetTOProgressDto,
+  ClaimBonusWinsDto,
 } from './dtos';
 import {
   PlayerPromotionResponse,
@@ -26,6 +27,7 @@ import {
   CalculateTORequirementResponse,
   CheckTORequirementResponse,
   GetTOProgressResponse,
+  ClaimBonusWinsResponse,
 } from './responses';
 import { TotalWinDto } from './dtos/total-win.dto';
 import { PromotionExpiryResponse } from './responses/promotion.response';
@@ -131,6 +133,17 @@ export class GamePromotionApiClient {
     const response: AxiosResponse<GetTOProgressResponse> = await this.httpClient.post(
       '/player-promotions/get-to-progress',
       progressDto,
+    );
+    return response.data;
+  }
+
+  /**
+   * Claim bonus wins after TO requirement is met
+   */
+  async claimBonusWins(claimDto: ClaimBonusWinsDto): Promise<ClaimBonusWinsResponse> {
+    const response: AxiosResponse<ClaimBonusWinsResponse> = await this.httpClient.post(
+      '/player-promotions/claim-bonus-wins',
+      claimDto,
     );
     return response.data;
   }

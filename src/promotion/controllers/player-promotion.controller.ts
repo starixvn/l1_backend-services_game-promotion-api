@@ -216,4 +216,22 @@ export class PlayerPromotionController {
 
     return promotion;
   }
+
+  @Post('claim-bonus-wins')
+  @ApiOperation({ summary: 'Claim bonus wins after TO requirement is met' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Bonus wins claim result',
+    type: Responses.ClaimBonusWinsResponse,
+  })
+  async claimBonusWins(
+    @Body() claimDto: Models.ClaimBonusWinsDto,
+  ): Promise<Responses.ClaimBonusWinsResponse> {
+    return this.playerPromotionService.claimBonusWins(
+      claimDto.playerId,
+      claimDto.operatorId,
+      claimDto.siteName,
+      claimDto.promotionId,
+    );
+  }
 }

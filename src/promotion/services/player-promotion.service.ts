@@ -14,6 +14,7 @@ import { LoggerService } from '../../core/logger/logger.service';
 import { CheckTORequirementResponse } from '../responses/check-to-requirement.response';
 import * as Responses from '../responses';
 import { GetTOProgressResponse } from '../responses/get-to-progress.response';
+import { ClaimBonusWinsResponse } from '../responses/claim-bonus-wins.response';
 
 /**
  * Service for managing player promotions
@@ -668,7 +669,6 @@ export class PlayerPromotionService {
     promotionId: string,
   ): Promise<CalculateTORequirementResponse> {
     try {
-      // Single findOneAndUpdate with validation built into the filter
       const playerPromotion = await this.playerPromotionModel.findOneAndUpdate(
         {
           playerId,
@@ -694,11 +694,13 @@ export class PlayerPromotionService {
       );
 
       if (playerPromotion) {
+        const { totalWinAmount, turnoverMultiplier, minRequiredTurnover } = playerPromotion;
+
         return {
           success: true,
-          minRequiredTurnover: playerPromotion.minRequiredTurnover,
-          totalWinAmount: playerPromotion.totalWinAmount,
-          turnoverMultiplier: playerPromotion.turnoverMultiplier,
+          minRequiredTurnover,
+          totalWinAmount,
+          turnoverMultiplier,
         };
       }
     } catch (error) {
@@ -780,15 +782,15 @@ export class PlayerPromotionService {
       }
 
       const { totalTurnover, minRequiredTurnover, totalWinAmount } = playerPromotion;
-      const remainingTO = Math.max(0, minRequiredTurnover - totalTurnover);
-      const canClaim = totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
+
+      const canClaim = this.canClaimBonusWins(totalTurnover, minRequiredTurnover, totalWinAmount);
 
       return {
         success: true,
         canClaim,
         totalTurnover,
         minRequiredTurnover,
-        remainingTO,
+        remainingTO: Math.max(0, minRequiredTurnover - totalTurnover),
         totalWinAmount,
       };
     } catch (error) {
@@ -848,18 +850,21 @@ export class PlayerPromotionService {
       }
 
       const { totalTurnover, minRequiredTurnover, totalWinAmount } = playerPromotion;
-      const remainingTO = Math.max(0, minRequiredTurnover - totalTurnover);
-      const canClaim = totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
+
+      const canClaim = this.canClaimBonusWins(totalTurnover, minRequiredTurnover, totalWinAmount);
 
       // Calculate progress percentage (0-100)
+      // If no TO required (minRequiredTurnover = 0), show 100% progress
       const progressPercentage =
-        minRequiredTurnover > 0 ? Math.min(100, (totalTurnover / minRequiredTurnover) * 100) : 0;
+        minRequiredTurnover === 0
+          ? 100
+          : Math.min(100, (totalTurnover / minRequiredTurnover) * 100);
 
       return {
         success: true,
         totalTurnover,
         minRequiredTurnover,
-        remainingTO,
+        remainingTO: Math.max(0, minRequiredTurnover - totalTurnover),
         progressPercentage,
         canClaim,
         totalWinAmount,
@@ -884,5 +889,90 @@ export class PlayerPromotionService {
         ...PLAYER_PROMOTION_ERROR_CODES.STREAM_PROCESSING_ERROR,
       };
     }
+  }
+
+  /**
+   * Claim bonus wins for a player
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @returns Claim bonus wins response
+   */
+  async claimBonusWins(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<ClaimBonusWinsResponse> {
+    try {
+      // Single atomic operation with all conditions in the query
+      const updatedPromotion = await this.playerPromotionModel.findOneAndUpdate(
+        {
+          playerId,
+          operatorId,
+          siteName,
+          promotionId,
+          remainingBonusItems: 0,
+          totalTurnover: { $gte: '$minRequiredTurnover' },
+          minRequiredTurnover: { $gt: 0 },
+          totalWinAmount: { $gt: 0 },
+          bonusClaimed: { $ne: true },
+        },
+        {
+          $set: {
+            bonusClaimed: true,
+            claimedAt: new Date(),
+          },
+        },
+        {
+          new: true,
+          lean: true,
+        },
+      );
+
+      if (updatedPromotion) {
+        return {
+          success: true,
+          claimedAmount: updatedPromotion.totalWinAmount,
+          totalTurnover: updatedPromotion.totalTurnover,
+          minRequiredTurnover: updatedPromotion.minRequiredTurnover,
+          totalWinAmount: updatedPromotion.totalWinAmount,
+        };
+      }
+    } catch (error) {
+      this.loggerService.error('Error in claimBonusWins', error.stack, {
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        error: error.message,
+      });
+    }
+
+    return {
+      success: false,
+      claimedAmount: 0,
+      totalTurnover: 0,
+      minRequiredTurnover: 0,
+      totalWinAmount: 0,
+      ...PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED,
+    };
+  }
+
+  /**
+   * Calculate if player can claim bonus wins
+   * @param totalTurnover Current total turnover
+   * @param minRequiredTurnover Minimum required turnover
+   * @param totalWinAmount Total win amount from bonus items
+   * @returns Whether player can claim bonus wins
+   */
+  private canClaimBonusWins(
+    totalTurnover: number,
+    minRequiredTurnover: number,
+    totalWinAmount: number,
+  ): boolean {
+    // When minRequiredTurnover = 0, players cannot claim (security measure)
+    return minRequiredTurnover > 0 && totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
   }
 }

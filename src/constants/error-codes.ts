@@ -79,6 +79,18 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
     code: 'SB3015',
     message: 'Invalid turnover multiplier. Must be at least 2.0',
   },
+  BONUS_WIN_CLAIM_SUCCESS: {
+    code: 'SB3016',
+    message: 'Bonus wins claimed successfully',
+  },
+  BONUS_WIN_CLAIM_FAILED: {
+    code: 'SB3017',
+    message: 'Failed to claim bonus wins',
+  },
+  BONUS_ALREADY_CLAIMED: {
+    code: 'SB3018',
+    message: 'Bonus wins have already been claimed',
+  },
 } as const;
 
 // Promotion Error Codes (PR31XX) - Ready for future use

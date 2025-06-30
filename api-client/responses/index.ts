@@ -2,6 +2,7 @@ export * from './assignment.response';
 export * from './bonus-item.response';
 export * from './calculate-to-requirement.response';
 export * from './check-to-requirement.response';
+export * from './claim-bonus-wins.response';
 export * from './eligible-promotions.response';
 export * from './get-to-progress.response';
 export * from './player-promotion.response';

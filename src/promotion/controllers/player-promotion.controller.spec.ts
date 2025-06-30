@@ -1,13 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PlayerPromotionController } from './player-promotion.controller';
 import { PlayerPromotionService } from '../services/player-promotion.service';
-import { CheckTORequirementDto, GetTOProgressDto } from '../models';
+import { CheckTORequirementDto, GetTOProgressDto, ClaimBonusWinsDto } from '../models';
 import { CheckTORequirementResponse } from '../responses/check-to-requirement.response';
 import { GetTOProgressResponse } from '../responses/get-to-progress.response';
+import { ClaimBonusWinsResponse } from '../responses/claim-bonus-wins.response';
 
 const mockPlayerPromotionService = {
   checkTORequirement: jest.fn(),
   getTOProgress: jest.fn(),
+  claimBonusWins: jest.fn(),
 };
 
 describe('PlayerPromotionController', () => {
@@ -144,6 +146,78 @@ describe('PlayerPromotionController', () => {
       };
       service.getTOProgress.mockResolvedValue(response);
       await expect(controller.getTOProgress(dto)).resolves.toEqual(response);
+    });
+  });
+
+  describe('claimBonusWins', () => {
+    it('should return success response when claim bonus wins is successful', async () => {
+      const dto: ClaimBonusWinsDto = {
+        playerId: 'player1',
+        operatorId: 'op1',
+        siteName: 'site1',
+        promotionId: 'promo1',
+      };
+      const response: ClaimBonusWinsResponse = {
+        success: true,
+        claimedAmount: 25.0,
+        totalTurnover: 100.0,
+        minRequiredTurnover: 100.0,
+        totalWinAmount: 25.0,
+      };
+      service.claimBonusWins.mockResolvedValue(response);
+      await expect(controller.claimBonusWins(dto)).resolves.toEqual(response);
+      expect(service.claimBonusWins).toHaveBeenCalledWith(
+        dto.playerId,
+        dto.operatorId,
+        dto.siteName,
+        dto.promotionId,
+      );
+    });
+
+    it('should return error when claim bonus wins fails', async () => {
+      const dto: ClaimBonusWinsDto = {
+        playerId: 'player2',
+        operatorId: 'op2',
+        siteName: 'site2',
+        promotionId: 'promo2',
+      };
+      const response: ClaimBonusWinsResponse = {
+        success: false,
+        claimedAmount: 0,
+        totalTurnover: 0,
+        minRequiredTurnover: 0,
+        totalWinAmount: 0,
+        errorCode: 'SB3017',
+        errorMessage: 'Failed to claim bonus wins',
+      };
+      service.claimBonusWins.mockResolvedValue(response);
+      await expect(controller.claimBonusWins(dto)).resolves.toEqual(response);
+    });
+
+    it('should allow claim when minRequiredTurnover is 0', async () => {
+      const dto: ClaimBonusWinsDto = {
+        playerId: 'player3',
+        operatorId: 'op3',
+        siteName: 'site3',
+        promotionId: 'promo3',
+      };
+      const response: ClaimBonusWinsResponse = {
+        success: false,
+        claimedAmount: 0,
+        totalTurnover: 0,
+        minRequiredTurnover: 0,
+        totalWinAmount: 0,
+        errorCode: 'SB3017',
+        errorMessage: 'Failed to claim bonus wins',
+      };
+      service.claimBonusWins.mockResolvedValue(response);
+      await expect(controller.claimBonusWins(dto)).resolves.toEqual(response);
+      expect(service.claimBonusWins).toHaveBeenCalledWith(
+        dto.playerId,
+        dto.operatorId,
+        dto.siteName,
+        dto.promotionId,
+      );
     });
   });
 });
