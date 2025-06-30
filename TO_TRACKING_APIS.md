@@ -4,11 +4,13 @@ This document describes the new APIs for tracking Turnover (TO) requirements in 
 
 ## Overview
 
-The TO tracking system consists of three main APIs that work together to manage the turnover requirements for player promotions:
+The TO tracking system consists of five main APIs that work together to manage the turnover requirements for player promotions:
 
 1. **updateTotalWinAmount** - Updates the total win amount from bonus items
 2. **updateTotalTurnover** - Updates the total turnover from bets on target games
 3. **calculateTORequirement** - Calculates the minimum required turnover after bonus completion
+4. **checkTORequirement** - Validates if a player can claim bonus wins based on TO requirement
+5. **getTOProgress** - Gets the current TO progress status for a player promotion
 
 ## API Endpoints
 
@@ -128,6 +130,111 @@ The TO tracking system consists of three main APIs that work together to manage 
   "turnoverMultiplier": 0,
   "code": "SB3006",
   "message": "All bonus items must be completed before calculating TO requirement"
+}
+```
+
+### 4. Check TO Requirement
+
+**Endpoint:** `POST /player-promotions/check-to-requirement`
+
+**Description:** Validates if a player can claim bonus wins based on the current TO requirement status. This is typically called before allowing a player to claim their bonus wins.
+
+**Request Body:**
+
+```json
+{
+  "playerId": "player123",
+  "operatorId": "op123",
+  "siteName": "site456",
+  "promotionId": "65f1a2b3c4d5e6f7g8h9i0j1"
+}
+```
+
+**Response (Can Claim):**
+
+```json
+{
+  "success": true,
+  "canClaim": true,
+  "totalTurnover": 100.0,
+  "minRequiredTurnover": 100.0,
+  "remainingTO": 0,
+  "totalWinAmount": 50.0
+}
+```
+
+**Response (Cannot Claim):**
+
+```json
+{
+  "success": true,
+  "canClaim": false,
+  "totalTurnover": 40.0,
+  "minRequiredTurnover": 100.0,
+  "remainingTO": 60.0,
+  "totalWinAmount": 20.0
+}
+```
+
+**Error Response (Player Promotion Not Found):**
+
+```json
+{
+  "success": false,
+  "canClaim": false,
+  "totalTurnover": 0,
+  "minRequiredTurnover": 0,
+  "remainingTO": 0,
+  "totalWinAmount": 0,
+  "code": "SB3000",
+  "message": "Player promotion not found"
+}
+```
+
+### 5. Get TO Progress
+
+**Endpoint:** `POST /player-promotions/get-to-progress`
+
+**Description:** Gets the current TO progress status for a player promotion, including progress percentage and claimability status. This is typically used for UI display and progress tracking.
+
+**Request Body:**
+
+```json
+{
+  "playerId": "player123",
+  "operatorId": "op123",
+  "siteName": "site456",
+  "promotionId": "65f1a2b3c4d5e6f7g8h9i0j1"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "totalTurnover": 80.0,
+  "minRequiredTurnover": 100.0,
+  "remainingTO": 20.0,
+  "progressPercentage": 80.0,
+  "canClaim": false,
+  "totalWinAmount": 30.0
+}
+```
+
+**Error Response (Player Promotion Not Found):**
+
+```json
+{
+  "success": false,
+  "totalTurnover": 0,
+  "minRequiredTurnover": 0,
+  "remainingTO": 0,
+  "progressPercentage": 0,
+  "canClaim": false,
+  "totalWinAmount": 0,
+  "code": "SB3000",
+  "message": "Player promotion not found"
 }
 ```
 
@@ -289,6 +396,33 @@ const toRequirement = await client.calculateTORequirement({
   siteName: 'site456',
   promotionId: '65f1a2b3c4d5e6f7g8h9i0j1',
 });
+
+// Check if player can claim bonus wins
+const canClaim = await client.checkTORequirement({
+  playerId: 'player123',
+  operatorId: 'op123',
+  siteName: 'site456',
+  promotionId: '65f1a2b3c4d5e6f7g8h9i0j1',
+});
+
+if (canClaim.success && canClaim.canClaim) {
+  console.log('Player can claim bonus wins!');
+  console.log(`Total win amount: ${canClaim.totalWinAmount}`);
+} else {
+  console.log(`Need ${canClaim.remainingTO} more turnover to claim`);
+}
+
+// Get TO progress for UI display
+const progress = await client.getTOProgress({
+  playerId: 'player123',
+  operatorId: 'op123',
+  siteName: 'site456',
+  promotionId: '65f1a2b3c4d5e6f7g8h9i0j1',
+});
+
+console.log(`Progress: ${progress.progressPercentage}%`);
+console.log(`Remaining TO: ${progress.remainingTO}`);
+console.log(`Can claim: ${progress.canClaim}`);
 ```
 
 ## Validation Rules
@@ -345,8 +479,10 @@ The new APIs are included in the updated Postman collection:
 1. **Bonus Win Processing**: Test updating total win amount after each bonus item
 2. **TO Calculation**: Test calculating TO requirement after bonus completion
 3. **Turnover Tracking**: Test updating total turnover for target game bets
-4. **Error Handling**: Test various error scenarios and edge cases
-5. **Stream Integration**: Test integration with stream consumers
+4. **TO Requirement Validation**: Test checking if player can claim bonus wins
+5. **TO Progress Tracking**: Test getting progress status for UI display
+6. **Error Handling**: Test various error scenarios and edge cases
+7. **Stream Integration**: Test integration with stream consumers
 
 ## Migration Notes
 
@@ -368,3 +504,77 @@ The new APIs are additive and don't break existing functionality. All existing e
 2. Update the API client with new methods
 3. Configure stream consumers to use the new APIs
 4. Monitor the system for any issues during the transition
+
+## Complete TO Tracking Flow
+
+### Typical Usage Scenario
+
+Here's how all five APIs work together in a complete TO tracking scenario:
+
+```mermaid
+sequenceDiagram
+    participant Game
+    participant BonusWinStream
+    participant BetSettledStream
+    participant API as Game Promotion API
+    participant UI as Game UI
+
+    Note over Game,UI: Phase 1: Bonus Items Usage
+    Game->>BonusWinStream: Player uses bonus item (win: 5.0)
+    BonusWinStream->>API: updateTotalWinAmount(winAmount: 5.0)
+    API->>API: Update totalWinAmount += 5.0
+
+    Game->>BonusWinStream: Player uses another bonus item (win: 3.0)
+    BonusWinStream->>API: updateTotalWinAmount(winAmount: 3.0)
+    API->>API: Update totalWinAmount += 3.0
+
+    Note over Game,UI: Phase 2: Bonus Completion
+    Game->>BonusWinStream: Player uses final bonus item (win: 2.0)
+    BonusWinStream->>API: updateTotalWinAmount(winAmount: 2.0)
+    API->>API: Update totalWinAmount += 2.0
+    BonusWinStream->>API: calculateTORequirement()
+    API->>API: Calculate minRequiredTurnover = 20.0 (10.0 * 2.0)
+
+    Note over Game,UI: Phase 3: Turnover Tracking
+    Game->>BetSettledStream: Player places bet on target game (0.5)
+    BetSettledStream->>API: updateTotalTurnover(betAmount: 0.5)
+    API->>API: Update totalTurnover += 0.5
+
+    Game->>BetSettledStream: Player places another bet (1.0)
+    BetSettledStream->>API: updateTotalTurnover(betAmount: 1.0)
+    API->>API: Update totalTurnover += 1.0
+
+    Note over Game,UI: Phase 4: Progress Checking
+    UI->>API: getTOProgress()
+    API->>UI: { progressPercentage: 7.5%, remainingTO: 18.5, canClaim: false }
+
+    Note over Game,UI: Phase 5: Requirement Validation
+    Game->>BetSettledStream: Player places more bets...
+    BetSettledStream->>API: updateTotalTurnover(betAmount: 18.5)
+    API->>API: Update totalTurnover += 18.5
+
+    UI->>API: checkTORequirement()
+    API->>UI: { canClaim: true, totalWinAmount: 10.0 }
+
+    Note over Game,UI: Phase 6: Bonus Win Claim
+    Game->>UI: Player claims bonus wins
+    UI->>Game: Allow claim (TO requirement met)
+```
+
+### API Usage Patterns
+
+#### For Stream Consumers (Automated)
+
+- `updateTotalWinAmount` - Called by BonusWinConsumer
+- `updateTotalTurnover` - Called by TurnoverConsumer
+- `calculateTORequirement` - Called by BonusWinConsumer when bonus completed
+
+#### For Game UI (Manual/On-Demand)
+
+- `checkTORequirement` - Called before allowing bonus win claim
+- `getTOProgress` - Called for UI progress display
+
+#### For Monitoring/Debugging
+
+- All APIs can be called manually for monitoring and debugging purposes
+- Error responses provide detailed information for troubleshooting
