@@ -9,3 +9,4 @@ export * from './bet-level.dto';
 export * from './calculate-to-requirement.dto';
 export * from './update-total-turnover.dto';
 export * from './update-total-win.dto';
+export * from './redeem-gift-code.dto';

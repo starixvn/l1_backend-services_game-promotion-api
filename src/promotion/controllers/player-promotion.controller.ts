@@ -3,7 +3,6 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PlayerPromotionService } from '../services/player-promotion.service';
 import * as Models from '../models';
 import * as Responses from '../responses';
-import { RedeemGiftCodeDto } from '../models/redeem-gift-code.dto';
 import { GIFT_CODE_ERROR_CODES } from '../../constants/error-codes';
 
 @ApiTags('player-promotions')
@@ -164,13 +163,15 @@ export class PlayerPromotionController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Gift code redeemed successfully',
-    type: PlayerPromotionResponse,
+    type: Responses.PlayerPromotionResponse,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
     description: 'Invalid gift code or already claimed',
   })
-  async redeemPromotion(@Body() redeemDto: RedeemGiftCodeDto): Promise<PlayerPromotionResponse> {
+  async redeemPromotion(
+    @Body() redeemDto: Models.RedeemGiftCodeDto,
+  ): Promise<Responses.PlayerPromotionResponse> {
     const { giftCode, ...playerDto } = redeemDto;
     const promotion = await this.playerPromotionService.redeemPromotion(playerDto, giftCode);
 

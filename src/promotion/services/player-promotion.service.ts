@@ -512,7 +512,8 @@ export class PlayerPromotionService {
       .exec();
 
     return !!claimedPromotion;
-   }
+  }
+  /**
    * Update total win amount for a player promotion
    * @param playerId Player ID
    * @param operatorId Operator ID
