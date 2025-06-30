@@ -438,13 +438,14 @@ export class PlayerPromotionService {
     }
 
     // Step 4: Claim the promotion
-    return await this.assignPromotionToPlayer(
+    const playerPromotion = await this.assignPromotionToPlayer(
       playerId,
       promotion._id,
       operatorId,
       siteName,
       currencyGroup,
     );
+    return playerPromotion;
   }
 
   /**
