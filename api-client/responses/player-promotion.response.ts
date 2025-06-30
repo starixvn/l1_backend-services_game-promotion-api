@@ -12,10 +12,11 @@ export interface PlayerPromotion {
   endDate: Date;
   lastUsedDate: Date | null;
   isGiftCode: boolean;
-  totalTurnover: number;
   totalWinAmount: number;
+  totalTurnover: number;
   minRequiredTurnover: number;
   createdAt?: Date;
+  turnoverMultiplier: number;
   updatedAt?: Date;
 }
 

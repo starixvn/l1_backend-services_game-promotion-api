@@ -1,14 +1,8 @@
 import { Controller, Post, Body, HttpStatus } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PlayerPromotionService } from '../services/player-promotion.service';
-import { PlayerDto } from '../models/player.dto';
-import { EligiblePromotionsResponse } from '../responses/eligible-promotion.response';
-import { AssignPromotionDto } from '../models/assign-promotion.dto';
-import { AssignmentResponse } from '../responses/assignment-response';
-import { PlayerPromotionResponse } from '../responses/player-promotion.response';
-import { DeductBonusItemDto } from '../models/deduct-bonus-item.dto';
-import { RollbackBonusItemDto } from '../models/rollback-bonus-item.dto';
-import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
+import * as Models from '../models';
+import * as Responses from '../responses';
 import { RedeemGiftCodeDto } from '../models/redeem-gift-code.dto';
 import { GIFT_CODE_ERROR_CODES } from '../../constants/error-codes';
 
@@ -22,9 +16,11 @@ export class PlayerPromotionController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Player promotion details',
-    type: PlayerPromotionResponse,
+    type: Responses.PlayerPromotionResponse,
   })
-  async claimPromotion(@Body() playerDto: PlayerDto): Promise<PlayerPromotionResponse> {
+  async claimPromotion(
+    @Body() playerDto: Models.PlayerDto,
+  ): Promise<Responses.PlayerPromotionResponse> {
     const promotion = await this.playerPromotionService.claimPromotion(playerDto);
     return { promotion, success: true };
   }
@@ -34,9 +30,11 @@ export class PlayerPromotionController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'List of eligible promotions',
-    type: EligiblePromotionsResponse,
+    type: Responses.EligiblePromotionsResponse,
   })
-  async checkEligibility(@Body() playerDto: PlayerDto): Promise<EligiblePromotionsResponse> {
+  async checkEligibility(
+    @Body() playerDto: Models.PlayerDto,
+  ): Promise<Responses.EligiblePromotionsResponse> {
     const promotions = await this.playerPromotionService.hasAvailablePromotions(playerDto);
     return { promotions };
   }
@@ -46,9 +44,11 @@ export class PlayerPromotionController {
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Promotion assigned successfully',
-    type: AssignmentResponse,
+    type: Responses.AssignmentResponse,
   })
-  async assignPromotion(@Body() assignDto: AssignPromotionDto): Promise<AssignmentResponse> {
+  async assignPromotion(
+    @Body() assignDto: Models.AssignPromotionDto,
+  ): Promise<Responses.AssignmentResponse> {
     const { playerId, promotionId, operatorId, siteName, currencyGroup } = assignDto;
 
     await this.playerPromotionService.assignPromotionToPlayer(
@@ -67,9 +67,11 @@ export class PlayerPromotionController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Bonus item deduction result',
-    type: DeductBonusItemResponse,
+    type: Responses.DeductBonusItemResponse,
   })
-  async deductBonusItem(@Body() deductDto: DeductBonusItemDto): Promise<DeductBonusItemResponse> {
+  async deductBonusItem(
+    @Body() deductDto: Models.DeductBonusItemDto,
+  ): Promise<Responses.DeductBonusItemResponse> {
     return this.playerPromotionService.deductBonusItem(
       deductDto.operatorId,
       deductDto.playerId,
@@ -82,9 +84,11 @@ export class PlayerPromotionController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Bonus item rollback result',
-    type: RollbackResponse,
+    type: Responses.RollbackResponse,
   })
-  async rollbackBonusItem(@Body() rollbackDto: RollbackBonusItemDto): Promise<RollbackResponse> {
+  async rollbackBonusItem(
+    @Body() rollbackDto: Models.RollbackBonusItemDto,
+  ): Promise<Responses.RollbackResponse> {
     const rollbackData = {
       previousLastUsedDate: rollbackDto.previousLastUsedDate
         ? new Date(rollbackDto.previousLastUsedDate)
@@ -96,6 +100,62 @@ export class PlayerPromotionController {
       rollbackDto.playerId,
       rollbackDto.promotionId,
       rollbackData,
+    );
+  }
+
+  @Post('update-total-win')
+  @ApiOperation({ summary: 'Update total win amount for a player promotion (Stream Event)' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Total win amount update result',
+    type: Responses.UpdateTotalWinResponse,
+  })
+  async updateTotalWinAmount(
+    @Body() updateDto: Models.UpdateTotalWinDto,
+  ): Promise<Responses.UpdateTotalWinResponse> {
+    return this.playerPromotionService.updateTotalWinAmount(
+      updateDto.playerId,
+      updateDto.operatorId,
+      updateDto.siteName,
+      updateDto.promotionId,
+      updateDto.winAmount,
+    );
+  }
+
+  @Post('update-total-turnover')
+  @ApiOperation({ summary: 'Update total turnover for a player promotion (Stream Event)' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Total turnover update result',
+    type: Responses.UpdateTotalTurnoverResponse,
+  })
+  async updateTotalTurnover(
+    @Body() updateDto: Models.UpdateTotalTurnoverDto,
+  ): Promise<Responses.UpdateTotalTurnoverResponse> {
+    return this.playerPromotionService.updateTotalTurnover(
+      updateDto.playerId,
+      updateDto.operatorId,
+      updateDto.siteName,
+      updateDto.promotionId,
+      updateDto.betAmount,
+    );
+  }
+
+  @Post('calculate-to-requirement')
+  @ApiOperation({ summary: 'Calculate TO requirement for a player promotion (Stream Event)' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'TO requirement calculation result',
+    type: Responses.CalculateTORequirementResponse,
+  })
+  async calculateTORequirement(
+    @Body() calculateDto: Models.CalculateTORequirementDto,
+  ): Promise<Responses.CalculateTORequirementResponse> {
+    return this.playerPromotionService.calculateTORequirement(
+      calculateDto.playerId,
+      calculateDto.operatorId,
+      calculateDto.siteName,
+      calculateDto.promotionId,
     );
   }
 

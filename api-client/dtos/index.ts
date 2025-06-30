@@ -4,3 +4,6 @@ export { DeductBonusItemDto } from './deduct-bonus-item.dto';
 export { RollbackBonusItemDto } from './rollback-bonus-item.dto';
 export { CreatePromotionTicketDto } from './create-promotion-ticket.dto';
 export { RedeemGiftCodeDto } from './redeem-gift-code.dto';
+export { UpdateTotalWinDto } from './update-total-win.dto';
+export { UpdateTotalTurnoverDto } from './update-total-turnover.dto';
+export { CalculateTORequirementDto } from './calculate-to-requirement.dto';

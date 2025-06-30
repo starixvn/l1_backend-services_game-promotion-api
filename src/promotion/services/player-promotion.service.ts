@@ -7,6 +7,9 @@ import { PlayerDto } from '../models/player.dto';
 import { EligiblePromotion } from '../responses/eligible-promotion.response';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
+import { UpdateTotalWinResponse } from '../responses/update-total-win.response';
+import { UpdateTotalTurnoverResponse } from '../responses/update-total-turnover.response';
+import { CalculateTORequirementResponse } from '../responses/calculate-to-requirement.response';
 
 /**
  * Service for managing player promotions
@@ -277,6 +280,12 @@ export class PlayerPromotionService {
   ): Promise<PlayerPromotionDocument> {
     const promotion = await this.getPromotionById(promotionId);
 
+    // Validate turnover multiplier
+    const turnoverMultiplier = promotion.minTurnoverMultiplier;
+    if (!turnoverMultiplier || turnoverMultiplier < 2.0) {
+      throw new Error(`Invalid turnover multiplier: ${turnoverMultiplier}. Must be at least 2.0`);
+    }
+
     // Find the bet level for the player's currency group
     const betLevelInfo = promotion.betLevels.find(
       betLevel => betLevel.currencyGroup.toString() === currencyGroup.toString(),
@@ -299,6 +308,7 @@ export class PlayerPromotionService {
       totalTurnover: 0,
       totalWinAmount: 0,
       minRequiredTurnover: 0,
+      turnoverMultiplier,
     });
 
     return playerPromotion.save();
@@ -502,5 +512,215 @@ export class PlayerPromotionService {
       .exec();
 
     return !!claimedPromotion;
+   }
+   * Update total win amount for a player promotion
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @param winAmount Win amount to add
+   * @returns Success response with updated total win amount
+   */
+  async updateTotalWinAmount(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+    winAmount: number,
+  ): Promise<UpdateTotalWinResponse> {
+    try {
+      const result = await this.playerPromotionModel.findOneAndUpdate(
+        {
+          playerId,
+          operatorId,
+          siteName,
+          promotionId,
+        },
+        {
+          $inc: { totalWinAmount: winAmount },
+        },
+        {
+          new: true,
+          lean: true,
+        },
+      );
+
+      if (result) {
+        return {
+          success: true,
+          totalWinAmount: result.totalWinAmount,
+        };
+      }
+    } catch (error) {
+      console.error('Error in updateTotalWinAmount:', {
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        winAmount,
+        error: error.message,
+        stack: error.stack,
+      });
+    }
+
+    return {
+      success: false,
+      totalWinAmount: 0,
+      ...PLAYER_PROMOTION_ERROR_CODES.UPDATE_TOTAL_WIN_FAILED,
+    };
+  }
+
+  /**
+   * Update total turnover for a player promotion
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @param betAmount Bet amount to add
+   * @returns Success response with updated total turnover and remaining TO
+   */
+  async updateTotalTurnover(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+    betAmount: number,
+  ): Promise<UpdateTotalTurnoverResponse> {
+    try {
+      const result = await this.playerPromotionModel.findOneAndUpdate(
+        {
+          playerId,
+          operatorId,
+          siteName,
+          promotionId,
+        },
+        {
+          $inc: { totalTurnover: betAmount },
+        },
+        {
+          new: true,
+          lean: true,
+        },
+      );
+
+      if (result) {
+        const remainingTO = Math.max(0, result.minRequiredTurnover - result.totalTurnover);
+        return {
+          success: true,
+          totalTurnover: result.totalTurnover,
+          remainingTO,
+        };
+      }
+    } catch (error) {
+      console.error('Error in updateTotalTurnover:', {
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        betAmount,
+        error: error.message,
+        stack: error.stack,
+      });
+    }
+
+    return {
+      success: false,
+      totalTurnover: 0,
+      remainingTO: 0,
+      ...PLAYER_PROMOTION_ERROR_CODES.UPDATE_TOTAL_TO_FAILED,
+    };
+  }
+
+  /**
+   * Calculate TO requirement for a player promotion
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @returns Success response with calculated TO requirement
+   */
+  async calculateTORequirement(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<CalculateTORequirementResponse> {
+    try {
+      // Single findOneAndUpdate with validation built into the filter
+      const playerPromotion = await this.playerPromotionModel.findOneAndUpdate(
+        {
+          playerId,
+          operatorId,
+          siteName,
+          promotionId,
+          remainingBonusItems: 0,
+          turnoverMultiplier: { $gte: 2.0, $ne: null },
+        },
+        [
+          {
+            $set: {
+              minRequiredTurnover: {
+                $multiply: ['$totalWinAmount', '$turnoverMultiplier'],
+              },
+            },
+          },
+        ],
+        {
+          new: true,
+          lean: true,
+        },
+      );
+
+      if (playerPromotion) {
+        return {
+          success: true,
+          minRequiredTurnover: playerPromotion.minRequiredTurnover,
+          totalWinAmount: playerPromotion.totalWinAmount,
+          turnoverMultiplier: playerPromotion.turnoverMultiplier,
+        };
+      }
+    } catch (error) {
+      console.error('Error in calculateTORequirement:', {
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        error: error.message,
+        stack: error.stack,
+      });
+    }
+
+    return {
+      success: false,
+      minRequiredTurnover: 0,
+      totalWinAmount: 0,
+      turnoverMultiplier: 0,
+      ...PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND,
+    };
+  }
+
+  /**
+   * Find player promotion by promotion ID
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @returns Player promotion document or null
+   */
+  async findByPromotion(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<PlayerPromotionDocument | null> {
+    return this.playerPromotionModel
+      .findOne({
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      })
+      .lean()
+      .exec();
   }
 }

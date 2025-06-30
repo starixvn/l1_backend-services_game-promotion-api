@@ -7,6 +7,9 @@ import {
   RollbackBonusItemDto,
   CreatePromotionTicketDto,
   RedeemGiftCodeDto,
+  UpdateTotalWinDto,
+  UpdateTotalTurnoverDto,
+  CalculateTORequirementDto,
 } from './dtos';
 import {
   PlayerPromotionResponse,
@@ -16,6 +19,9 @@ import {
   RollbackResponse,
   CreatePromotionTicketResponse,
   PromotionResponse,
+  UpdateTotalWinResponse,
+  UpdateTotalTurnoverResponse,
+  CalculateTORequirementResponse,
 } from './responses';
 import { TotalWinDto } from './dtos/total-win.dto';
 import { PromotionExpiryResponse } from './responses/promotion.response';
@@ -62,6 +68,43 @@ export class GamePromotionApiClient {
     const response: AxiosResponse<PlayerPromotionResponse> = await this.httpClient.post(
       '/player-promotions/claim-promotion',
       playerDto,
+    );
+    return response.data;
+  }
+
+  /**
+   * Update total win amount for a player promotion (Stream Event)
+   */
+  async updateTotalWinAmount(updateDto: UpdateTotalWinDto): Promise<UpdateTotalWinResponse> {
+    const response: AxiosResponse<UpdateTotalWinResponse> = await this.httpClient.post(
+      '/player-promotions/update-total-win',
+      updateDto,
+    );
+    return response.data;
+  }
+
+  /**
+   * Update total turnover for a player promotion (Stream Event)
+   */
+  async updateTotalTurnover(
+    updateDto: UpdateTotalTurnoverDto,
+  ): Promise<UpdateTotalTurnoverResponse> {
+    const response: AxiosResponse<UpdateTotalTurnoverResponse> = await this.httpClient.post(
+      '/player-promotions/update-total-turnover',
+      updateDto,
+    );
+    return response.data;
+  }
+
+  /**
+   * Calculate TO requirement for a player promotion (Stream Event)
+   */
+  async calculateTORequirement(
+    calculateDto: CalculateTORequirementDto,
+  ): Promise<CalculateTORequirementResponse> {
+    const response: AxiosResponse<CalculateTORequirementResponse> = await this.httpClient.post(
+      '/player-promotions/calculate-to-requirement',
+      calculateDto,
     );
     return response.data;
   }

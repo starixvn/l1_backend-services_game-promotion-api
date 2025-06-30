@@ -35,6 +35,50 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
     code: 'SB3004',
     message: 'Cannot rollback bonus item deduction',
   },
+  TO_REQUIREMENT_NOT_MET: {
+    code: 'SB3005',
+    message: 'Minimum turnover requirement not met',
+  },
+  BONUS_NOT_COMPLETED: {
+    code: 'SB3006',
+    message: 'All bonus items must be completed before calculating TO requirement',
+  },
+  INVALID_TARGET_GAME: {
+    code: 'SB3007',
+    message: 'Bet must be placed on target game for TO calculation',
+  },
+  STREAM_PROCESSING_ERROR: {
+    code: 'SB3008',
+    message: 'Error processing stream event',
+  },
+  UPDATE_TOTAL_WIN_SUCCESS: {
+    code: 'SB3009',
+    message: 'Total win amount updated successfully',
+  },
+  UPDATE_TOTAL_WIN_FAILED: {
+    code: 'SB3010',
+    message: 'Failed to update total win amount',
+  },
+  CALCULATE_TO_SUCCESS: {
+    code: 'SB3011',
+    message: 'TO requirement calculated successfully',
+  },
+  CALCULATE_TO_FAILED: {
+    code: 'SB3012',
+    message: 'Failed to calculate TO requirement',
+  },
+  UPDATE_TOTAL_TO_SUCCESS: {
+    code: 'SB3013',
+    message: 'Total turnover updated successfully',
+  },
+  UPDATE_TOTAL_TO_FAILED: {
+    code: 'SB3014',
+    message: 'Failed to update total turnover',
+  },
+  INVALID_TURNOVER_MULTIPLIER: {
+    code: 'SB3015',
+    message: 'Invalid turnover multiplier. Must be at least 2.0',
+  },
 } as const;
 
 // Promotion Error Codes (PR31XX) - Ready for future use
