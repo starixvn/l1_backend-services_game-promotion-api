@@ -7,6 +7,7 @@ import { PromotionModule } from './promotion/promotion.module';
 import { PromotionTicketModule } from './promotion-ticket/promotion-ticket.module';
 import { CoreModule } from './core/core.module';
 import { PromotionAnnouncementModule } from './announcement/promotion-announcement.module';
+import { BonusWinsModule } from './bonus-wins/bonus-wins.module';
 import { AllExceptionsFilter } from './core/filters/all-exceptions.filter';
 import { LoggerService } from './core/logger/logger.service';
 
@@ -32,6 +33,7 @@ import { LoggerService } from './core/logger/logger.service';
     PromotionModule,
     PromotionTicketModule,
     PromotionAnnouncementModule,
+    BonusWinsModule,
     CoreModule,
   ],
   providers: [

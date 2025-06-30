@@ -17,7 +17,7 @@ The TO tracking system consists of six main APIs that work together to manage th
 
 ### 1. Update Total Win Amount
 
-**Endpoint:** `POST /player-promotions/update-total-win`
+**Endpoint:** `POST /bonus-wins/update-total-win`
 
 **Description:** Updates the total win amount for a player promotion. This is typically called by the BonusWin stream consumer when a bonus item is used.
 
@@ -55,7 +55,7 @@ The TO tracking system consists of six main APIs that work together to manage th
 
 ### 2. Update Total Turnover
 
-**Endpoint:** `POST /player-promotions/update-total-turnover`
+**Endpoint:** `POST /bonus-wins/update-total-turnover`
 
 **Description:** Updates the total turnover for a player promotion. This is typically called by the TurnoverConsumer when a bet is settled on the target game.
 
@@ -95,7 +95,7 @@ The TO tracking system consists of six main APIs that work together to manage th
 
 ### 3. Calculate TO Requirement
 
-**Endpoint:** `POST /player-promotions/calculate-to-requirement`
+**Endpoint:** `POST /bonus-wins/calculate-to-requirement`
 
 **Description:** Calculates the minimum required turnover for a player promotion. This is typically called by the BonusWinConsumer when all bonus items are completed.
 
@@ -136,7 +136,7 @@ The TO tracking system consists of six main APIs that work together to manage th
 
 ### 4. Check TO Requirement
 
-**Endpoint:** `POST /player-promotions/check-to-requirement`
+**Endpoint:** `POST /bonus-wins/check-to-requirement`
 
 **Description:** Validates if a player can claim bonus wins based on the current TO requirement status. This is typically called before allowing a player to claim their bonus wins.
 
@@ -194,7 +194,7 @@ The TO tracking system consists of six main APIs that work together to manage th
 
 ### 5. Get TO Progress
 
-**Endpoint:** `POST /player-promotions/get-to-progress`
+**Endpoint:** `POST /bonus-wins/get-to-progress`
 
 **Description:** Gets the current TO progress status for a player promotion, including progress percentage and claimability status. This is typically used for UI display and progress tracking.
 
@@ -241,7 +241,7 @@ The TO tracking system consists of six main APIs that work together to manage th
 
 ### 6. Claim Bonus Wins
 
-**Endpoint:** `POST /player-promotions/claim-bonus-wins`
+**Endpoint:** `POST /bonus-wins/claim-bonus-wins`
 
 **Description:** Claims bonus wins after TO requirement is met. This marks the bonus as claimed and returns the claimed amount. This is the final step in the turnover tracking flow.
 

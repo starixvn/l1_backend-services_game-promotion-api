@@ -308,17 +308,19 @@ describe('PlayerPromotionService', () => {
       // Assert - Should return object without _id and __v
       expect(result).toEqual(
         expect.objectContaining({
-          playerId: 'player1',
-          operatorId: 'op123',
-          siteName: 'site1',
-          promotionId: 'promo1',
-          promotionCode: 'test-promo-1',
-          currencyGroup: 'currency1',
-          remainingBonusItems: 10,
+          promotion: expect.objectContaining({
+            playerId: 'player1',
+            operatorId: 'op123',
+            siteName: 'site1',
+            promotionId: 'promo1',
+            promotionCode: 'test-promo-1',
+            currencyGroup: 'currency1',
+            remainingBonusItems: 10,
+          }),
         }),
       );
-      expect(result).not.toHaveProperty('_id');
-      expect(result).not.toHaveProperty('__v');
+      expect(result.promotion).not.toHaveProperty('_id');
+      expect(result.promotion).not.toHaveProperty('__v');
       expect(playerPromotionModel.findOne).toHaveBeenCalled();
     });
 
@@ -347,15 +349,17 @@ describe('PlayerPromotionService', () => {
       // Assert - Should return object without _id and __v
       expect(result).toEqual(
         expect.objectContaining({
-          playerId: 'player1',
-          operatorId: 'op123',
-          promotionCode: 'test-promo-1',
-          currencyGroup: 'currency1',
-          remainingBonusItems: 10,
+          promotion: expect.objectContaining({
+            playerId: 'player1',
+            operatorId: 'op123',
+            promotionCode: 'test-promo-1',
+            currencyGroup: 'currency1',
+            remainingBonusItems: 10,
+          }),
         }),
       );
-      expect(result).not.toHaveProperty('_id');
-      expect(result).not.toHaveProperty('__v');
+      expect(result.promotion).not.toHaveProperty('_id');
+      expect(result.promotion).not.toHaveProperty('__v');
       expect(service.assignPromotionToPlayer).toHaveBeenCalledWith(
         'player1',
         'promo1',
