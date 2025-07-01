@@ -39,6 +39,5 @@ export class RedeemPromotionDto {
     example: 'SUMMER2024',
   })
   @IsString()
-  @IsNotEmpty()
   giftCode: string;
 }
