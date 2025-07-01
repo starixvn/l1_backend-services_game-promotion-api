@@ -117,6 +117,14 @@ async function main() {
     );
     await runCollection(collection3, environmentPath);
 
+    // 4. Run TO Requirement After Ticket Creation Flow
+    const collection4 = path.resolve(
+      __dirname,
+      'collections',
+      'Game Promotion API - TO Requirement After Ticket Creation.postman_collection.json',
+    );
+    await runCollection(collection4, environmentPath);
+
     console.log(`\n🎉 All collections finished for market "${market}"!`);
   } catch (error) {
     console.error('\n❌ Test execution failed');

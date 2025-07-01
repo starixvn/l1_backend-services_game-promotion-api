@@ -7,6 +7,9 @@ export class UpdateTotalWinResponse {
   @ApiProperty({ description: 'Updated total win amount' })
   totalWinAmount: number;
 
+  @ApiProperty({ description: 'Remaining bonus items count' })
+  remainingBonusItems: number;
+
   @ApiProperty({ description: 'Error code if failed' })
   code?: string;
 

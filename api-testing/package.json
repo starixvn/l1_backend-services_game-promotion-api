@@ -8,6 +8,7 @@
     "test:vg": "node index.js --env=vg-local",
     "test:all": "npm run test:sc && npm run test:vg",
     "test:to-tracking": "node test-to-tracking.js",
+    "test:to-requirement-after-ticket": "node test-to-requirement-after-ticket.js",
     "test": "node index.js"
   },
   "dependencies": {

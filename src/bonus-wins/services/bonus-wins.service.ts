@@ -62,6 +62,7 @@ export class BonusWinsService {
         return {
           success: true,
           totalWinAmount: result.totalWinAmount,
+          remainingBonusItems: result.remainingBonusItems,
         };
       }
     } catch (error) {
@@ -78,6 +79,7 @@ export class BonusWinsService {
     return {
       success: false,
       totalWinAmount: 0,
+      remainingBonusItems: 0,
       ...PLAYER_PROMOTION_ERROR_CODES.UPDATE_TOTAL_WIN_FAILED,
     };
   }

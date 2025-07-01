@@ -1,36 +1,41 @@
 # Turnover Tracking Flow Sequence Diagram
 
-This document shows the complete flow of the TO tracking system with all six APIs working together.
+This document shows the complete flow of the TO tracking system with all APIs working together, including automatic TO calculation after promotion ticket creation.
 
 ## Complete TO Tracking Flow
 
 ### Typical Usage Scenario
 
-Here's how all six APIs work together in a complete TO tracking scenario:
+Here's how all APIs work together in a complete TO tracking scenario:
 
 ```mermaid
 sequenceDiagram
     participant Game
     participant BonusWinStream
     participant BetSettledStream
+    participant TicketStream
     participant API as Game Promotion API
     participant UI as Game UI
 
     Note over Game,UI: Phase 1: Bonus Items Usage
     Game->>BonusWinStream: Player uses bonus item (win: 5.0)
     BonusWinStream->>API: /bonus-wins/update-total-win(winAmount: 5.0)
-    API->>API: Update totalWinAmount += 5.0
+    API->>API: Update totalWinAmount += 5.0, return remainingBonusItems: 4
 
     Game->>BonusWinStream: Player uses another bonus item (win: 3.0)
     BonusWinStream->>API: /bonus-wins/update-total-win(winAmount: 3.0)
-    API->>API: Update totalWinAmount += 3.0
+    API->>API: Update totalWinAmount += 3.0, return remainingBonusItems: 3
 
-    Note over Game,UI: Phase 2: Bonus Completion
-    Game->>BonusWinStream: Player uses final bonus item (win: 2.0)
-    BonusWinStream->>API: /bonus-wins/update-total-win(winAmount: 2.0)
-    API->>API: Update totalWinAmount += 2.0
-    BonusWinStream->>API: /bonus-wins/calculate-to-requirement()
+    Note over Game,UI: Phase 2: Promotion Ticket Creation (Triggers TO Calculation)
+    Game->>TicketStream: Player uses final bonus item (win: 2.0)
+    TicketStream->>API: /promotion-tickets (winAmount: 2.0)
+    API->>API: Create promotion ticket
+    API->>API: /bonus-wins/update-total-win(winAmount: 2.0)
+    API->>API: Update totalWinAmount += 2.0, return remainingBonusItems: 0
+    API->>API: Check remainingBonusItems == 0
+    API->>API: /bonus-wins/calculate-to-requirement() (automatic)
     API->>API: Calculate minRequiredTurnover = 20.0 (10.0 * 2.0)
+    API->>TicketStream: Ticket created + TO calculated
 
     Note over Game,UI: Phase 3: Turnover Tracking
     Game->>BetSettledStream: Player places bet on target game (0.5)
@@ -65,9 +70,15 @@ sequenceDiagram
 
 ### For Stream Consumers (Automated)
 
-- `/bonus-wins/update-total-win` - Called by BonusWinConsumer
+- `/bonus-wins/update-total-win` - Called by BonusWinConsumer, returns remainingBonusItems
 - `/bonus-wins/update-total-turnover` - Called by TurnoverConsumer
-- `/bonus-wins/calculate-to-requirement` - Called by BonusWinConsumer when bonus completed
+- `/bonus-wins/calculate-to-requirement` - Called automatically after promotion ticket creation when remainingBonusItems = 0
+
+### For Promotion Ticket Creation (Automated)
+
+- `/promotion-tickets` - Creates ticket and automatically triggers TO calculation when remainingBonusItems = 0
+- Integration with `/bonus-wins/update-total-win` to get remainingBonusItems without additional query
+- Automatic call to `/bonus-wins/calculate-to-requirement` when bonus items exhausted
 
 ### For Game UI (Manual/On-Demand)
 
@@ -87,12 +98,14 @@ sequenceDiagram
 - Player uses bonus items (free spins)
 - Each bonus win triggers `/bonus-wins/update-total-win`
 - Total win amount accumulates
+- API returns remainingBonusItems to avoid additional queries
 
-### Phase 2: Bonus Completion
+### Phase 2: Promotion Ticket Creation (Triggers TO Calculation)
 
-- When all bonus items are used (`remainingBonusItems: 0`)
-- `/bonus-wins/calculate-to-requirement` is called automatically
-- Minimum required turnover is calculated
+- Player uses final bonus item, creating a promotion ticket
+- `/promotion-tickets` creates ticket and calls `/bonus-wins/update-total-win`
+- When remainingBonusItems = 0, automatically calls `/bonus-wins/calculate-to-requirement`
+- Minimum required turnover is calculated based on total win amount and turnover multiplier
 
 ### Phase 3: Turnover Tracking
 
@@ -123,3 +136,6 @@ sequenceDiagram
 - **Security Protection**: Prevents exploitation when minRequiredTurnover = 0
 - **Stream Integration**: Designed for stream consumer integration
 - **Comprehensive Validation**: All conditions checked in MongoDB query
+- **Automatic TO Calculation**: TO requirements calculated automatically when bonus items exhausted
+- **Efficient Data Flow**: remainingBonusItems returned from update-total-win to avoid additional queries
+- **Promotion Ticket Integration**: Seamless integration between promotion tickets and TO tracking

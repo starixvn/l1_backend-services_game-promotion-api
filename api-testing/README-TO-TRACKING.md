@@ -12,10 +12,18 @@ The TO tracking flow tests validate the complete turnover tracking functionality
 - Calculating TO requirements
 - Checking TO progress
 - Verifying final states
+- **Automatic TO requirement calculation after promotion ticket creation**
+- **Integration between promotion tickets and TO tracking when remainingBonusItems = 0**
 
-## Test Collection
+## Test Collections
+
+### Main TO Tracking Flow
 
 **File:** `Game Promotion API - TO Tracking Flow.postman_collection.json`
+
+### TO Requirement After Ticket Creation
+
+**File:** `Game Promotion API - TO Requirement After Ticket Creation.postman_collection.json`
 
 ### Test Flow
 
@@ -51,10 +59,17 @@ The TO tracking flow tests validate the complete turnover tracking functionality
    - Updates turnover to `2600.00` to meet requirements
    - Validates successful update
 
-8. **Verify Final TO Progress**
-   - Verifies TO requirements are met
-   - Validates remaining turnover is 0 or negative
-   - Confirms final state with excess turnover
+8. **Create Promotion Ticket**
+   - Creates ticket with `winAmount: 50.25` and validates automatic total win update
+   - Tests integration between promotion tickets and TO tracking
+
+9. **Verify Total Win Amount Updated**
+   - Confirms total win amount updated to `150.75` (100.50 + 50.25)
+   - Validates automatic TO requirement recalculation
+
+10. **Verify Final TO Progress**
+    - Confirms TO requirements recalculated with new total win amount
+    - Validates remaining turnover calculation with updated requirements
 
 ## Running the Tests
 
@@ -72,7 +87,14 @@ cd api-testing
 node test-to-tracking.js
 ```
 
-### Option 3: Run with Specific Environment
+### Option 3: Run TO Requirement After Ticket Creation Flow Only
+
+```bash
+cd api-testing
+node test-to-requirement-after-ticket.js
+```
+
+### Option 4: Run with Specific Environment
 
 ```bash
 cd api-testing
@@ -87,8 +109,11 @@ TRANSFORM_CONFIG=LOCAL STACK_NAME=l1 node index.js
 - **Initial Win Amount:** 100.50
 - **Initial Turnover:** 500.75
 - **Required Turnover:** 2512.50 (calculated)
+- **Promotion Ticket Win Amount:** 50.25
+- **Updated Total Win Amount:** 150.75 (100.50 + 50.25)
+- **Updated Required Turnover:** 3768.75 (150.75 \* 25)
 - **Final Turnover:** 2600.00
-- **Remaining Turnover:** -87.50 (requirements met with excess)
+- **Final Remaining Turnover:** 1168.75 (3768.75 - 2600.00)
 
 ### Calculations Validated
 
@@ -98,12 +123,24 @@ TRANSFORM_CONFIG=LOCAL STACK_NAME=l1 node index.js
 
 ## API Endpoints Tested
 
+### Main TO Tracking Flow
+
 1. `POST /promotions` - Create promotion with turnover multiplier
 2. `POST /player-promotions/claim-promotion` - Claim promotion
 3. `POST /player-promotions/update-total-win` - Update total win amount
 4. `POST /player-promotions/update-total-turnover` - Update total turnover
 5. `POST /player-promotions/calculate-to-requirement` - Calculate TO requirements
 6. `POST /player-promotions/get-to-progress` - Get TO progress
+7. `POST /promotion-tickets` - Create promotion ticket (triggers automatic total win update)
+
+### TO Requirement After Ticket Creation Flow
+
+1. `POST /promotions` - Create promotion with turnover multiplier
+2. `POST /player-promotions/claim-promotion` - Claim promotion
+3. `POST /player-promotions/deduct-bonus-item` - Deduct bonus items (set remainingBonusItems to 0)
+4. `POST /promotion-tickets` - Create promotion ticket (triggers automatic TO requirement calculation)
+5. `POST /player-promotions/calculate-to-requirement` - Verify automatic TO requirement calculation
+6. `POST /player-promotions/get-to-progress` - Check TO progress with updated requirements
 
 ## Expected Results
 
@@ -120,7 +157,11 @@ TRANSFORM_CONFIG=LOCAL STACK_NAME=l1 node index.js
 - Turnover multiplier is stored and used correctly
 - TO requirements are calculated accurately
 - Progress tracking works as expected
-- Final state shows requirements met
+- Promotion ticket creation automatically updates total win amount
+- TO requirements are recalculated when total win amount changes
+- **Automatic TO requirement calculation when remainingBonusItems = 0**
+- **Integration between promotion tickets and TO tracking based on bonus item status**
+- **Update total win amount returns remainingBonusItems to avoid additional queries**
 - All required fields are present in responses
 
 ## Environment Variables

@@ -138,6 +138,8 @@
               "    const jsonData = pm.response.json();",
               "    pm.expect(jsonData).to.have.property('success', true);",
               "    pm.expect(jsonData).to.have.property('totalWinAmount', 100.50);",
+              "    pm.expect(jsonData).to.have.property('remainingBonusItems');",
+              "    pm.expect(jsonData.remainingBonusItems).to.be.a('number');",
               "});",
               "",
               "pm.test('Response has correct structure', function () {",
@@ -394,7 +396,175 @@
       "response": []
     },
     {
-      "name": "8. Verify Final TO Progress",
+      "name": "8. Create Promotion Ticket",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Promotion ticket created successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('ticket');",
+              "    pm.expect(jsonData.ticket).to.have.property('winAmount', 50.25);",
+              "});",
+              "",
+              "pm.test('Ticket has correct structure', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.ticket).to.have.property('playerId', pm.environment.get('playerId'));",
+              "    pm.expect(jsonData.ticket).to.have.property('operatorId', pm.environment.get('operatorId'));",
+              "    pm.expect(jsonData.ticket).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
+              "    pm.expect(jsonData.ticket).to.have.property('siteName', pm.environment.get('siteName'));",
+              "    pm.expect(jsonData.ticket).to.have.property('gameId', 1001);",
+              "    pm.expect(jsonData.ticket).to.have.property('gameRoundId', 12345);",
+              "    pm.expect(jsonData.ticket).to.have.property('betAmount', 10.00);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\",\n  \"gameId\": 1001,\n  \"gameRoundId\": 12345,\n  \"appType\": 1,\n  \"betAmount\": 10.00,\n  \"winAmount\": 50.25\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/promotion-tickets",
+          "host": ["{{baseUrl}}"],
+          "path": ["promotion-tickets"]
+        },
+        "description": "Create a promotion ticket and verify total win amount is updated"
+      },
+      "response": []
+    },
+    {
+      "name": "9. Verify Total Win Amount Updated",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Total win amount updated after ticket creation', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('totalWinAmount');",
+              "    pm.expect(jsonData).to.have.property('remainingBonusItems');",
+              "    // Should be previous amount (100.50) + new ticket amount (50.25) = 150.75",
+              "    pm.expect(jsonData.totalWinAmount).to.equal(150.75);",
+              "    pm.expect(jsonData.remainingBonusItems).to.be.a('number');",
+              "});",
+              "",
+              "pm.test('Response has correct structure', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('playerId', pm.environment.get('playerId'));",
+              "    pm.expect(jsonData).to.have.property('operatorId', pm.environment.get('operatorId'));",
+              "    pm.expect(jsonData).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\",\n  \"totalWinAmount\": 150.75\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/update-total-win",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "update-total-win"]
+        },
+        "description": "Verify total win amount was updated after creating promotion ticket"
+      },
+      "response": []
+    },
+    {
+      "name": "10. Calculate TO Requirements After Ticket Creation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('TO requirements calculated after ticket creation', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('minRequiredTurnover');",
+              "    pm.expect(jsonData).to.have.property('totalWinAmount', 150.75);",
+              "    pm.expect(jsonData).to.have.property('turnoverMultiplier', 25);",
+              "});",
+              "",
+              "pm.test('Min required turnover is calculated correctly after ticket', function () {",
+              "    const jsonData = pm.response.json();",
+              "    // minRequiredTurnover = totalWinAmount * turnoverMultiplier",
+              "    // 150.75 * 25 = 3768.75",
+              "    pm.expect(jsonData.minRequiredTurnover).to.equal(3768.75);",
+              "});",
+              "",
+              "pm.test('Response has correct structure', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('playerId', pm.environment.get('playerId'));",
+              "    pm.expect(jsonData).to.have.property('operatorId', pm.environment.get('operatorId'));",
+              "    pm.expect(jsonData).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/calculate-to-requirement",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "calculate-to-requirement"]
+        },
+        "description": "Calculate TO requirements after creating promotion ticket"
+      },
+      "response": []
+    },
+    {
+      "name": "11. Verify Final TO Progress",
       "event": [
         {
           "listen": "test",
@@ -408,15 +578,15 @@
               "    const jsonData = pm.response.json();",
               "    pm.expect(jsonData).to.have.property('success', true);",
               "    pm.expect(jsonData).to.have.property('totalTurnover', 2600.00);",
-              "    pm.expect(jsonData).to.have.property('minRequiredTurnover', 2512.50);",
+              "    pm.expect(jsonData).to.have.property('minRequiredTurnover', 3768.75);",
               "    pm.expect(jsonData).to.have.property('remainingTurnover');",
               "});",
               "",
-              "pm.test('Remaining turnover is 0 or negative (requirements met)', function () {",
+              "pm.test('Remaining turnover calculation updated', function () {",
               "    const jsonData = pm.response.json();",
               "    // remainingTurnover = minRequiredTurnover - totalTurnover",
-              "    // 2512.50 - 2600.00 = -87.50 (requirements met with excess)",
-              "    pm.expect(jsonData.remainingTurnover).to.be.at.most(0);",
+              "    // 3768.75 - 2600.00 = 1168.75 (requirements not yet met)",
+              "    pm.expect(jsonData.remainingTurnover).to.equal(1168.75);",
               "});",
               "",
               "pm.test('Final verification of all TO tracking fields', function () {",
@@ -425,7 +595,7 @@
               "    pm.expect(jsonData).to.have.property('operatorId', pm.environment.get('operatorId'));",
               "    pm.expect(jsonData).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
               "    pm.expect(jsonData).to.have.property('turnoverMultiplier', 25);",
-              "    pm.expect(jsonData.totalTurnover).to.be.greaterThan(jsonData.minRequiredTurnover);",
+              "    pm.expect(jsonData.totalTurnover).to.be.lessThan(jsonData.minRequiredTurnover);",
               "});"
             ],
             "type": "text/javascript",

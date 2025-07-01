@@ -24,7 +24,7 @@ export class PromotionTicketController {
   }
 
   @Post('total-win')
-  @ApiOperation({ summary: 'Get total win amount for a player by promotion and operator' })
+  @ApiOperation({ summary: 'Get total win amount for a player by promotion, operator, and site' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Total win amount',

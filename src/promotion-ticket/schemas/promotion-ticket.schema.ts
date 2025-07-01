@@ -12,6 +12,9 @@ export class PromotionTicket {
   operatorId: string;
 
   @Prop({ required: true })
+  siteName: string;
+
+  @Prop({ required: true })
   promotionId: string;
 
   @Prop({ required: true })
