@@ -7,9 +7,7 @@ import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress
 import { ClaimBonusWinsResponse } from '../../promotion/responses/claim-bonus-wins.response';
 
 const mockBonusWinsService = {
-  updateTotalWinAmount: jest.fn(),
   updateTotalTurnover: jest.fn(),
-  calculateTORequirement: jest.fn(),
   checkTORequirement: jest.fn(),
   getTOProgress: jest.fn(),
   claimBonusWins: jest.fn(),
@@ -33,51 +31,6 @@ describe('BonusWinsController', () => {
     controller = module.get<BonusWinsController>(BonusWinsController);
     service = module.get(BonusWinsService);
     jest.clearAllMocks();
-  });
-
-  describe('updateTotalWinAmount', () => {
-    it('should update total win amount successfully', async () => {
-      const dto = {
-        playerId: 'player1',
-        operatorId: 'op1',
-        siteName: 'site1',
-        promotionId: 'promo1',
-        winAmount: 50.0,
-      };
-      const response = {
-        success: true,
-        totalWinAmount: 150.0,
-        remainingBonusItems: 3,
-      };
-      service.updateTotalWinAmount.mockResolvedValue(response);
-      await expect(controller.updateTotalWinAmount(dto)).resolves.toEqual(response);
-      expect(service.updateTotalWinAmount).toHaveBeenCalledWith(
-        dto.playerId,
-        dto.operatorId,
-        dto.siteName,
-        dto.promotionId,
-        dto.winAmount,
-      );
-    });
-
-    it('should return error when update fails', async () => {
-      const dto = {
-        playerId: 'player2',
-        operatorId: 'op2',
-        siteName: 'site2',
-        promotionId: 'promo2',
-        winAmount: 25.0,
-      };
-      const response = {
-        success: false,
-        totalWinAmount: 0,
-        remainingBonusItems: 0,
-        code: 'SB3010',
-        message: 'Failed to update total win amount',
-      };
-      service.updateTotalWinAmount.mockResolvedValue(response);
-      await expect(controller.updateTotalWinAmount(dto)).resolves.toEqual(response);
-    });
   });
 
   describe('updateTotalTurnover', () => {
@@ -122,50 +75,6 @@ describe('BonusWinsController', () => {
       };
       service.updateTotalTurnover.mockResolvedValue(response);
       await expect(controller.updateTotalTurnover(dto)).resolves.toEqual(response);
-    });
-  });
-
-  describe('calculateTORequirement', () => {
-    it('should calculate TO requirement successfully', async () => {
-      const dto = {
-        playerId: 'player1',
-        operatorId: 'op1',
-        siteName: 'site1',
-        promotionId: 'promo1',
-      };
-      const response = {
-        success: true,
-        minRequiredTurnover: 1000.0,
-        totalWinAmount: 100.0,
-        turnoverMultiplier: 10.0,
-      };
-      service.calculateTORequirement.mockResolvedValue(response);
-      await expect(controller.calculateTORequirement(dto)).resolves.toEqual(response);
-      expect(service.calculateTORequirement).toHaveBeenCalledWith(
-        dto.playerId,
-        dto.operatorId,
-        dto.siteName,
-        dto.promotionId,
-      );
-    });
-
-    it('should return error when calculation fails', async () => {
-      const dto = {
-        playerId: 'player2',
-        operatorId: 'op2',
-        siteName: 'site2',
-        promotionId: 'promo2',
-      };
-      const response = {
-        success: false,
-        minRequiredTurnover: 0,
-        totalWinAmount: 0,
-        turnoverMultiplier: 0,
-        code: 'SB3000',
-        message: 'Player promotion not found',
-      };
-      service.calculateTORequirement.mockResolvedValue(response);
-      await expect(controller.calculateTORequirement(dto)).resolves.toEqual(response);
     });
   });
 
