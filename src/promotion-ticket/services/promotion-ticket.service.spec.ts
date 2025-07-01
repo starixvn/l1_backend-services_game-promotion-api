@@ -7,11 +7,13 @@ import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto'
 import { PROMOTION_TICKET_ERROR_CODES } from '../../constants/error-codes';
 import { CreatePromotionTicketResponse } from '../responses/promotion-ticket.response';
 import { LoggerService } from '../../core/logger/logger.service';
+import { BonusWinsService } from '../../bonus-wins/services/bonus-wins.service';
 
 describe('PromotionTicketService', () => {
   let service: PromotionTicketService;
   let mockPromotionTicketModel: jest.Mocked<Model<PromotionTicketDocument>>;
   let mockLoggerService: jest.Mocked<LoggerService>;
+  let mockBonusWinsService: jest.Mocked<BonusWinsService>;
 
   beforeEach(async () => {
     const mockModelValue = {
@@ -34,6 +36,12 @@ describe('PromotionTicketService', () => {
       flush: jest.fn(),
     } as unknown as jest.Mocked<LoggerService>;
 
+    // Create mock for BonusWinsService
+    mockBonusWinsService = {
+      updateTotalWinAmount: jest.fn(),
+      calculateTORequirement: jest.fn(),
+    } as unknown as jest.Mocked<BonusWinsService>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PromotionTicketService,
@@ -44,6 +52,10 @@ describe('PromotionTicketService', () => {
         {
           provide: LoggerService,
           useValue: mockLoggerService,
+        },
+        {
+          provide: BonusWinsService,
+          useValue: mockBonusWinsService,
         },
       ],
     }).compile();
@@ -82,6 +94,19 @@ describe('PromotionTicketService', () => {
 
       (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
 
+      // Mock BonusWinsService methods
+      mockBonusWinsService.updateTotalWinAmount.mockResolvedValue({
+        success: true,
+        totalWinAmount: 25.0,
+        remainingBonusItems: 2,
+      });
+      mockBonusWinsService.calculateTORequirement.mockResolvedValue({
+        success: true,
+        minRequiredTurnover: 50.0,
+        totalWinAmount: 25.0,
+        turnoverMultiplier: 2.0,
+      });
+
       const expectedResult: CreatePromotionTicketResponse = {
         success: true,
         ticket: mockSavedTicket,
@@ -93,6 +118,13 @@ describe('PromotionTicketService', () => {
       // Assert
       expect(mockPromotionTicketModel).toHaveBeenCalledWith(inputDto);
       expect(mockTicketInstance.save).toHaveBeenCalledTimes(1);
+      expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
+        inputDto.playerId,
+        inputDto.operatorId,
+        inputDto.siteName,
+        inputDto.promotionId,
+        inputDto.winAmount,
+      );
       expect(actualResult).toEqual(expectedResult);
       expect(mockLoggerService.captureException).not.toHaveBeenCalled();
     });
@@ -140,6 +172,13 @@ describe('PromotionTicketService', () => {
 
       (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
 
+      // Mock BonusWinsService methods
+      mockBonusWinsService.updateTotalWinAmount.mockResolvedValue({
+        success: true,
+        totalWinAmount: 25.0,
+        remainingBonusItems: 2,
+      });
+
       // Act
       await service.createTicket(inputDto);
 
@@ -155,6 +194,123 @@ describe('PromotionTicketService', () => {
         betAmount: 10.5,
         winAmount: 25.0,
       });
+      expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
+        'player123',
+        'operator456',
+        'site1',
+        'promo789',
+        25.0,
+      );
+      expect(mockLoggerService.captureException).not.toHaveBeenCalled();
+    });
+
+    it('should trigger TO calculation when remainingBonusItems is 0', async () => {
+      // Arrange
+      const mockSavedTicket = {
+        _id: 'ticket-id-123',
+        ...inputDto,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as unknown as PromotionTicketDocument;
+
+      const mockTicketInstance = {
+        save: jest.fn().mockResolvedValue(mockSavedTicket),
+      };
+
+      (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
+
+      // Mock BonusWinsService methods - remainingBonusItems = 0 should trigger TO calculation
+      mockBonusWinsService.updateTotalWinAmount.mockResolvedValue({
+        success: true,
+        totalWinAmount: 25.0,
+        remainingBonusItems: 0,
+      });
+      mockBonusWinsService.calculateTORequirement.mockResolvedValue({
+        success: true,
+        minRequiredTurnover: 50.0,
+        totalWinAmount: 25.0,
+        turnoverMultiplier: 2.0,
+      });
+
+      const expectedResult: CreatePromotionTicketResponse = {
+        success: true,
+        ticket: mockSavedTicket,
+      };
+
+      // Act
+      const actualResult = await service.createTicket(inputDto);
+
+      // Assert
+      expect(mockPromotionTicketModel).toHaveBeenCalledWith(inputDto);
+      expect(mockTicketInstance.save).toHaveBeenCalledTimes(1);
+      expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
+        inputDto.playerId,
+        inputDto.operatorId,
+        inputDto.siteName,
+        inputDto.promotionId,
+        inputDto.winAmount,
+      );
+      expect(mockBonusWinsService.calculateTORequirement).toHaveBeenCalledWith(
+        inputDto.playerId,
+        inputDto.operatorId,
+        inputDto.siteName,
+        inputDto.promotionId,
+      );
+      expect(actualResult).toEqual(expectedResult);
+      expect(mockLoggerService.captureException).not.toHaveBeenCalled();
+    });
+
+    it('should handle BonusWinsService errors gracefully', async () => {
+      // Arrange
+      const mockSavedTicket = {
+        _id: 'ticket-id-123',
+        ...inputDto,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as unknown as PromotionTicketDocument;
+
+      const mockTicketInstance = {
+        save: jest.fn().mockResolvedValue(mockSavedTicket),
+      };
+
+      (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
+
+      // Mock BonusWinsService error
+      const updateError = new Error('Update total win failed');
+      mockBonusWinsService.updateTotalWinAmount.mockRejectedValue(updateError);
+
+      const expectedResult: CreatePromotionTicketResponse = {
+        success: true,
+        ticket: mockSavedTicket,
+      };
+
+      // Act
+      const actualResult = await service.createTicket(inputDto);
+
+      // Assert
+      expect(mockPromotionTicketModel).toHaveBeenCalledWith(inputDto);
+      expect(mockTicketInstance.save).toHaveBeenCalledTimes(1);
+      expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
+        inputDto.playerId,
+        inputDto.operatorId,
+        inputDto.siteName,
+        inputDto.promotionId,
+        inputDto.winAmount,
+      );
+      expect(mockLoggerService.error).toHaveBeenCalledWith(
+        'Failed to update total win amount or calculate TO requirement after ticket creation',
+        updateError.stack,
+        {
+          method: 'createTicket',
+          service: 'PromotionTicketService',
+          playerId: inputDto.playerId,
+          operatorId: inputDto.operatorId,
+          promotionId: inputDto.promotionId,
+          winAmount: inputDto.winAmount,
+          error: updateError.message,
+        },
+      );
+      expect(actualResult).toEqual(expectedResult);
       expect(mockLoggerService.captureException).not.toHaveBeenCalled();
     });
   });
