@@ -3,7 +3,7 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PlayerPromotionService } from '../services/player-promotion.service';
 import * as Models from '../models';
 import * as Responses from '../responses';
-import { PLAYER_PROMOTION_ERROR_CODES } from 'src/constants/error-codes';
+import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 
 @ApiTags('player-promotions')
 @Controller('player-promotions')
