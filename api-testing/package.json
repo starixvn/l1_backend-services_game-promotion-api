@@ -6,7 +6,9 @@
   "scripts": {
     "test:sc": "node index.js --env=sc-local",
     "test:vg": "node index.js --env=vg-local",
-    "test:all": "npm run test:sc && npm run test:vg"
+    "test:all": "npm run test:sc && npm run test:vg",
+    "test:to-tracking": "node test-to-tracking.js",
+    "test": "node index.js"
   },
   "dependencies": {
     "newman": "^6.2.1"

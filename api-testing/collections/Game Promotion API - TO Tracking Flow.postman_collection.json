@@ -1,0 +1,481 @@
+{
+  "info": {
+    "_postman_id": "to-tracking-flow-1234",
+    "name": "Game Promotion API - TO Tracking Flow",
+    "description": "TO (Turnover) tracking flow testing:\n\n**Flow Overview:**\n- Create promotion with turnover multiplier\n- Claim promotion\n- Update total win amount\n- Update total turnover\n- Calculate TO requirements\n- Check TO progress\n- Verify final state\n\n**Key Features:**\n- Tests the complete TO tracking workflow\n- Validates turnover calculations\n- Verifies TO requirement calculations\n- Tests TO progress tracking\n- Comprehensive state verification",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "18297178"
+  },
+  "item": [
+    {
+      "name": "1. Create Promotion with Turnover Multiplier",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Response has promotion data', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('_id');",
+              "    pm.expect(jsonData).to.have.property('code');",
+              "    pm.expect(jsonData).to.have.property('bonusItemCount');",
+              "    pm.expect(jsonData).to.have.property('operatorId');",
+              "    pm.expect(jsonData).to.have.property('minTurnoverMultiplier');",
+              "});",
+              "",
+              "pm.test('Turnover multiplier is set correctly', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.minTurnoverMultiplier).to.equal(25);",
+              "});",
+              "",
+              "pm.test('Save promotion ID for next requests', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.environment.set('promotionId', jsonData._id);",
+              "    pm.environment.set('playerId', 'to_player_' + jsonData._id);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"TO Tracking Test Promotion\",\n  \"code\": \"TO_TEST_{{$timestamp}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"startDate\": \"{{$isoTimestamp}}\",\n  \"endDate\": \"2024-12-31T23:59:59.000Z\",\n  \"bonusItemCount\": 10,\n  \"minTurnoverMultiplier\": 25,\n  \"currencyGroups\": [\"{{currencyGroup}}\"],\n  \"offeredSiteNames\": [\"{{siteName}}\"],\n  \"offeredPlayerIds\": [],\n  \"gameConfigType\": 2,\n  \"gameIds\": [{{gameId}}],\n  \"betLevels\": [\n    {\n      \"currencyGroup\": \"{{currencyGroup}}\",\n      \"betLevel\": 1.0\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/promotions",
+          "host": ["{{baseUrl}}"],
+          "path": ["promotions"]
+        },
+        "description": "Create a new promotion with turnover multiplier for TO tracking testing"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Claim Promotion",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Player promotion claimed successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('promotion');",
+              "    pm.expect(jsonData.promotion).to.have.property('playerId', pm.environment.get('playerId'));",
+              "    pm.expect(jsonData.promotion).to.have.property('operatorId', pm.environment.get('operatorId'));",
+              "    pm.expect(jsonData.promotion).to.have.property('remainingBonusItems');",
+              "    pm.expect(jsonData.promotion.remainingBonusItems).to.be.greaterThan(0);",
+              "});",
+              "",
+              "pm.test('Promotion has TO tracking fields initialized', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.promotion).to.have.property('totalTurnover', 0);",
+              "    pm.expect(jsonData.promotion).to.have.property('totalWinAmount', 0);",
+              "    pm.expect(jsonData.promotion).to.have.property('minRequiredTurnover', 0);",
+              "    pm.expect(jsonData.promotion).to.have.property('turnoverMultiplier', 25);",
+              "});",
+              "",
+              "pm.test('Save promotion info for later use', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.environment.set('claimedPromotionId', jsonData.promotion.promotionId);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"currencyGroup\": \"{{currencyGroup}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/claim-promotion",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "claim-promotion"]
+        },
+        "description": "Claim the created promotion for TO tracking testing"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Update Total Win Amount",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Total win amount updated successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('totalWinAmount', 100.50);",
+              "});",
+              "",
+              "pm.test('Response has correct structure', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('playerId', pm.environment.get('playerId'));",
+              "    pm.expect(jsonData).to.have.property('operatorId', pm.environment.get('operatorId'));",
+              "    pm.expect(jsonData).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\",\n  \"totalWinAmount\": 100.50\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/update-total-win",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "update-total-win"]
+        },
+        "description": "Update the total win amount for the player promotion"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Update Total Turnover",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Total turnover updated successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('totalTurnover', 500.75);",
+              "});",
+              "",
+              "pm.test('Response has correct structure', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('playerId', pm.environment.get('playerId'));",
+              "    pm.expect(jsonData).to.have.property('operatorId', pm.environment.get('operatorId'));",
+              "    pm.expect(jsonData).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\",\n  \"totalTurnover\": 500.75\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/update-total-turnover",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "update-total-turnover"]
+        },
+        "description": "Update the total turnover for the player promotion"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Calculate TO Requirements",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('TO requirements calculated successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('minRequiredTurnover');",
+              "    pm.expect(jsonData).to.have.property('totalTurnover', 500.75);",
+              "    pm.expect(jsonData).to.have.property('totalWinAmount', 100.50);",
+              "});",
+              "",
+              "pm.test('Min required turnover is calculated correctly', function () {",
+              "    const jsonData = pm.response.json();",
+              "    // minRequiredTurnover = totalWinAmount * turnoverMultiplier",
+              "    // 100.50 * 25 = 2512.50",
+              "    pm.expect(jsonData.minRequiredTurnover).to.equal(2512.50);",
+              "});",
+              "",
+              "pm.test('Response has correct structure', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('playerId', pm.environment.get('playerId'));",
+              "    pm.expect(jsonData).to.have.property('operatorId', pm.environment.get('operatorId'));",
+              "    pm.expect(jsonData).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
+              "    pm.expect(jsonData).to.have.property('turnoverMultiplier', 25);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/calculate-to-requirement",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "calculate-to-requirement"]
+        },
+        "description": "Calculate TO requirements based on current win amount and turnover multiplier"
+      },
+      "response": []
+    },
+    {
+      "name": "6. Check TO Progress",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('TO progress retrieved successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('totalTurnover', 500.75);",
+              "    pm.expect(jsonData).to.have.property('minRequiredTurnover', 2512.50);",
+              "    pm.expect(jsonData).to.have.property('remainingTurnover');",
+              "});",
+              "",
+              "pm.test('Remaining turnover calculated correctly', function () {",
+              "    const jsonData = pm.response.json();",
+              "    // remainingTurnover = minRequiredTurnover - totalTurnover",
+              "    // 2512.50 - 500.75 = 2011.75",
+              "    pm.expect(jsonData.remainingTurnover).to.equal(2011.75);",
+              "});",
+              "",
+              "pm.test('Response has correct structure', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('playerId', pm.environment.get('playerId'));",
+              "    pm.expect(jsonData).to.have.property('operatorId', pm.environment.get('operatorId'));",
+              "    pm.expect(jsonData).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
+              "    pm.expect(jsonData).to.have.property('turnoverMultiplier', 25);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/get-to-progress",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "get-to-progress"]
+        },
+        "description": "Check the current TO progress for the player promotion"
+      },
+      "response": []
+    },
+    {
+      "name": "7. Update Turnover to Meet Requirements",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Total turnover updated successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('totalTurnover', 2600.00);",
+              "});",
+              "",
+              "pm.test('Response has correct structure', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('playerId', pm.environment.get('playerId'));",
+              "    pm.expect(jsonData).to.have.property('operatorId', pm.environment.get('operatorId'));",
+              "    pm.expect(jsonData).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\",\n  \"totalTurnover\": 2600.00\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/update-total-turnover",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "update-total-turnover"]
+        },
+        "description": "Update turnover to meet the required amount"
+      },
+      "response": []
+    },
+    {
+      "name": "8. Verify Final TO Progress",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('TO requirements met successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('totalTurnover', 2600.00);",
+              "    pm.expect(jsonData).to.have.property('minRequiredTurnover', 2512.50);",
+              "    pm.expect(jsonData).to.have.property('remainingTurnover');",
+              "});",
+              "",
+              "pm.test('Remaining turnover is 0 or negative (requirements met)', function () {",
+              "    const jsonData = pm.response.json();",
+              "    // remainingTurnover = minRequiredTurnover - totalTurnover",
+              "    // 2512.50 - 2600.00 = -87.50 (requirements met with excess)",
+              "    pm.expect(jsonData.remainingTurnover).to.be.at.most(0);",
+              "});",
+              "",
+              "pm.test('Final verification of all TO tracking fields', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('playerId', pm.environment.get('playerId'));",
+              "    pm.expect(jsonData).to.have.property('operatorId', pm.environment.get('operatorId'));",
+              "    pm.expect(jsonData).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
+              "    pm.expect(jsonData).to.have.property('turnoverMultiplier', 25);",
+              "    pm.expect(jsonData.totalTurnover).to.be.greaterThan(jsonData.minRequiredTurnover);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/player-promotions/get-to-progress",
+          "host": ["{{baseUrl}}"],
+          "path": ["player-promotions", "get-to-progress"]
+        },
+        "description": "Verify final TO progress after meeting requirements"
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "{{baseUrl}}",
+      "type": "string"
+    }
+  ]
+}
