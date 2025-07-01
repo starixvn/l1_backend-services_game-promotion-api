@@ -319,8 +319,8 @@ describe('PlayerPromotionService', () => {
           }),
         }),
       );
-      expect(result.promotion).not.toHaveProperty('_id');
-      expect(result.promotion).not.toHaveProperty('__v');
+      expect(result?.promotion).not.toHaveProperty('_id');
+      expect(result?.promotion).not.toHaveProperty('__v');
       expect(playerPromotionModel.findOne).toHaveBeenCalled();
     });
 
@@ -358,8 +358,8 @@ describe('PlayerPromotionService', () => {
           }),
         }),
       );
-      expect(result.promotion).not.toHaveProperty('_id');
-      expect(result.promotion).not.toHaveProperty('__v');
+      expect(result?.promotion).not.toHaveProperty('_id');
+      expect(result?.promotion).not.toHaveProperty('__v');
       expect(service.assignPromotionToPlayer).toHaveBeenCalledWith(
         'player1',
         'promo1',

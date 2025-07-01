@@ -28,7 +28,7 @@ export class PlayerPromotionService {
    * @param playerDto Player information
    * @returns Current player promotion or null if none available
    */
-  async claimPromotion(playerDto: PlayerDto): Promise<any> {
+  async claimPromotion(playerDto: PlayerDto): Promise<Responses.PlayerPromotionResponse | null> {
     const { operatorId, siteName, playerId, currencyGroup } = playerDto;
 
     // Step 1: Check if player already has an active promotion
@@ -429,6 +429,7 @@ export class PlayerPromotionService {
     } as any;
 
     return {
+      success: true,
       promotion: promotionData,
     };
   }
@@ -443,9 +444,15 @@ export class PlayerPromotionService {
     playerDto: PlayerDto,
     giftCode: string,
   ): Promise<Responses.PlayerPromotionResponse | null> {
-    const { operatorId, siteName, playerId, currencyGroup } = playerDto;
+    if (!giftCode) {
+      return {
+        success: false,
+        ...PLAYER_PROMOTION_ERROR_CODES.GIFT_CODE_REQUIRED,
+      };
+    }
 
     // Step 1: Check if player already has an active promotion
+    const { operatorId, siteName, playerId, currencyGroup } = playerDto;
     const existingPromotion = await this.findExistingPromotion(playerId, operatorId, siteName);
     if (existingPromotion) {
       return this.mapToPlayerPromotionResponse(existingPromotion);
@@ -454,7 +461,10 @@ export class PlayerPromotionService {
     // Step 2: Find promotion by gift code
     const promotion = await this.findPromotionByGiftCode(giftCode, operatorId, currencyGroup);
     if (!promotion) {
-      return null;
+      return {
+        success: false,
+        ...PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE,
+      };
     }
 
     // Step 3: Check if player has already claimed this promotion
@@ -465,7 +475,10 @@ export class PlayerPromotionService {
       promotion.code,
     );
     if (hasClaimed) {
-      return null;
+      return {
+        success: false,
+        ...PLAYER_PROMOTION_ERROR_CODES.BONUS_ALREADY_CLAIMED,
+      };
     }
 
     // Step 4: Claim the promotion

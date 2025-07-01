@@ -3,6 +3,7 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PlayerPromotionService } from '../services/player-promotion.service';
 import * as Models from '../models';
 import * as Responses from '../responses';
+import { PLAYER_PROMOTION_ERROR_CODES } from 'src/constants/error-codes';
 
 @ApiTags('player-promotions')
 @Controller('player-promotions')
@@ -18,7 +19,7 @@ export class PlayerPromotionController {
   })
   async claimPromotion(
     @Body() playerDto: Models.PlayerDto,
-  ): Promise<Responses.PlayerPromotionResponse> {
+  ): Promise<Responses.PlayerPromotionResponse | null> {
     const promotion = await this.playerPromotionService.claimPromotion(playerDto);
     return promotion;
   }
@@ -119,7 +120,7 @@ export class PlayerPromotionController {
     const promotion = await this.playerPromotionService.redeemPromotion(playerDto, giftCode);
 
     if (!promotion) {
-      return { promotion: null };
+      return { success: false, ...PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE };
     }
 
     return promotion;

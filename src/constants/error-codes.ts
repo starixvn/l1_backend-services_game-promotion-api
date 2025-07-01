@@ -91,6 +91,18 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
     code: 'SB3018',
     message: 'Bonus wins have already been claimed',
   },
+  GIFT_CODE_REQUIRED: {
+    code: 'SB3019',
+    message: 'Please enter your Gift Code.',
+  },
+  INVALID_GIFT_CODE: {
+    code: 'SB3020',
+    message: 'Invalid Gift Code. Please check your code and try again.',
+  },
+  UNEXPECTED_GIFT_CODE_ERROR: {
+    code: 'SB3021',
+    message: 'Unexpected error occurred. Please try redeeming your gift code again later.',
+  },
 } as const;
 
 // Promotion Error Codes (PR31XX) - Ready for future use
