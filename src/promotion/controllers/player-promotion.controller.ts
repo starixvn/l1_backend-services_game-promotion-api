@@ -113,7 +113,7 @@ export class PlayerPromotionController {
     description: 'Invalid gift code or already claimed',
   })
   async redeemPromotion(
-    @Body() redeemDto: Models.RedeemGiftCodeDto,
+    @Body() redeemDto: Models.RedeemPromotionDto,
   ): Promise<Responses.PlayerPromotionResponse> {
     const { giftCode, ...playerDto } = redeemDto;
     const promotion = await this.playerPromotionService.redeemPromotion(playerDto, giftCode);

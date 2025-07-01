@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty } from 'class-validator';
 
-export class RedeemGiftCodeDto {
+export class RedeemPromotionDto {
   @ApiProperty({
     description: 'Player ID',
     example: 'player123',
