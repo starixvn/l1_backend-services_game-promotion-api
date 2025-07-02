@@ -444,52 +444,60 @@ export class PlayerPromotionService {
     playerDto: PlayerDto,
     giftCode: string,
   ): Promise<Responses.PlayerPromotionResponse | null> {
-    if (!giftCode) {
+    try {
+      if (!giftCode) {
+        return {
+          success: false,
+          ...PLAYER_PROMOTION_ERROR_CODES.GIFT_CODE_REQUIRED,
+        };
+      }
+      // Step 1: Check if player already has an active promotion
+      const { operatorId, siteName, playerId, currencyGroup } = playerDto;
+      const existingPromotion = await this.findExistingPromotion(playerId, operatorId, siteName);
+      if (existingPromotion) {
+        return this.mapToPlayerPromotionResponse(existingPromotion);
+      }
+
+      // Step 2: Find promotion by gift code
+      const promotion = await this.findPromotionByGiftCode(giftCode, operatorId, currencyGroup);
+      const hasPromotion = await this.hasAvailablePromotions(playerDto);
+      if (!promotion || hasPromotion.length === 0) {
+        return {
+          success: false,
+          ...PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE,
+        };
+      }
+
+      // Step 3: Check if player has already claimed this promotion
+      const hasClaimed = await this.hasPlayerClaimedPromotion(
+        playerId,
+        operatorId,
+        siteName,
+        promotion.code,
+      );
+      if (hasClaimed || hasPromotion[0].code !== giftCode) {
+        return {
+          success: false,
+          ...PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE,
+        };
+      }
+
+      // Step 4: Claim the promotion
+      const playerPromotion = await this.assignPromotionToPlayer(
+        playerId,
+        promotion._id,
+        operatorId,
+        siteName,
+        currencyGroup,
+      );
+      return this.mapToPlayerPromotionResponse(playerPromotion);
+    } catch (error) {
+      this.loggerService.error(error);
       return {
         success: false,
-        ...PLAYER_PROMOTION_ERROR_CODES.GIFT_CODE_REQUIRED,
+        ...PLAYER_PROMOTION_ERROR_CODES.UNEXPECTED_GIFT_CODE_ERROR,
       };
     }
-
-    // Step 1: Check if player already has an active promotion
-    const { operatorId, siteName, playerId, currencyGroup } = playerDto;
-    const existingPromotion = await this.findExistingPromotion(playerId, operatorId, siteName);
-    if (existingPromotion) {
-      return this.mapToPlayerPromotionResponse(existingPromotion);
-    }
-
-    // Step 2: Find promotion by gift code
-    const promotion = await this.findPromotionByGiftCode(giftCode, operatorId, currencyGroup);
-    if (!promotion) {
-      return {
-        success: false,
-        ...PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE,
-      };
-    }
-
-    // Step 3: Check if player has already claimed this promotion
-    const hasClaimed = await this.hasPlayerClaimedPromotion(
-      playerId,
-      operatorId,
-      siteName,
-      promotion.code,
-    );
-    if (hasClaimed) {
-      return {
-        success: false,
-        ...PLAYER_PROMOTION_ERROR_CODES.BONUS_ALREADY_CLAIMED,
-      };
-    }
-
-    // Step 4: Claim the promotion
-    const playerPromotion = await this.assignPromotionToPlayer(
-      playerId,
-      promotion._id,
-      operatorId,
-      siteName,
-      currencyGroup,
-    );
-    return this.mapToPlayerPromotionResponse(playerPromotion);
   }
 
   /**
