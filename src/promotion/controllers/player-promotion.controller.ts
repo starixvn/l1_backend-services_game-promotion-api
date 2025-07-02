@@ -20,7 +20,7 @@ export class PlayerPromotionController {
   async claimPromotion(
     @Body() playerDto: Models.PlayerDto,
   ): Promise<Responses.PlayerPromotionResponse | null> {
-    return await this.playerPromotionService.claimPromotion(playerDto);
+    return this.playerPromotionService.claimPromotion(playerDto);
   }
 
   @Post('has-promotion')
