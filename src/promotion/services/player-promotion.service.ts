@@ -116,26 +116,31 @@ export class PlayerPromotionService {
    * @param playerId Player ID
    * @param operatorId Operator ID
    * @param siteName Site name
+   * @param giftCode Optional gift code to filter by
    * @returns Existing promotion or null
    */
   private async findExistingPromotion(
     playerId: string,
     operatorId: string,
     siteName: string,
+    giftCode?: string,
   ): Promise<PlayerPromotionDocument | null> {
     const now = new Date();
+    const query: any = {
+      playerId,
+      operatorId,
+      siteName,
+      remainingBonusItems: { $gt: 0 },
+      startDate: { $lte: now },
+      endDate: { $gt: now },
+    };
 
-    return this.playerPromotionModel
-      .findOne({
-        playerId,
-        operatorId,
-        siteName,
-        remainingBonusItems: { $gt: 0 },
-        startDate: { $lte: now },
-        endDate: { $gt: now },
-      })
-      .lean()
-      .exec();
+    // Add gift code filter if provided
+    if (giftCode) {
+      query.promotionCode = giftCode;
+    }
+
+    return this.playerPromotionModel.findOne(query).lean().exec();
   }
 
   /**
@@ -445,44 +450,31 @@ export class PlayerPromotionService {
     giftCode: string,
   ): Promise<Responses.PlayerPromotionResponse | null> {
     try {
-      if (!giftCode) {
-        return {
-          success: false,
-          ...PLAYER_PROMOTION_ERROR_CODES.GIFT_CODE_REQUIRED,
-        };
+      const validationResult = this.validateGiftCodeInput(giftCode);
+      if (!validationResult.isValid) {
+        return this.createErrorResponse(validationResult.errorCode);
       }
-      // Step 1: Check if player already has an active promotion
+
       const { operatorId, siteName, playerId, currencyGroup } = playerDto;
-      const existingPromotion = await this.findExistingPromotion(playerId, operatorId, siteName);
+
+      // Check if player already has an active promotion (with gift code filter)
+      const existingPromotion = await this.findExistingPromotion(
+        playerId,
+        operatorId,
+        siteName,
+        giftCode,
+      );
       if (existingPromotion) {
         return this.mapToPlayerPromotionResponse(existingPromotion);
       }
 
-      // Step 2: Find promotion by gift code
+      // Find and validate promotion by gift code
       const promotion = await this.findPromotionByGiftCode(giftCode, operatorId, currencyGroup);
-      const hasPromotion = await this.hasAvailablePromotions(playerDto);
-      if (!promotion || hasPromotion.length === 0) {
-        return {
-          success: false,
-          ...PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE,
-        };
+      if (!promotion) {
+        return this.createErrorResponse(PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE);
       }
 
-      // Step 3: Check if player has already claimed this promotion
-      const hasClaimed = await this.hasPlayerClaimedPromotion(
-        playerId,
-        operatorId,
-        siteName,
-        promotion.code,
-      );
-      if (hasClaimed || hasPromotion[0].code !== giftCode) {
-        return {
-          success: false,
-          ...PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE,
-        };
-      }
-
-      // Step 4: Claim the promotion
+      // Claim the promotion
       const playerPromotion = await this.assignPromotionToPlayer(
         playerId,
         promotion._id,
@@ -493,11 +485,35 @@ export class PlayerPromotionService {
       return this.mapToPlayerPromotionResponse(playerPromotion);
     } catch (error) {
       this.loggerService.error(error);
+      return this.createErrorResponse(PLAYER_PROMOTION_ERROR_CODES.UNEXPECTED_GIFT_CODE_ERROR);
+    }
+  }
+
+  /**
+   * Validate gift code input
+   * @param giftCode Gift code to validate
+   * @returns Validation result with error code if invalid
+   */
+  private validateGiftCodeInput(giftCode: string): { isValid: boolean; errorCode?: any } {
+    if (!giftCode) {
       return {
-        success: false,
-        ...PLAYER_PROMOTION_ERROR_CODES.UNEXPECTED_GIFT_CODE_ERROR,
+        isValid: false,
+        errorCode: PLAYER_PROMOTION_ERROR_CODES.GIFT_CODE_REQUIRED,
       };
     }
+    return { isValid: true };
+  }
+
+  /**
+   * Create error response with consistent structure
+   * @param errorCode Error code object
+   * @returns Error response
+   */
+  private createErrorResponse(errorCode: any): Responses.PlayerPromotionResponse {
+    return {
+      success: false,
+      ...errorCode,
+    };
   }
 
   /**
