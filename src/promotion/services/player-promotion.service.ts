@@ -417,9 +417,9 @@ export class PlayerPromotionService {
       playerId: playerPromotion.playerId,
       operatorId: playerPromotion.operatorId,
       siteName: playerPromotion.siteName,
-      promotionId: playerPromotion.promotionId.toString(),
+      promotionId: playerPromotion.promotionId,
       promotionCode: playerPromotion.promotionCode,
-      currencyGroup: playerPromotion.currencyGroup.toString(),
+      currencyGroup: playerPromotion.currencyGroup,
       remainingBonusItems: playerPromotion.remainingBonusItems,
       initialBonusItem: playerPromotion.initialBonusItem,
       betLevel: playerPromotion.betLevel,
@@ -431,7 +431,9 @@ export class PlayerPromotionService {
       totalWinAmount: playerPromotion.totalWinAmount,
       minRequiredTurnover: playerPromotion.minRequiredTurnover,
       turnoverMultiplier: playerPromotion.turnoverMultiplier,
-    } as any;
+      bonusClaimed: playerPromotion.bonusClaimed,
+      claimedAt: playerPromotion.claimedAt,
+    };
 
     return {
       success: true,
@@ -448,7 +450,7 @@ export class PlayerPromotionService {
   async redeemPromotion(
     playerDto: PlayerDto,
     giftCode: string,
-  ): Promise<Responses.PlayerPromotionResponse | null> {
+  ): Promise<Responses.PlayerPromotionResponse> {
     try {
       const validationResult = this.validateGiftCodeInput(giftCode);
       if (!validationResult.isValid) {
