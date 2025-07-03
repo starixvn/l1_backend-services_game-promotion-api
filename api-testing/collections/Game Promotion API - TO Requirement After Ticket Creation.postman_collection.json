@@ -262,67 +262,9 @@
       },
       "response": []
     },
+
     {
-      "name": "6. Verify TO Requirements Calculated Automatically",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Status code is 201', function () {",
-              "    pm.response.to.have.status(201);",
-              "});",
-              "",
-              "pm.test('TO requirements calculated automatically after ticket creation', function () {",
-              "    const jsonData = pm.response.json();",
-              "    pm.expect(jsonData).to.have.property('success', true);",
-              "    pm.expect(jsonData).to.have.property('minRequiredTurnover');",
-              "    pm.expect(jsonData).to.have.property('totalWinAmount', 75.50);",
-              "    pm.expect(jsonData).to.have.property('turnoverMultiplier', 20);",
-              "});",
-              "",
-              "pm.test('Min required turnover is calculated correctly', function () {",
-              "    const jsonData = pm.response.json();",
-              "    // minRequiredTurnover = totalWinAmount * turnoverMultiplier",
-              "    // 75.50 * 20 = 1510.00",
-              "    pm.expect(jsonData.minRequiredTurnover).to.equal(1510.00);",
-              "});",
-              "",
-              "pm.test('Response has correct structure', function () {",
-              "    const jsonData = pm.response.json();",
-              "    pm.expect(jsonData).to.have.property('playerId', pm.environment.get('playerId'));",
-              "    pm.expect(jsonData).to.have.property('operatorId', pm.environment.get('operatorId'));",
-              "    pm.expect(jsonData).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
-              "});"
-            ],
-            "type": "text/javascript",
-            "packages": {}
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/player-promotions/calculate-to-requirement",
-          "host": ["{{baseUrl}}"],
-          "path": ["player-promotions", "calculate-to-requirement"]
-        },
-        "description": "Verify TO requirements were calculated automatically after ticket creation"
-      },
-      "response": []
-    },
-    {
-      "name": "7. Check TO Progress with Updated Requirements",
+      "name": "6. Check TO Progress with Updated Requirements",
       "event": [
         {
           "listen": "test",
@@ -370,12 +312,12 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\"\n}"
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\"\n}"
         },
         "url": {
-          "raw": "{{baseUrl}}/player-promotions/get-to-progress",
+          "raw": "{{baseUrl}}/bonus-wins/get-to-progress",
           "host": ["{{baseUrl}}"],
-          "path": ["player-promotions", "get-to-progress"]
+          "path": ["bonus-wins", "get-to-progress"]
         },
         "description": "Check TO progress with the updated requirements after automatic calculation"
       },

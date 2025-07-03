@@ -37,39 +37,31 @@ The TO tracking flow tests validate the complete turnover tracking functionality
    - Validates TO tracking fields are initialized correctly
    - Verifies `totalTurnover`, `totalWinAmount`, `minRequiredTurnover`, and `turnoverMultiplier`
 
-3. **Update Total Win Amount**
-   - Updates the player's total win amount to `100.50`
-   - Validates successful update and response structure
+3. **Create Promotion Ticket (Triggers Total Win Update)**
+   - Creates a promotion ticket with `winAmount: 100.50`
+   - **Automatically triggers total win amount update** (Single Source of Truth)
+   - Validates ticket creation and automatic total win update
 
 4. **Update Total Turnover**
    - Updates the player's total turnover to `500.75`
    - Validates successful update and response structure
 
-5. **Calculate TO Requirements**
-   - Calculates minimum required turnover based on win amount and multiplier
-   - Validates calculation: `100.50 * 25 = 2512.50`
-   - Verifies response structure and data accuracy
-
-6. **Check TO Progress**
+5. **Check TO Progress**
    - Retrieves current TO progress
    - Validates remaining turnover calculation: `2512.50 - 500.75 = 2011.75`
    - Verifies all TO tracking fields
 
-7. **Update Turnover to Meet Requirements**
+6. **Update Turnover to Meet Requirements**
    - Updates turnover to `2600.00` to meet requirements
    - Validates successful update
 
-8. **Create Promotion Ticket**
+7. **Create Promotion Ticket**
    - Creates ticket with `winAmount: 50.25` and validates automatic total win update
    - Tests integration between promotion tickets and TO tracking
 
-9. **Verify Total Win Amount Updated**
-   - Confirms total win amount updated to `150.75` (100.50 + 50.25)
-   - Validates automatic TO requirement recalculation
-
-10. **Verify Final TO Progress**
-    - Confirms TO requirements recalculated with new total win amount
-    - Validates remaining turnover calculation with updated requirements
+8. **Verify Final TO Progress**
+   - Confirms TO requirements recalculated with new total win amount
+   - Validates remaining turnover calculation with updated requirements
 
 ## Running the Tests
 
@@ -127,11 +119,12 @@ TRANSFORM_CONFIG=LOCAL STACK_NAME=l1 node index.js
 
 1. `POST /promotions` - Create promotion with turnover multiplier
 2. `POST /player-promotions/claim-promotion` - Claim promotion
-3. `POST /player-promotions/update-total-win` - Update total win amount
-4. `POST /player-promotions/update-total-turnover` - Update total turnover
-5. `POST /player-promotions/calculate-to-requirement` - Calculate TO requirements
-6. `POST /player-promotions/get-to-progress` - Get TO progress
+3. `POST /promotion-tickets` - Create promotion ticket (triggers automatic total win update)
+4. `POST /bonus-wins/update-total-turnover` - Update total turnover
+5. `POST /bonus-wins/get-to-progress` - Get TO progress
+6. `POST /bonus-wins/update-total-turnover` - Update turnover to meet requirements
 7. `POST /promotion-tickets` - Create promotion ticket (triggers automatic total win update)
+8. `POST /bonus-wins/get-to-progress` - Verify final TO progress
 
 ### TO Requirement After Ticket Creation Flow
 
@@ -139,8 +132,7 @@ TRANSFORM_CONFIG=LOCAL STACK_NAME=l1 node index.js
 2. `POST /player-promotions/claim-promotion` - Claim promotion
 3. `POST /player-promotions/deduct-bonus-item` - Deduct bonus items (set remainingBonusItems to 0)
 4. `POST /promotion-tickets` - Create promotion ticket (triggers automatic TO requirement calculation)
-5. `POST /player-promotions/calculate-to-requirement` - Verify automatic TO requirement calculation
-6. `POST /player-promotions/get-to-progress` - Check TO progress with updated requirements
+5. `POST /bonus-wins/get-to-progress` - Check TO progress with updated requirements
 
 ## Expected Results
 
@@ -157,11 +149,11 @@ TRANSFORM_CONFIG=LOCAL STACK_NAME=l1 node index.js
 - Turnover multiplier is stored and used correctly
 - TO requirements are calculated accurately
 - Progress tracking works as expected
-- Promotion ticket creation automatically updates total win amount
+- Promotion ticket creation automatically updates total win amount (Single Source of Truth)
 - TO requirements are recalculated when total win amount changes
 - **Automatic TO requirement calculation when remainingBonusItems = 0**
 - **Integration between promotion tickets and TO tracking based on bonus item status**
-- **Update total win amount returns remainingBonusItems to avoid additional queries**
+- **Single entry point through promotion tickets for total win updates**
 - All required fields are present in responses
 
 ## Environment Variables
