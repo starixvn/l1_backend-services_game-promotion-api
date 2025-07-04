@@ -4,6 +4,7 @@ export interface EligiblePromotion {
   code: string;
   operatorId: string;
   bonusItemCount: number;
+  gameIds: number[];
   currencyGroup: string;
   startDate: string;
   endDate: string;

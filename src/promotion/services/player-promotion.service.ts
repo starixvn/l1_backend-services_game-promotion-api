@@ -103,6 +103,7 @@ export class PlayerPromotionService {
         name: promotion.name,
         code: promotion.code,
         bonusItemCount: promotion.bonusItemCount,
+        gameIds: promotion.gameIds,
         currencyGroup: playerCurrencyGroup,
         isGiftCode: promotion.isGiftCode,
         startDate: promotion.startDate,
