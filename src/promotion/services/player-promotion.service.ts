@@ -461,14 +461,14 @@ export class PlayerPromotionService {
       const { operatorId, siteName, playerId, currencyGroup } = playerDto;
 
       // Check if player already has an active promotion (with gift code filter)
-      const existingPromotion = await this.findExistingPromotion(
+      const existingPromotion = await this.hasPlayerClaimedPromotion(
         playerId,
         operatorId,
         siteName,
         giftCode,
       );
       if (existingPromotion) {
-        return this.mapToPlayerPromotionResponse(existingPromotion);
+        return this.createErrorResponse(PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE);
       }
 
       // Find and validate promotion by gift code
