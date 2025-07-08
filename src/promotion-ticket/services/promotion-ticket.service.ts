@@ -35,12 +35,18 @@ export class PromotionTicketService {
 
       // Update total win amount after creating the ticket
       try {
+        const winAmount = await this.calculateTotalWin({
+          playerId: createTicketDto.playerId,
+          operatorId: createTicketDto.operatorId,
+          siteName: createTicketDto.siteName,
+          promotionId: createTicketDto.promotionId,
+        });
         const updateResult = await this.bonusWinsService.updateTotalWinAmount(
           createTicketDto.playerId,
           createTicketDto.operatorId,
           createTicketDto.siteName,
           createTicketDto.promotionId,
-          createTicketDto.winAmount,
+          winAmount,
         );
 
         // Check if remaining bonus items is 0 to trigger TO requirement calculation
