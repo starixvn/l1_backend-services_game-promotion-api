@@ -86,11 +86,46 @@ export class BonusWinsService {
   }
 
   /**
-   * Update total turnover for a player promotion
+   * Find active bonus win for TO tracking
+   * Sorting priority: FIFO > Earliest expiry > Highest win amount
    * @param playerId Player ID
    * @param operatorId Operator ID
    * @param siteName Site name
-   * @param promotionId Promotion ID
+   * @returns Active bonus win or null
+   */
+  private async findActiveBonusWin(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+  ): Promise<PlayerPromotionDocument | null> {
+    const now = new Date();
+
+    return this.playerPromotionModel
+      .findOne({
+        playerId,
+        operatorId,
+        siteName,
+        remainingBonusItems: 0, // Promotion finished
+        bonusClaimed: false, // Bonus not claimed yet
+        minRequiredTurnover: { $gt: 0 }, // Has TO requirement
+        startDate: { $lte: now },
+        endDate: { $gt: now },
+      })
+      .sort({
+        createdAt: 1, // FIFO - first priority
+        endDate: 1, // Earliest expiry - second priority
+        totalWinAmount: -1, // Highest win amount - third priority
+      })
+      .lean()
+      .exec();
+  }
+
+  /**
+   * Update total turnover for active bonus win
+   * Tracks TO for all eligible games
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
    * @param betAmount Bet amount to add
    * @returns Success response with updated total turnover and remaining TO
    */
@@ -98,24 +133,24 @@ export class BonusWinsService {
     playerId: string,
     operatorId: string,
     siteName: string,
-    promotionId: string,
     betAmount: number,
   ): Promise<UpdateTotalTurnoverResponse> {
     try {
+      const activeBonusWin = await this.findActiveBonusWin(playerId, operatorId, siteName);
+
+      if (!activeBonusWin) {
+        return {
+          success: false,
+          totalTurnover: 0,
+          remainingTO: 0,
+          ...PLAYER_PROMOTION_ERROR_CODES.NO_ACTIVE_BONUS_WIN,
+        };
+      }
+
       const result = await this.playerPromotionModel.findOneAndUpdate(
-        {
-          playerId,
-          operatorId,
-          siteName,
-          promotionId,
-        },
-        {
-          $inc: { totalTurnover: betAmount },
-        },
-        {
-          new: true,
-          lean: true,
-        },
+        { _id: activeBonusWin._id },
+        { $inc: { totalTurnover: betAmount } },
+        { new: true, lean: true },
       );
 
       if (result) {
@@ -131,7 +166,6 @@ export class BonusWinsService {
         playerId,
         operatorId,
         siteName,
-        promotionId,
         betAmount,
         error: error.message,
       });

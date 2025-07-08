@@ -10,7 +10,7 @@ export class BonusWinsController {
   constructor(private readonly bonusWinsService: BonusWinsService) {}
 
   @Post('update-total-turnover')
-  @ApiOperation({ summary: 'Update total turnover for a player promotion (Stream Event)' })
+  @ApiOperation({ summary: 'Update total turnover for active bonus win (Stream Event)' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Total turnover update result',
@@ -23,7 +23,6 @@ export class BonusWinsController {
       updateDto.playerId,
       updateDto.operatorId,
       updateDto.siteName,
-      updateDto.promotionId,
       updateDto.betAmount,
     );
   }

@@ -103,6 +103,10 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
     code: 'SB3021',
     message: 'Unexpected error occurred. Please try redeeming your gift code again later.',
   },
+  NO_ACTIVE_BONUS_WIN: {
+    code: 'SB3022',
+    message: 'No active bonus win found for turnover tracking',
+  },
 } as const;
 
 // Promotion Error Codes (PR31XX) - Ready for future use

@@ -39,7 +39,6 @@ describe('BonusWinsController', () => {
         playerId: 'player1',
         operatorId: 'op1',
         siteName: 'site1',
-        promotionId: 'promo1',
         betAmount: 100.0,
       };
       const response = {
@@ -53,7 +52,6 @@ describe('BonusWinsController', () => {
         dto.playerId,
         dto.operatorId,
         dto.siteName,
-        dto.promotionId,
         dto.betAmount,
       );
     });
@@ -63,18 +61,41 @@ describe('BonusWinsController', () => {
         playerId: 'player2',
         operatorId: 'op2',
         siteName: 'site2',
-        promotionId: 'promo2',
         betAmount: 50.0,
       };
       const response = {
         success: false,
         totalTurnover: 0,
         remainingTO: 0,
-        code: 'SB3011',
+        code: 'SB3014',
         message: 'Failed to update total turnover',
       };
       service.updateTotalTurnover.mockResolvedValue(response);
       await expect(controller.updateTotalTurnover(dto)).resolves.toEqual(response);
+    });
+
+    it('should return error when no active bonus win found', async () => {
+      const dto = {
+        playerId: 'player3',
+        operatorId: 'op3',
+        siteName: 'site3',
+        betAmount: 25.0,
+      };
+      const response = {
+        success: false,
+        totalTurnover: 0,
+        remainingTO: 0,
+        code: 'SB3022',
+        message: 'No active bonus win found for turnover tracking',
+      };
+      service.updateTotalTurnover.mockResolvedValue(response);
+      await expect(controller.updateTotalTurnover(dto)).resolves.toEqual(response);
+      expect(service.updateTotalTurnover).toHaveBeenCalledWith(
+        dto.playerId,
+        dto.operatorId,
+        dto.siteName,
+        dto.betAmount,
+      );
     });
   });
 

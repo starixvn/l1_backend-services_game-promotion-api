@@ -17,11 +17,6 @@ export class UpdateTotalTurnoverDto {
   @IsNotEmpty()
   siteName: string;
 
-  @ApiProperty({ description: 'Promotion identifier' })
-  @IsString()
-  @IsNotEmpty()
-  promotionId: string;
-
   @ApiProperty({ description: 'Bet amount to add to total turnover' })
   @IsNumber()
   @IsNotEmpty()
