@@ -1,37 +1,37 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { ApiClientConfig } from './config/api-client.config';
 import {
-  PlayerDto,
   AssignPromotionDto,
-  DeductBonusItemDto,
-  RollbackBonusItemDto,
-  CreatePromotionTicketDto,
-  UpdatePromotionTicketDto,
-  RedeemPromotionDto,
-  UpdateTotalWinDto,
-  UpdateTotalTurnoverDto,
   CalculateTORequirementDto,
   CheckTORequirementDto,
-  GetTOProgressDto,
   ClaimBonusWinsDto,
+  CreatePromotionTicketDto,
+  DeductBonusItemDto,
+  GetTOProgressDto,
+  PlayerDto,
+  RedeemPromotionDto,
+  RollbackBonusItemDto,
+  UpdatePromotionTicketDto,
+  UpdateTotalTurnoverDto,
+  UpdateTotalWinDto,
 } from './dtos';
+import { TotalWinDto } from './dtos/total-win.dto';
 import {
-  PlayerPromotionResponse,
-  EligiblePromotionsResponse,
   AssignmentResponse,
-  DeductBonusItemResponse,
-  RollbackResponse,
-  CreatePromotionTicketResponse,
-  UpdatePromotionTicketResponse,
-  PromotionResponse,
-  UpdateTotalWinResponse,
-  UpdateTotalTurnoverResponse,
   CalculateTORequirementResponse,
   CheckTORequirementResponse,
-  GetTOProgressResponse,
   ClaimBonusWinsResponse,
+  CreatePromotionTicketResponse,
+  DeductBonusItemResponse,
+  EligiblePromotionsResponse,
+  GetTOProgressResponse,
+  PlayerPromotionResponse,
+  PromotionResponse,
+  RollbackResponse,
+  UpdatePromotionTicketResponse,
+  UpdateTotalTurnoverResponse,
+  UpdateTotalWinResponse,
 } from './responses';
-import { TotalWinDto } from './dtos/total-win.dto';
 import { PromotionExpiryResponse } from './responses/promotion.response';
 
 export class GamePromotionApiClient {
@@ -98,7 +98,7 @@ export class GamePromotionApiClient {
     updateDto: UpdateTotalTurnoverDto,
   ): Promise<UpdateTotalTurnoverResponse> {
     const response: AxiosResponse<UpdateTotalTurnoverResponse> = await this.httpClient.post(
-      '/player-promotions/update-total-turnover',
+      '/bonus-wins/update-total-turnover',
       updateDto,
     );
     return response.data;
@@ -122,7 +122,7 @@ export class GamePromotionApiClient {
    */
   async checkTORequirement(checkDto: CheckTORequirementDto): Promise<CheckTORequirementResponse> {
     const response: AxiosResponse<CheckTORequirementResponse> = await this.httpClient.post(
-      '/player-promotions/check-to-requirement',
+      '/bonus-wins/check-to-requirement',
       checkDto,
     );
     return response.data;
@@ -133,7 +133,7 @@ export class GamePromotionApiClient {
    */
   async getTOProgress(progressDto: GetTOProgressDto): Promise<GetTOProgressResponse> {
     const response: AxiosResponse<GetTOProgressResponse> = await this.httpClient.post(
-      '/player-promotions/get-to-progress',
+      '/bonus-wins/get-to-progress',
       progressDto,
     );
     return response.data;
@@ -144,7 +144,7 @@ export class GamePromotionApiClient {
    */
   async claimBonusWins(claimDto: ClaimBonusWinsDto): Promise<ClaimBonusWinsResponse> {
     const response: AxiosResponse<ClaimBonusWinsResponse> = await this.httpClient.post(
-      '/player-promotions/claim-bonus-wins',
+      '/bonus-wins/claim-bonus-wins',
       claimDto,
     );
     return response.data;
