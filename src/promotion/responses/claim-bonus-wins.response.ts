@@ -2,12 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class ClaimBonusWinsResponse {
   @ApiProperty({
-    description: 'Whether the operation was successful',
-    example: true,
-  })
-  success: boolean;
-
-  @ApiProperty({
     description: 'Amount of bonus wins claimed',
     example: 25.0,
   })

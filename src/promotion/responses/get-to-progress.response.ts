@@ -2,12 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class GetTOProgressResponse {
   @ApiProperty({
-    description: 'Whether the operation was successful',
-    example: true,
-  })
-  success: boolean;
-
-  @ApiProperty({
     description: 'Current total turnover amount',
     example: 45.5,
   })

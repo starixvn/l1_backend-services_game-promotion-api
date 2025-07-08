@@ -175,7 +175,6 @@ describe('BonusWinsController', () => {
         promotionId: 'promo1',
       };
       const response: GetTOProgressResponse = {
-        success: true,
         totalTurnover: 80,
         minRequiredTurnover: 100,
         remainingTO: 20,
@@ -193,7 +192,7 @@ describe('BonusWinsController', () => {
       );
     });
 
-    it('should return error when player promotion not found', async () => {
+    it('should return progress percentage rounded to 2 decimal places', async () => {
       const dto: GetTOProgressDto = {
         playerId: 'player2',
         operatorId: 'op2',
@@ -201,7 +200,63 @@ describe('BonusWinsController', () => {
         promotionId: 'promo2',
       };
       const response: GetTOProgressResponse = {
-        success: false,
+        totalTurnover: 66.67,
+        minRequiredTurnover: 100,
+        remainingTO: 33.33,
+        progressPercentage: 66.67, // Should be rounded to 2 decimal places
+        canClaim: false,
+        totalWinAmount: 25,
+      };
+      service.getTOProgress.mockResolvedValue(response);
+      await expect(controller.getTOProgress(dto)).resolves.toEqual(response);
+    });
+
+    it('should return 100% progress when minRequiredTurnover is 0', async () => {
+      const dto: GetTOProgressDto = {
+        playerId: 'player3',
+        operatorId: 'op3',
+        siteName: 'site3',
+        promotionId: 'promo3',
+      };
+      const response: GetTOProgressResponse = {
+        totalTurnover: 50,
+        minRequiredTurnover: 0,
+        remainingTO: 0,
+        progressPercentage: 100, // Should be 100 when no TO required
+        canClaim: true,
+        totalWinAmount: 25,
+      };
+      service.getTOProgress.mockResolvedValue(response);
+      await expect(controller.getTOProgress(dto)).resolves.toEqual(response);
+    });
+
+    it('should return progress percentage with proper rounding for complex decimals', async () => {
+      const dto: GetTOProgressDto = {
+        playerId: 'player4',
+        operatorId: 'op4',
+        siteName: 'site4',
+        promotionId: 'promo4',
+      };
+      const response: GetTOProgressResponse = {
+        totalTurnover: 33.33,
+        minRequiredTurnover: 150,
+        remainingTO: 116.67,
+        progressPercentage: 22.22, // 33.33/150 * 100 = 22.22%
+        canClaim: false,
+        totalWinAmount: 15,
+      };
+      service.getTOProgress.mockResolvedValue(response);
+      await expect(controller.getTOProgress(dto)).resolves.toEqual(response);
+    });
+
+    it('should return error when player promotion not found', async () => {
+      const dto: GetTOProgressDto = {
+        playerId: 'player5',
+        operatorId: 'op5',
+        siteName: 'site5',
+        promotionId: 'promo5',
+      };
+      const response: GetTOProgressResponse = {
         totalTurnover: 0,
         minRequiredTurnover: 0,
         remainingTO: 0,
@@ -225,7 +280,6 @@ describe('BonusWinsController', () => {
         promotionId: 'promo1',
       };
       const response: ClaimBonusWinsResponse = {
-        success: true,
         claimedAmount: 25.0,
         totalTurnover: 100.0,
         minRequiredTurnover: 100.0,
@@ -249,7 +303,6 @@ describe('BonusWinsController', () => {
         promotionId: 'promo2',
       };
       const response: ClaimBonusWinsResponse = {
-        success: false,
         claimedAmount: 0,
         totalTurnover: 0,
         minRequiredTurnover: 0,
@@ -269,7 +322,6 @@ describe('BonusWinsController', () => {
         promotionId: 'promo3',
       };
       const response: ClaimBonusWinsResponse = {
-        success: false,
         claimedAmount: 0,
         totalTurnover: 0,
         minRequiredTurnover: 0,

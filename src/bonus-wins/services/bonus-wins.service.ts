@@ -363,14 +363,14 @@ export class BonusWinsService {
 
       if (!playerPromotion) {
         return {
-          success: false,
           totalTurnover: 0,
           minRequiredTurnover: 0,
           remainingTO: 0,
           progressPercentage: 0,
           canClaim: false,
           totalWinAmount: 0,
-          ...PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
+          errorMessage: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.message,
         };
       }
 
@@ -378,15 +378,14 @@ export class BonusWinsService {
 
       const canClaim = this.canClaimBonusWins(totalTurnover, minRequiredTurnover, totalWinAmount);
 
-      // Calculate progress percentage (0-100)
+      // Calculate progress percentage (0-100) rounded to 2 decimal places
       // If no TO required (minRequiredTurnover = 0), show 100% progress
       const progressPercentage =
         minRequiredTurnover === 0
           ? 100
-          : Math.min(100, (totalTurnover / minRequiredTurnover) * 100);
+          : Math.round(Math.min(100, (totalTurnover / minRequiredTurnover) * 100) * 100) / 100;
 
       return {
-        success: true,
         totalTurnover,
         minRequiredTurnover,
         remainingTO: Math.max(0, minRequiredTurnover - totalTurnover),
@@ -404,14 +403,14 @@ export class BonusWinsService {
       });
 
       return {
-        success: false,
         totalTurnover: 0,
         minRequiredTurnover: 0,
         remainingTO: 0,
         progressPercentage: 0,
         canClaim: false,
         totalWinAmount: 0,
-        ...PLAYER_PROMOTION_ERROR_CODES.STREAM_PROCESSING_ERROR,
+        errorCode: PLAYER_PROMOTION_ERROR_CODES.STREAM_PROCESSING_ERROR.code,
+        errorMessage: PLAYER_PROMOTION_ERROR_CODES.STREAM_PROCESSING_ERROR.message,
       };
     }
   }
@@ -431,17 +430,30 @@ export class BonusWinsService {
     promotionId: string,
   ): Promise<ClaimBonusWinsResponse> {
     try {
-      // Single atomic operation with all conditions in the query
+      const toRequirementResult = await this.checkTORequirement(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+
+      if (!toRequirementResult.canClaim) {
+        return {
+          claimedAmount: 0,
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          totalWinAmount: 0,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.code,
+          errorMessage: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.message,
+        };
+      }
+
       const updatedPromotion = await this.playerPromotionModel.findOneAndUpdate(
         {
           playerId,
           operatorId,
           siteName,
           promotionId,
-          remainingBonusItems: 0,
-          totalTurnover: { $gte: '$minRequiredTurnover' },
-          minRequiredTurnover: { $gt: 0 },
-          totalWinAmount: { $gt: 0 },
           bonusClaimed: { $ne: true },
         },
         {
@@ -457,12 +469,12 @@ export class BonusWinsService {
       );
 
       if (updatedPromotion) {
+        const { totalTurnover, minRequiredTurnover, totalWinAmount } = updatedPromotion;
         return {
-          success: true,
-          claimedAmount: updatedPromotion.totalWinAmount,
-          totalTurnover: updatedPromotion.totalTurnover,
-          minRequiredTurnover: updatedPromotion.minRequiredTurnover,
-          totalWinAmount: updatedPromotion.totalWinAmount,
+          claimedAmount: totalWinAmount,
+          totalTurnover,
+          minRequiredTurnover,
+          totalWinAmount,
         };
       }
     } catch (error) {
@@ -476,12 +488,12 @@ export class BonusWinsService {
     }
 
     return {
-      success: false,
       claimedAmount: 0,
       totalTurnover: 0,
       minRequiredTurnover: 0,
       totalWinAmount: 0,
-      ...PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED,
+      errorCode: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.code,
+      errorMessage: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.message,
     };
   }
 
