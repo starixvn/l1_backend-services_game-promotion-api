@@ -3,11 +3,22 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { PromotionTicket, PromotionTicketDocument } from '../schemas/promotion-ticket.schema';
 import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto';
+import { UpdatePromotionTicketDto } from '../models/update-promotion-ticket.dto';
 import { TotalWinDto } from '../models/total-win.dto';
-import { CreatePromotionTicketResponse } from '../responses/promotion-ticket.response';
+import {
+  CreatePromotionTicketResponse,
+  UpdatePromotionTicketResponse,
+} from '../responses/promotion-ticket.response';
 import { PROMOTION_TICKET_ERROR_CODES } from '../../constants/error-codes';
 import { LoggerService } from '../../core/logger/logger.service';
 import { BonusWinsService } from '../../bonus-wins/services/bonus-wins.service';
+
+interface PlayerPromotionContext {
+  playerId: string;
+  operatorId: string;
+  siteName: string;
+  promotionId: string;
+}
 
 /**
  * Service for managing promotion tickets
@@ -33,55 +44,14 @@ export class PromotionTicketService {
       const ticket = new this.promotionTicketModel(createTicketDto);
       const savedTicket = await ticket.save();
 
-      // Update total win amount after creating the ticket
-      try {
-        const winAmount = await this.calculateTotalWin({
-          playerId: createTicketDto.playerId,
-          operatorId: createTicketDto.operatorId,
-          siteName: createTicketDto.siteName,
-          promotionId: createTicketDto.promotionId,
-        });
-        const updateResult = await this.bonusWinsService.updateTotalWinAmount(
-          createTicketDto.playerId,
-          createTicketDto.operatorId,
-          createTicketDto.siteName,
-          createTicketDto.promotionId,
-          winAmount,
-        );
-
-        // Check if remaining bonus items is 0 to trigger TO requirement calculation
-        if (updateResult.success && updateResult.remainingBonusItems === 0) {
-          // Trigger calculate TO requirement when no bonus items remain
-          await this.bonusWinsService.calculateTORequirement(
-            createTicketDto.playerId,
-            createTicketDto.operatorId,
-            createTicketDto.siteName,
-            createTicketDto.promotionId,
-          );
-        }
-      } catch (updateError) {
-        // Log the error but don't fail the ticket creation
-        this.loggerService.error(
-          'Failed to update total win amount or calculate TO requirement after ticket creation',
-          updateError.stack,
-          {
-            method: 'createTicket',
-            service: 'PromotionTicketService',
-            playerId: createTicketDto.playerId,
-            operatorId: createTicketDto.operatorId,
-            promotionId: createTicketDto.promotionId,
-            winAmount: createTicketDto.winAmount,
-            error: updateError.message,
-          },
-        );
-      }
+      // Update bonus wins after ticket creation
+      await this.updateBonusWinsAfterTicketChange(createTicketDto);
 
       return {
         success: true,
         ticket: savedTicket,
       };
     } catch (error) {
-      // Log the exception to Sentry with context
       this.loggerService.captureException(error, {
         method: 'createTicket',
         service: 'PromotionTicketService',
@@ -96,20 +66,129 @@ export class PromotionTicketService {
   }
 
   /**
+   * Update a promotion ticket
+   * @param updateTicketDto Ticket update data
+   * @returns Success or failure response
+   */
+  async updateTicket(
+    updateTicketDto: UpdatePromotionTicketDto,
+  ): Promise<UpdatePromotionTicketResponse> {
+    try {
+      await this.promotionTicketModel.findOneAndUpdate(
+        this.buildTicketQuery(updateTicketDto),
+        {
+          $set: {
+            winAmount: updateTicketDto.winAmount,
+          },
+        },
+        {
+          new: true,
+          lean: true,
+        },
+      );
+
+      // Update bonus wins after ticket update
+      await this.updateBonusWinsAfterTicketChange(updateTicketDto);
+
+      return {
+        success: true,
+        ...PROMOTION_TICKET_ERROR_CODES.UPDATE_SUCCESS,
+      };
+    } catch (error) {
+      this.loggerService.error('Error in updateTicket', error.stack, {
+        method: 'updateTicket',
+        service: 'PromotionTicketService',
+        dto: updateTicketDto,
+        error: error.message,
+      });
+
+      return {
+        success: false,
+        ...PROMOTION_TICKET_ERROR_CODES.UPDATE_FAILED,
+      };
+    }
+  }
+
+  /**
    * Get total win amount for a player by promotionId, playerId, operatorId, siteName
    * @param totalWinDto Total win calculation data
    * @returns Total win amount (number)
    */
   async calculateTotalWin(totalWinDto: TotalWinDto): Promise<number> {
     const tickets = await this.promotionTicketModel
-      .find({
-        promotionId: totalWinDto.promotionId,
-        playerId: totalWinDto.playerId,
-        operatorId: totalWinDto.operatorId,
-        siteName: totalWinDto.siteName,
-      })
+      .find(this.buildPlayerPromotionQuery(totalWinDto))
       .lean()
       .exec();
+
     return tickets.reduce((sum, ticket) => sum + (ticket.winAmount || 0), 0);
+  }
+
+  /**
+   * Update bonus wins and trigger TO requirement calculation if needed
+   * @param context Player promotion context
+   */
+  private async updateBonusWinsAfterTicketChange(context: PlayerPromotionContext): Promise<void> {
+    try {
+      const winAmount = await this.calculateTotalWin(context);
+      const updateResult = await this.bonusWinsService.updateTotalWinAmount(
+        context.playerId,
+        context.operatorId,
+        context.siteName,
+        context.promotionId,
+        winAmount,
+      );
+
+      // Trigger TO requirement calculation if no bonus items remain
+      if (updateResult.success && updateResult.remainingBonusItems === 0) {
+        await this.bonusWinsService.calculateTORequirement(
+          context.playerId,
+          context.operatorId,
+          context.siteName,
+          context.promotionId,
+        );
+      }
+    } catch (error) {
+      this.loggerService.error(
+        'Failed to update total win amount or calculate TO requirement after ticket change',
+        error.stack,
+        {
+          method: 'updateBonusWinsAfterTicketChange',
+          service: 'PromotionTicketService',
+          context,
+          error: error.message,
+        },
+      );
+      // Don't throw error to avoid failing the main operation
+    }
+  }
+
+  /**
+   * Build query for finding tickets by player promotion context
+   * @param context Player promotion context
+   * @returns MongoDB query object
+   */
+  private buildPlayerPromotionQuery(context: PlayerPromotionContext) {
+    return {
+      promotionId: context.promotionId,
+      playerId: context.playerId,
+      operatorId: context.operatorId,
+      siteName: context.siteName,
+    };
+  }
+
+  /**
+   * Build query for finding specific ticket for update
+   * @param updateTicketDto Update ticket data
+   * @returns MongoDB query object
+   */
+  private buildTicketQuery(updateTicketDto: UpdatePromotionTicketDto) {
+    return {
+      playerId: updateTicketDto.playerId,
+      operatorId: updateTicketDto.operatorId,
+      siteName: updateTicketDto.siteName,
+      promotionId: updateTicketDto.promotionId,
+      gameId: updateTicketDto.gameId,
+      gameRoundId: updateTicketDto.gameRoundId,
+    };
   }
 }

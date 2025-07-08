@@ -17,3 +17,10 @@ export interface CreatePromotionTicketResponse {
   message: string;
   ticket?: PromotionTicket;
 }
+
+export interface UpdatePromotionTicketResponse {
+  success: boolean;
+  code: string;
+  message: string;
+  ticket?: PromotionTicket;
+}

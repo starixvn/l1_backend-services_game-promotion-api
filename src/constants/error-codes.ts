@@ -147,6 +147,14 @@ export const PROMOTION_TICKET_ERROR_CODES = {
     code: 'PT3301',
     message: 'Failed to create promotion ticket',
   },
+  UPDATE_SUCCESS: {
+    code: 'PT3302',
+    message: 'Promotion ticket updated successfully',
+  },
+  UPDATE_FAILED: {
+    code: 'PT3303',
+    message: 'Failed to update promotion ticket',
+  },
 } as const;
 
 // Type definitions for better TypeScript support

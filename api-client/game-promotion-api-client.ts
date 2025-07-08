@@ -6,6 +6,7 @@ import {
   DeductBonusItemDto,
   RollbackBonusItemDto,
   CreatePromotionTicketDto,
+  UpdatePromotionTicketDto,
   RedeemPromotionDto,
   UpdateTotalWinDto,
   UpdateTotalTurnoverDto,
@@ -21,6 +22,7 @@ import {
   DeductBonusItemResponse,
   RollbackResponse,
   CreatePromotionTicketResponse,
+  UpdatePromotionTicketResponse,
   PromotionResponse,
   UpdateTotalWinResponse,
   UpdateTotalTurnoverResponse,
@@ -240,6 +242,19 @@ export class GamePromotionApiClient {
     const response: AxiosResponse<CreatePromotionTicketResponse> = await this.httpClient.post(
       '/promotion-tickets',
       createTicketDto,
+    );
+    return response.data;
+  }
+
+  /**
+   * Update an existing promotion ticket
+   */
+  async updatePromotionTicket(
+    updateTicketDto: UpdatePromotionTicketDto,
+  ): Promise<UpdatePromotionTicketResponse> {
+    const response: AxiosResponse<UpdatePromotionTicketResponse> = await this.httpClient.post(
+      '/promotion-tickets/update-ticket',
+      updateTicketDto,
     );
     return response.data;
   }

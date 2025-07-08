@@ -6,3 +6,8 @@ export class CreatePromotionTicketResponse extends BaseApiResponse {
   @ApiProperty({ description: 'Created promotion ticket data' })
   ticket?: PromotionTicketDocument;
 }
+
+export class UpdatePromotionTicketResponse extends BaseApiResponse {
+  @ApiProperty({ description: 'Updated promotion ticket data' })
+  ticket?: PromotionTicketDocument;
+}

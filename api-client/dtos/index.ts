@@ -9,5 +9,6 @@ export * from './player.dto';
 export * from './redeem-promotion.dto';
 export * from './rollback-bonus-item.dto';
 export * from './total-win.dto';
+export * from './update-promotion-ticket.dto';
 export * from './update-total-turnover.dto';
 export * from './update-total-win.dto';
