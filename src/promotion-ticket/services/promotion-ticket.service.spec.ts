@@ -94,6 +94,11 @@ describe('PromotionTicketService', () => {
 
       (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
 
+      // Mock calculateTotalWin method
+      const mockCalculateTotalWin = jest
+        .spyOn(service, 'calculateTotalWin')
+        .mockResolvedValue(25.0);
+
       // Mock BonusWinsService methods
       mockBonusWinsService.updateTotalWinAmount.mockResolvedValue({
         success: true,
@@ -118,12 +123,18 @@ describe('PromotionTicketService', () => {
       // Assert
       expect(mockPromotionTicketModel).toHaveBeenCalledWith(inputDto);
       expect(mockTicketInstance.save).toHaveBeenCalledTimes(1);
+      expect(mockCalculateTotalWin).toHaveBeenCalledWith({
+        playerId: inputDto.playerId,
+        operatorId: inputDto.operatorId,
+        siteName: inputDto.siteName,
+        promotionId: inputDto.promotionId,
+      });
       expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
         inputDto.playerId,
         inputDto.operatorId,
         inputDto.siteName,
         inputDto.promotionId,
-        inputDto.winAmount,
+        25.0,
       );
       expect(actualResult).toEqual(expectedResult);
       expect(mockLoggerService.captureException).not.toHaveBeenCalled();
@@ -172,6 +183,9 @@ describe('PromotionTicketService', () => {
 
       (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
 
+      // Mock calculateTotalWin method
+      jest.spyOn(service, 'calculateTotalWin').mockResolvedValue(25.0);
+
       // Mock BonusWinsService methods
       mockBonusWinsService.updateTotalWinAmount.mockResolvedValue({
         success: true,
@@ -219,6 +233,9 @@ describe('PromotionTicketService', () => {
 
       (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
 
+      // Mock calculateTotalWin method
+      jest.spyOn(service, 'calculateTotalWin').mockResolvedValue(25.0);
+
       // Mock BonusWinsService methods - remainingBonusItems = 0 should trigger TO calculation
       mockBonusWinsService.updateTotalWinAmount.mockResolvedValue({
         success: true,
@@ -248,7 +265,7 @@ describe('PromotionTicketService', () => {
         inputDto.operatorId,
         inputDto.siteName,
         inputDto.promotionId,
-        inputDto.winAmount,
+        25.0,
       );
       expect(mockBonusWinsService.calculateTORequirement).toHaveBeenCalledWith(
         inputDto.playerId,
@@ -275,6 +292,9 @@ describe('PromotionTicketService', () => {
 
       (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
 
+      // Mock calculateTotalWin method
+      jest.spyOn(service, 'calculateTotalWin').mockResolvedValue(25.0);
+
       // Mock BonusWinsService error
       const updateError = new Error('Update total win failed');
       mockBonusWinsService.updateTotalWinAmount.mockRejectedValue(updateError);
@@ -295,7 +315,7 @@ describe('PromotionTicketService', () => {
         inputDto.operatorId,
         inputDto.siteName,
         inputDto.promotionId,
-        inputDto.winAmount,
+        25.0,
       );
       expect(mockLoggerService.error).toHaveBeenCalledWith(
         'Failed to update total win amount or calculate TO requirement after ticket creation',
