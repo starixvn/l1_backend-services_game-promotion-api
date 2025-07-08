@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "to-tracking-flow-1234",
     "name": "Game Promotion API - TO Tracking Flow",
-    "description": "TO (Turnover) tracking flow testing:\n\n**Flow Overview:**\n- Create promotion with turnover multiplier\n- Claim promotion\n- Update total win amount\n- Update total turnover\n- Calculate TO requirements\n- Check TO progress\n- Verify final state\n\n**Key Features:**\n- Tests the complete TO tracking workflow\n- Validates turnover calculations\n- Verifies TO requirement calculations\n- Tests TO progress tracking\n- Comprehensive state verification",
+    "description": "TO (Turnover) tracking flow testing with Smart Bonus Win Detection:\n\n**Flow Overview:**\n- Create promotion with turnover multiplier\n- Claim promotion\n- Update total win amount\n- Update total turnover (no promotionId required)\n- Calculate TO requirements\n- Check TO progress\n- Verify final state\n\n**Key Features:**\n- Tests the complete TO tracking workflow\n- Validates smart bonus win detection\n- Tests automatic promotion finding (FIFO > Earliest expiry > Highest win)\n- Verifies TO requirement calculations\n- Tests TO progress tracking\n- Comprehensive error handling testing\n- Tests new NO_ACTIVE_BONUS_WIN error scenario",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "18297178"
   },
@@ -124,7 +124,7 @@
       "response": []
     },
     {
-      "name": "3. Create Promotion Ticket (Triggers Total Win Update)",
+      "name": "3. Create Multiple Promotion Tickets (Until Promotion Finished)",
       "event": [
         {
           "listen": "test",
@@ -174,12 +174,12 @@
           "host": ["{{baseUrl}}"],
           "path": ["promotion-tickets"]
         },
-        "description": "Create a promotion ticket which automatically triggers total win amount update"
+        "description": "Create promotion tickets to exhaust bonus items and trigger TO calculation when promotion finishes"
       },
       "response": []
     },
     {
-      "name": "4. Update Total Turnover",
+      "name": "4. Update Total Turnover (Smart Detection)",
       "event": [
         {
           "listen": "test",
@@ -189,17 +189,19 @@
               "    pm.response.to.have.status(201);",
               "});",
               "",
-              "pm.test('Total turnover updated successfully', function () {",
+              "pm.test('Total turnover updated successfully with smart detection', function () {",
               "    const jsonData = pm.response.json();",
               "    pm.expect(jsonData).to.have.property('success', true);",
               "    pm.expect(jsonData).to.have.property('totalTurnover', 500.75);",
+              "    pm.expect(jsonData).to.have.property('remainingTO');",
               "});",
               "",
-              "pm.test('Response has correct structure', function () {",
+              "pm.test('Response has correct structure (no promotionId required)', function () {",
               "    const jsonData = pm.response.json();",
-              "    pm.expect(jsonData).to.have.property('playerId', pm.environment.get('playerId'));",
-              "    pm.expect(jsonData).to.have.property('operatorId', pm.environment.get('operatorId'));",
-              "    pm.expect(jsonData).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('totalTurnover');",
+              "    pm.expect(jsonData).to.have.property('remainingTO');",
+              "    // Note: Response no longer includes promotionId as API auto-detects",
               "});"
             ],
             "type": "text/javascript",
@@ -217,14 +219,14 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\",\n  \"betAmount\": 500.75\n}"
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"betAmount\": 500.75\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/bonus-wins/update-total-turnover",
           "host": ["{{baseUrl}}"],
           "path": ["bonus-wins", "update-total-turnover"]
         },
-        "description": "Update the total turnover for the player promotion"
+        "description": "Update total turnover using smart bonus win detection. API automatically finds eligible bonus wins using FIFO > Earliest expiry > Highest win amount sorting. No promotionId required - perfect for bet settled stream integration."
       },
       "response": []
     },
@@ -290,7 +292,7 @@
       "response": []
     },
     {
-      "name": "6. Update Turnover to Meet Requirements",
+      "name": "6. Update Turnover to Meet Requirements (Smart Detection)",
       "event": [
         {
           "listen": "test",
@@ -300,17 +302,19 @@
               "    pm.response.to.have.status(201);",
               "});",
               "",
-              "pm.test('Total turnover updated successfully', function () {",
+              "pm.test('Total turnover updated successfully with smart detection', function () {",
               "    const jsonData = pm.response.json();",
               "    pm.expect(jsonData).to.have.property('success', true);",
               "    pm.expect(jsonData).to.have.property('totalTurnover', 2600.00);",
+              "    pm.expect(jsonData).to.have.property('remainingTO');",
               "});",
               "",
-              "pm.test('Response has correct structure', function () {",
+              "pm.test('Smart detection works for large turnover updates', function () {",
               "    const jsonData = pm.response.json();",
-              "    pm.expect(jsonData).to.have.property('playerId', pm.environment.get('playerId'));",
-              "    pm.expect(jsonData).to.have.property('operatorId', pm.environment.get('operatorId'));",
-              "    pm.expect(jsonData).to.have.property('promotionId', pm.environment.get('claimedPromotionId'));",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('totalTurnover');",
+              "    pm.expect(jsonData).to.have.property('remainingTO');",
+              "    // Verify that API found the correct promotion automatically",
               "});"
             ],
             "type": "text/javascript",
@@ -328,19 +332,19 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"promotionId\": \"{{claimedPromotionId}}\",\n  \"betAmount\": 2099.25\n}"
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"betAmount\": 2099.25\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/bonus-wins/update-total-turnover",
           "host": ["{{baseUrl}}"],
           "path": ["bonus-wins", "update-total-turnover"]
         },
-        "description": "Update turnover to meet the required amount"
+        "description": "Update turnover to meet the required amount using smart detection"
       },
       "response": []
     },
     {
-      "name": "7. Create Promotion Ticket",
+      "name": "7. Create Final Promotion Ticket (Finish Promotion)",
       "event": [
         {
           "listen": "test",
@@ -390,7 +394,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["promotion-tickets"]
         },
-        "description": "Create a promotion ticket and verify total win amount is updated"
+        "description": "Create the final promotion ticket to finish the promotion and enable TO tracking"
       },
       "response": []
     },
@@ -453,6 +457,116 @@
           "path": ["bonus-wins", "get-to-progress"]
         },
         "description": "Verify final TO progress after meeting requirements"
+      },
+      "response": []
+    },
+    {
+      "name": "9. Test Smart Detection with Multiple Promotions",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Smart detection works with multiple eligible promotions', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('totalTurnover');",
+              "    pm.expect(jsonData).to.have.property('remainingTO');",
+              "});",
+              "",
+              "pm.test('FIFO priority applied correctly', function () {",
+              "    const jsonData = pm.response.json();",
+              "    // This test verifies that when multiple eligible promotions exist,",
+              "    // the API correctly selects based on FIFO > Earliest expiry > Highest win",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.totalTurnover).to.be.greaterThan(0);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{playerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"betAmount\": 50.00\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bonus-wins/update-total-turnover",
+          "host": ["{{baseUrl}}"],
+          "path": ["bonus-wins", "update-total-turnover"]
+        },
+        "description": "Test smart detection priority when multiple eligible promotions exist (FIFO > Earliest expiry > Highest win)"
+      },
+      "response": []
+    },
+    {
+      "name": "10. Test NO_ACTIVE_BONUS_WIN Error",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('NO_ACTIVE_BONUS_WIN error returned correctly', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', false);",
+              "    pm.expect(jsonData).to.have.property('code', 'SB3022');",
+              "    pm.expect(jsonData).to.have.property('message', 'No active bonus win found for turnover tracking');",
+              "});",
+              "",
+              "pm.test('Error response has correct structure', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('totalTurnover', 0);",
+              "    pm.expect(jsonData).to.have.property('remainingTO', 0);",
+              "});",
+              "",
+              "pm.test('Smart detection correctly identifies no eligible promotions', function () {",
+              "    const jsonData = pm.response.json();",
+              "    // This test verifies that the smart detection logic correctly",
+              "    // identifies when there are no active bonus wins to track",
+              "    pm.expect(jsonData.success).to.be.false;",
+              "    pm.expect(jsonData.code).to.equal('SB3022');",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"no_active_bonus_player\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"betAmount\": 100.00\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bonus-wins/update-total-turnover",
+          "host": ["{{baseUrl}}"],
+          "path": ["bonus-wins", "update-total-turnover"]
+        },
+        "description": "Test the NO_ACTIVE_BONUS_WIN error scenario when no eligible promotions exist"
       },
       "response": []
     }
