@@ -295,7 +295,6 @@ export class PromotionService {
       endDate: { $lt: now },
     };
 
-    // Add gameId filter if provided
     if (gameId) {
       query.gameIds = { $in: [parseInt(gameId)] };
     }
@@ -305,59 +304,11 @@ export class PromotionService {
       .exec()) as unknown as PromotionExpiryDocument[];
 
     for (const promotion of promotionExpirys) {
-      const matchPromotionStage = {
-        $match: {
-          promotionId: promotion._id.toString(),
-        },
-      };
-
-      const lookupPlayerPromotionStage = {
-        $lookup: {
-          from: 'game_player_promotions',
-          localField: 'playerId',
-          foreignField: 'playerId',
-          as: 'playerPromotion',
-        },
-      };
-
-      const filterActivePlayersStage = {
-        $match: {
-          $or: [
-            // Include players who don't have a promotion record yet
-            { playerPromotion: { $size: 0 } },
-            // Include players who still have remaining bonus items and match the promotion
-            {
-              $and: [
-                { 'playerPromotion.remainingBonusItems': { $gt: 0 } },
-                { 'playerPromotion.promotionId': promotion._id.toString() },
-              ],
-            },
-          ],
-        },
-      };
-
-      const groupByPlayerStage = {
-        $group: {
-          _id: '$playerId',
-          totalWin: { $sum: '$winAmount' },
-        },
-      };
-
-      const projectFinalStage = {
-        $project: {
-          playerId: '$_id',
-          totalWin: 1,
-          _id: 0,
-        },
-      };
-
       const playerStats = await this.promotionTicketModel
         .aggregate([
-          matchPromotionStage,
-          lookupPlayerPromotionStage,
-          filterActivePlayersStage,
-          groupByPlayerStage,
-          projectFinalStage,
+          { $match: { promotionId: promotion._id.toString() } },
+          { $group: { _id: '$playerId', totalWin: { $sum: '$winAmount' } } },
+          { $project: { playerId: '$_id', totalWin: 1, _id: 0 } },
         ])
         .exec();
       promotion.players = playerStats;
