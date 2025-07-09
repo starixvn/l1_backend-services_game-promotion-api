@@ -128,6 +128,11 @@ describe('PromotionTicketService', () => {
         operatorId: inputDto.operatorId,
         siteName: inputDto.siteName,
         promotionId: inputDto.promotionId,
+        gameId: inputDto.gameId,
+        gameRoundId: inputDto.gameRoundId,
+        appType: inputDto.appType,
+        betAmount: inputDto.betAmount,
+        winAmount: inputDto.winAmount,
       });
       expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
         inputDto.playerId,
@@ -318,15 +323,22 @@ describe('PromotionTicketService', () => {
         25.0,
       );
       expect(mockLoggerService.error).toHaveBeenCalledWith(
-        'Failed to update total win amount or calculate TO requirement after ticket creation',
+        'Failed to update total win amount or calculate TO requirement after ticket change',
         updateError.stack,
         {
-          method: 'createTicket',
+          method: 'updateBonusWinsAfterTicketChange',
           service: 'PromotionTicketService',
-          playerId: inputDto.playerId,
-          operatorId: inputDto.operatorId,
-          promotionId: inputDto.promotionId,
-          winAmount: inputDto.winAmount,
+          context: {
+            playerId: inputDto.playerId,
+            operatorId: inputDto.operatorId,
+            siteName: inputDto.siteName,
+            promotionId: inputDto.promotionId,
+            gameId: inputDto.gameId,
+            gameRoundId: inputDto.gameRoundId,
+            appType: inputDto.appType,
+            betAmount: inputDto.betAmount,
+            winAmount: inputDto.winAmount,
+          },
           error: updateError.message,
         },
       );
