@@ -472,7 +472,7 @@ export class PlayerPromotionService {
       }
 
       // Find and validate promotion by gift code
-      const promotion = await this.findPromotionByGiftCode(giftCode, operatorId, currencyGroup);
+      const promotion = await this.findPromotionByGiftCode(giftCode, playerDto);
       if (!promotion) {
         return this.createErrorResponse(PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE);
       }
@@ -528,18 +528,21 @@ export class PlayerPromotionService {
    */
   private async findPromotionByGiftCode(
     giftCode: string,
-    operatorId: string,
-    currencyGroup: string,
+    playerDto: PlayerDto,
   ): Promise<PromotionDocument | null> {
     const now = new Date();
     return this.promotionModel
       .findOne({
         code: giftCode,
-        operatorId,
+        operatorId: playerDto.operatorId,
         isGiftCode: true,
         startDate: { $lte: now },
         endDate: { $gt: now },
-        currencyGroups: { $in: [currencyGroup] },
+        currencyGroups: { $in: [playerDto.currencyGroup] },
+        $or: [
+          { offeredSiteNames: { $size: 0 } }, // Offer all sites if siteName is empty
+          { offeredSiteNames: { $in: [playerDto.siteName] } }, // Check if player's site is in the list
+        ],
       })
       .lean()
       .exec();
