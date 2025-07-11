@@ -126,22 +126,63 @@ export class PlayerPromotionService {
     siteName: string,
     giftCode?: string,
   ): Promise<PlayerPromotionDocument | null> {
-    const now = new Date();
-    const query: any = {
+    const playerPromotion = await this.findPlayerPromotion(
       playerId,
       operatorId,
       siteName,
-      remainingBonusItems: { $gt: 0 },
-      startDate: { $lte: now },
-      endDate: { $gt: now },
-    };
+      giftCode,
+    );
+    if (!playerPromotion) {
+      return null;
+    }
 
-    // Add gift code filter if provided
+    const promotion = await this.promotionModel.findById(playerPromotion.promotionId).lean().exec();
+    if (!promotion) {
+      return null;
+    }
+
+    return this.isPromotionActive(playerPromotion, promotion) ? playerPromotion : null;
+  }
+
+  /**
+   * Find player promotion by basic criteria
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param giftCode Optional gift code
+   * @returns Player promotion or null
+   */
+  private async findPlayerPromotion(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    giftCode?: string,
+  ): Promise<PlayerPromotionDocument | null> {
+    const query: any = { playerId, operatorId, siteName };
+
     if (giftCode) {
       query.promotionCode = giftCode;
     }
 
     return this.playerPromotionModel.findOne(query).lean().exec();
+  }
+
+  /**
+   * Check if promotion is active based on completion status and time conditions
+   * @param playerPromotion Player promotion document
+   * @param promotion Promotion document
+   * @returns True if promotion is active
+   */
+  private isPromotionActive(
+    playerPromotion: PlayerPromotionDocument,
+    promotion: PromotionDocument,
+  ): boolean {
+    const now = new Date();
+
+    return (
+      (playerPromotion.isCompleted && now <= promotion.claimExpirationDate) ||
+      (now >= playerPromotion.startDate && now <= playerPromotion.endDate)
+    );
   }
 
   /**
