@@ -3,4 +3,5 @@ export interface CompletePromotionDto {
   operatorId: string;
   siteName: string;
   promotionId: string;
+  currencyGroup: string;
 }
