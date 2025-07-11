@@ -13,6 +13,7 @@ import { LoggerService } from '../../core/logger/logger.service';
 import { CheckTORequirementResponse } from '../../promotion/responses/check-to-requirement.response';
 import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
 import { ClaimBonusWinsResponse } from '../../promotion/responses/claim-bonus-wins.response';
+import { CompletePromotionDto } from 'src/promotion/models/complete-promotion.dto';
 
 /**
  * Service for managing bonus wins and turnover tracking
@@ -511,5 +512,47 @@ export class BonusWinsService {
   ): boolean {
     // When minRequiredTurnover = 0, players cannot claim (security measure)
     return minRequiredTurnover > 0 && totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
+  }
+
+  /**
+   * Complete a promotion by setting isCompleted to true
+   * @param completeDto Complete promotion data
+   * @returns Player promotion response or null if not found
+   */
+  async completePromotion(completeDto: CompletePromotionDto): Promise<GetTOProgressResponse> {
+    const { operatorId, siteName, playerId, promotionId } = completeDto;
+
+    const result = await this.playerPromotionModel.findOneAndUpdate(
+      {
+        operatorId,
+        playerId,
+        promotionId,
+        siteName,
+      },
+      {
+        $set: {
+          isCompleted: true,
+        },
+      },
+      {
+        new: true,
+        lean: true,
+      },
+    );
+
+    if (result) {
+      return this.getTOProgress(playerId, operatorId, siteName, promotionId);
+    }
+
+    return {
+      totalTurnover: 0,
+      minRequiredTurnover: 0,
+      remainingTO: 0,
+      progressPercentage: 0,
+      canClaim: false,
+      totalWinAmount: 0,
+      errorCode: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
+      errorMessage: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.message,
+    };
   }
 }

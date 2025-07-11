@@ -303,6 +303,7 @@ export class PlayerPromotionService {
       totalWinAmount: 0,
       minRequiredTurnover: 0,
       turnoverMultiplier: promotion.minTurnoverMultiplier,
+      isCompleted: false,
     });
 
     return playerPromotion.save();
@@ -434,6 +435,7 @@ export class PlayerPromotionService {
       turnoverMultiplier: playerPromotion.turnoverMultiplier,
       bonusClaimed: playerPromotion.bonusClaimed,
       claimedAt: playerPromotion.claimedAt,
+      isCompleted: playerPromotion.isCompleted,
     };
 
     return {

@@ -3,6 +3,7 @@ export * from './bet-level.dto';
 export * from './calculate-to-requirement.dto';
 export * from './check-to-requirement.dto';
 export * from './claim-bonus-wins.dto';
+export * from './complete-promotion.dto';
 export * from './create-promotion.dto';
 export * from './deduct-bonus-item.dto';
 export * from './get-to-progress.dto';

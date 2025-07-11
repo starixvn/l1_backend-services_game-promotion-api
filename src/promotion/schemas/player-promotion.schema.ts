@@ -61,6 +61,9 @@ export class PlayerPromotion {
 
   @Prop({ type: Date, default: null })
   claimedAt: Date;
+
+  @Prop({ type: Boolean, default: false })
+  isCompleted: boolean;
 }
 
 export const PlayerPromotionSchema = SchemaFactory.createForClass(PlayerPromotion);

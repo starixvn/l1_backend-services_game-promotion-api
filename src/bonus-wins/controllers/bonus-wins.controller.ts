@@ -80,4 +80,17 @@ export class BonusWinsController {
       claimDto.promotionId,
     );
   }
+
+  @Post('complete-promotion')
+  @ApiOperation({ summary: 'Complete a promotion' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Promotion completed successfully',
+    type: Responses.PlayerPromotionResponse,
+  })
+  async completePromotion(
+    @Body() completeDto: Models.CompletePromotionDto,
+  ): Promise<Responses.GetTOProgressResponse> {
+    return this.bonusWinsService.completePromotion(completeDto);
+  }
 }

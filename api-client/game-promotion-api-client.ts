@@ -5,6 +5,7 @@ import {
   CalculateTORequirementDto,
   CheckTORequirementDto,
   ClaimBonusWinsDto,
+  CompletePromotionDto,
   CreatePromotionTicketDto,
   DeductBonusItemDto,
   GetTOProgressDto,
@@ -100,6 +101,17 @@ export class GamePromotionApiClient {
     const response: AxiosResponse<UpdateTotalTurnoverResponse> = await this.httpClient.post(
       '/bonus-wins/update-total-turnover',
       updateDto,
+    );
+    return response.data;
+  }
+
+  /**
+   * Complete a promotion
+   */
+  async completePromotion(completeDto: CompletePromotionDto): Promise<GetTOProgressResponse> {
+    const response: AxiosResponse<GetTOProgressResponse> = await this.httpClient.post(
+      '/bonus-wins/complete-promotion',
+      completeDto,
     );
     return response.data;
   }
