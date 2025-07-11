@@ -43,6 +43,7 @@ describe('PlayerPromotionService', () => {
       currencyGroups: ['currency1'],
       startDate: yesterday,
       endDate: tomorrow,
+      claimExpirationDate: tomorrow,
       bonusItemCount: 10,
       offeredPlayerIds: [],
       gameConfigType: 2,
@@ -63,6 +64,7 @@ describe('PlayerPromotionService', () => {
       currencyGroups: ['currency1'],
       startDate: yesterday,
       endDate: tomorrow,
+      claimExpirationDate: tomorrow,
       bonusItemCount: 20,
       offeredPlayerIds: ['player1'],
       gameConfigType: 2,
@@ -104,6 +106,7 @@ describe('PlayerPromotionService', () => {
     startDate: yesterday,
     endDate: tomorrow,
     lastUsedDate: null,
+    isCompleted: false,
     save: saveFn,
     // Add minimal Document properties needed for tests
     $isEmpty: jest.fn(),
@@ -300,6 +303,13 @@ describe('PlayerPromotionService', () => {
       playerPromotionModel.findOne.mockReturnValue({
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      });
+
+      // Mock promotionModel.findById for findExistingPromotion
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPromotions[0]),
         }),
       });
 

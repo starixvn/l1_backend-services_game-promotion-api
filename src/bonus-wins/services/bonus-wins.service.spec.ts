@@ -6,12 +6,14 @@ import {
   PlayerPromotion,
   PlayerPromotionDocument,
 } from '../../promotion/schemas/player-promotion.schema';
+import { Promotion, PromotionDocument } from '../../promotion/schemas/promotion.schema';
 import { LoggerService } from '../../core/logger/logger.service';
 import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
 
 describe('BonusWinsService', () => {
   let service: BonusWinsService;
   let playerPromotionModel: jest.Mocked<Model<PlayerPromotionDocument>>;
+  let promotionModel: jest.Mocked<Model<PromotionDocument>>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -26,6 +28,12 @@ describe('BonusWinsService', () => {
           },
         },
         {
+          provide: getModelToken(Promotion.name),
+          useValue: {
+            findById: jest.fn(),
+          },
+        },
+        {
           provide: LoggerService,
           useValue: {
             error: jest.fn(),
@@ -37,6 +45,7 @@ describe('BonusWinsService', () => {
 
     service = module.get<BonusWinsService>(BonusWinsService);
     playerPromotionModel = module.get(getModelToken(PlayerPromotion.name));
+    promotionModel = module.get(getModelToken(Promotion.name));
   });
 
   describe('getTOProgress', () => {
@@ -56,6 +65,11 @@ describe('BonusWinsService', () => {
       playerPromotionModel.findOne.mockReturnValue({
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      } as any);
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
         }),
       } as any);
 
@@ -90,6 +104,11 @@ describe('BonusWinsService', () => {
           exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
         }),
       } as any);
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
+        }),
+      } as any);
 
       const result: GetTOProgressResponse = await service.getTOProgress(
         'player2',
@@ -119,6 +138,11 @@ describe('BonusWinsService', () => {
       playerPromotionModel.findOne.mockReturnValue({
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      } as any);
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
         }),
       } as any);
 
@@ -153,6 +177,11 @@ describe('BonusWinsService', () => {
           exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
         }),
       } as any);
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
+        }),
+      } as any);
 
       const result: GetTOProgressResponse = await service.getTOProgress(
         'player4',
@@ -182,6 +211,11 @@ describe('BonusWinsService', () => {
       playerPromotionModel.findOne.mockReturnValue({
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      } as any);
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
         }),
       } as any);
 
@@ -215,6 +249,11 @@ describe('BonusWinsService', () => {
           exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
         }),
       } as any);
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
+        }),
+      } as any);
 
       const result: GetTOProgressResponse = await service.getTOProgress(
         'player6',
@@ -232,6 +271,11 @@ describe('BonusWinsService', () => {
       playerPromotionModel.findOne.mockReturnValue({
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue(null),
+        }),
+      } as any);
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
         }),
       } as any);
 

@@ -229,7 +229,7 @@ export class PlayerPromotionService {
     operatorId: string,
     siteName: string,
   ): Promise<PromotionDocument[]> {
-    if (promotions.length === 0) {
+    if (!promotions || promotions.length === 0) {
       return [];
     }
 
