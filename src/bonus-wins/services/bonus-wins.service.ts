@@ -5,6 +5,7 @@ import {
   PlayerPromotion,
   PlayerPromotionDocument,
 } from '../../promotion/schemas/player-promotion.schema';
+import { Promotion, PromotionDocument } from '../../promotion/schemas/promotion.schema';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { UpdateTotalWinResponse } from '../../promotion/responses/update-total-win.response';
 import { UpdateTotalTurnoverResponse } from '../../promotion/responses/update-total-turnover.response';
@@ -23,6 +24,8 @@ export class BonusWinsService {
   constructor(
     @InjectModel(PlayerPromotion.name)
     private readonly playerPromotionModel: Model<PlayerPromotionDocument>,
+    @InjectModel(Promotion.name)
+    private readonly promotionModel: Model<PromotionDocument>,
     private readonly loggerService: LoggerService,
   ) {}
 
@@ -376,6 +379,10 @@ export class BonusWinsService {
       }
 
       const { totalTurnover, minRequiredTurnover, totalWinAmount } = playerPromotion;
+      const promotion = await this.promotionModel
+        .findById(playerPromotion.promotionId)
+        .lean()
+        .exec();
 
       const canClaim = this.canClaimBonusWins(totalTurnover, minRequiredTurnover, totalWinAmount);
 
@@ -393,6 +400,7 @@ export class BonusWinsService {
         progressPercentage,
         canClaim,
         totalWinAmount,
+        claimExpirationDate: promotion?.claimExpirationDate,
       };
     } catch (error) {
       this.loggerService.error('Error in getTOProgress', error.stack, {

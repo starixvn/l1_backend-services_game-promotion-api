@@ -6,6 +6,7 @@ export interface GetTOProgressResponse {
   progressPercentage: number;
   canClaim: boolean;
   totalWinAmount: number;
+  claimExpirationDate?: Date;
   errorCode?: string;
   errorMessage?: string;
 }

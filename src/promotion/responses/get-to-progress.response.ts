@@ -38,6 +38,12 @@ export class GetTOProgressResponse {
   totalWinAmount: number;
 
   @ApiProperty({
+    description: 'Date and time when bonus items become unclaimable',
+    example: '2024-07-15T23:59:59Z',
+  })
+  claimExpirationDate?: Date;
+
+  @ApiProperty({
     description: 'Error code if operation failed',
     example: 'SB3000',
     required: false,
