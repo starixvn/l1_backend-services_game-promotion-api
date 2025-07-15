@@ -15,6 +15,7 @@ import { CheckTORequirementResponse } from '../../promotion/responses/check-to-r
 import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
 import { ClaimBonusWinsResponse } from '../../promotion/responses/claim-bonus-wins.response';
 import { CompletePromotionDto } from 'src/promotion/models/complete-promotion.dto';
+import { PlayerPromotionService } from '../../promotion/services/player-promotion.service';
 
 /**
  * Service for managing bonus wins and turnover tracking
@@ -27,6 +28,7 @@ export class BonusWinsService {
     @InjectModel(Promotion.name)
     private readonly promotionModel: Model<PromotionDocument>,
     private readonly loggerService: LoggerService,
+    private readonly playerPromotionService: PlayerPromotionService,
   ) {}
 
   /**
@@ -140,7 +142,11 @@ export class BonusWinsService {
     betAmount: number,
   ): Promise<UpdateTotalTurnoverResponse> {
     try {
-      const activeBonusWin = await this.findActiveBonusWin(playerId, operatorId, siteName);
+      const activeBonusWin = await this.playerPromotionService.findExistingPromotion(
+        playerId,
+        operatorId,
+        siteName,
+      );
 
       if (!activeBonusWin) {
         return {

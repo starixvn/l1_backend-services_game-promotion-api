@@ -8,6 +8,7 @@ import { Promotion, PromotionSchema } from '../promotion/schemas/promotion.schem
 import { BonusWinsController } from './controllers/bonus-wins.controller';
 import { BonusWinsService } from './services/bonus-wins.service';
 import { CoreModule } from '../core/core.module';
+import { PromotionModule } from '../promotion/promotion.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { CoreModule } from '../core/core.module';
       { name: Promotion.name, schema: PromotionSchema },
     ]),
     CoreModule,
+    PromotionModule,
   ],
   controllers: [BonusWinsController],
   providers: [BonusWinsService],

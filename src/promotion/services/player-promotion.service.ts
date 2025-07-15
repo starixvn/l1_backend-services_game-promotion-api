@@ -120,7 +120,7 @@ export class PlayerPromotionService {
    * @param giftCode Optional gift code to filter by
    * @returns Existing promotion or null
    */
-  private async findExistingPromotion(
+  async findExistingPromotion(
     playerId: string,
     operatorId: string,
     siteName: string,
@@ -158,7 +158,7 @@ export class PlayerPromotionService {
     siteName: string,
     giftCode?: string,
   ): Promise<PlayerPromotionDocument | null> {
-    const query: any = { playerId, operatorId, siteName };
+    const query: any = { playerId, operatorId, siteName, bonusClaimed: false };
 
     if (giftCode) {
       query.promotionCode = giftCode;
