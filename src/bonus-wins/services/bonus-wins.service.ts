@@ -1,20 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { CompletePromotionDto } from 'src/promotion/models/complete-promotion.dto';
+import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
+import { LoggerService } from '../../core/logger/logger.service';
+import { CalculateTORequirementResponse } from '../../promotion/responses/calculate-to-requirement.response';
+import { CheckTORequirementResponse } from '../../promotion/responses/check-to-requirement.response';
+import { ClaimBonusWinsResponse } from '../../promotion/responses/claim-bonus-wins.response';
+import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
+import { UpdateTotalTurnoverResponse } from '../../promotion/responses/update-total-turnover.response';
+import { UpdateTotalWinResponse } from '../../promotion/responses/update-total-win.response';
 import {
   PlayerPromotion,
   PlayerPromotionDocument,
 } from '../../promotion/schemas/player-promotion.schema';
 import { Promotion, PromotionDocument } from '../../promotion/schemas/promotion.schema';
-import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
-import { UpdateTotalWinResponse } from '../../promotion/responses/update-total-win.response';
-import { UpdateTotalTurnoverResponse } from '../../promotion/responses/update-total-turnover.response';
-import { CalculateTORequirementResponse } from '../../promotion/responses/calculate-to-requirement.response';
-import { LoggerService } from '../../core/logger/logger.service';
-import { CheckTORequirementResponse } from '../../promotion/responses/check-to-requirement.response';
-import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
-import { ClaimBonusWinsResponse } from '../../promotion/responses/claim-bonus-wins.response';
-import { CompletePromotionDto } from 'src/promotion/models/complete-promotion.dto';
 import { PlayerPromotionService } from '../../promotion/services/player-promotion.service';
 
 /**
@@ -304,7 +304,7 @@ export class BonusWinsService {
         promotionId,
       );
 
-      if (!playerPromotion) {
+      if (!playerPromotion || !!playerPromotion.claimedAt) {
         return {
           success: false,
           canClaim: false,
@@ -312,7 +312,9 @@ export class BonusWinsService {
           minRequiredTurnover: 0,
           remainingTO: 0,
           totalWinAmount: 0,
-          ...PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND,
+          ...(playerPromotion?.claimedAt
+            ? PLAYER_PROMOTION_ERROR_CODES.BONUS_ALREADY_CLAIMED
+            : PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND),
         };
       }
 
@@ -371,7 +373,7 @@ export class BonusWinsService {
         promotionId,
       );
 
-      if (!playerPromotion) {
+      if (!playerPromotion || !!playerPromotion.claimedAt) {
         return {
           totalTurnover: 0,
           minRequiredTurnover: 0,
@@ -379,8 +381,9 @@ export class BonusWinsService {
           progressPercentage: 0,
           canClaim: false,
           totalWinAmount: 0,
-          errorCode: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
-          errorMessage: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.message,
+          errorCode: playerPromotion?.claimedAt
+            ? PLAYER_PROMOTION_ERROR_CODES.BONUS_ALREADY_CLAIMED.code
+            : PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
         };
       }
 
@@ -451,6 +454,16 @@ export class BonusWinsService {
         siteName,
         promotionId,
       );
+
+      if (toRequirementResult.errorCode) {
+        return {
+          claimedAmount: 0,
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          totalWinAmount: 0,
+          errorCode: toRequirementResult.errorCode,
+        };
+      }
 
       if (!toRequirementResult.canClaim) {
         return {
