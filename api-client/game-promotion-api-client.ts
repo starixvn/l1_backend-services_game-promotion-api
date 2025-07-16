@@ -95,10 +95,8 @@ export class GamePromotionApiClient {
   /**
    * Update total turnover for a player promotion (Stream Event)
    */
-  async updateTotalTurnover(
-    updateDto: UpdateTotalTurnoverDto,
-  ): Promise<UpdateTotalTurnoverResponse> {
-    const response: AxiosResponse<UpdateTotalTurnoverResponse> = await this.httpClient.post(
+  async updateTotalTurnover(updateDto: UpdateTotalTurnoverDto): Promise<GetTOProgressResponse> {
+    const response: AxiosResponse<GetTOProgressResponse> = await this.httpClient.post(
       '/bonus-wins/update-total-turnover',
       updateDto,
     );

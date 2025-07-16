@@ -10,7 +10,6 @@ import { Promotion, PromotionDocument } from '../../promotion/schemas/promotion.
 import { LoggerService } from '../../core/logger/logger.service';
 import { PlayerPromotionService } from '../../promotion/services/player-promotion.service';
 import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
-import { UpdateTotalTurnoverResponse } from '../../promotion/responses/update-total-turnover.response';
 
 describe('BonusWinsService', () => {
   let service: BonusWinsService;
@@ -325,16 +324,14 @@ describe('BonusWinsService', () => {
       playerPromotionService.findExistingPromotion.mockResolvedValue(mockActiveBonusWin as any);
       playerPromotionModel.findOneAndUpdate.mockResolvedValue(mockUpdatedPromotion as any);
 
-      const result: UpdateTotalTurnoverResponse = await service.updateTotalTurnover(
+      const result: GetTOProgressResponse = await service.updateTotalTurnover(
         'player1',
         'op1',
         'site1',
         25,
       );
 
-      expect(result.success).toBe(true);
-      expect(result.totalTurnover).toBe(75);
-      expect(result.remainingTO).toBe(25); // 100 - 75
+      expect(result.canClaim).toBe(false);
       expect(playerPromotionService.findExistingPromotion).toHaveBeenCalledWith(
         'player1',
         'op1',
@@ -345,18 +342,18 @@ describe('BonusWinsService', () => {
     it('should return error when no active bonus win exists', async () => {
       playerPromotionService.findExistingPromotion.mockResolvedValue(null);
 
-      const result: UpdateTotalTurnoverResponse = await service.updateTotalTurnover(
+      const result: GetTOProgressResponse = await service.updateTotalTurnover(
         'player1',
         'op1',
         'site1',
         25,
       );
 
-      expect(result.success).toBe(false);
-      expect(result.totalTurnover).toBe(0);
-      expect(result.remainingTO).toBe(0);
-      expect(result.code).toBe('SB3022');
-      expect(result.message).toBe('No active bonus win found for turnover tracking');
+      expect(result.progressPercentage).toBe(0);
+      expect(result.canClaim).toBe(false);
+      expect(result.totalWinAmount).toBe(0);
+      expect(result.errorCode).toBe('SB3022');
+      expect(result.errorMessage).toBe('No active bonus win found for turnover tracking');
       expect(playerPromotionService.findExistingPromotion).toHaveBeenCalledWith(
         'player1',
         'op1',
@@ -383,18 +380,18 @@ describe('BonusWinsService', () => {
         throw new Error('Database error');
       });
 
-      const result: UpdateTotalTurnoverResponse = await service.updateTotalTurnover(
+      const result: GetTOProgressResponse = await service.updateTotalTurnover(
         'player1',
         'op1',
         'site1',
         25,
       );
 
-      expect(result.success).toBe(false);
-      expect(result.totalTurnover).toBe(0);
-      expect(result.remainingTO).toBe(0);
-      expect(result.code).toBe('SB3014');
-      expect(result.message).toBe('Failed to update total turnover');
+      expect(result.progressPercentage).toBe(0);
+      expect(result.canClaim).toBe(false);
+      expect(result.totalWinAmount).toBe(0);
+      expect(result.errorCode).toBe('SB3014');
+      expect(result.errorMessage).toBe('Failed to update total turnover');
     });
   });
 });

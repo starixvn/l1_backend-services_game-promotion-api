@@ -14,11 +14,11 @@ export class BonusWinsController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Total turnover update result',
-    type: Responses.UpdateTotalTurnoverResponse,
+    type: Responses.GetTOProgressResponse,
   })
   async updateTotalTurnover(
     @Body() updateDto: Models.UpdateTotalTurnoverDto,
-  ): Promise<Responses.UpdateTotalTurnoverResponse> {
+  ): Promise<Responses.GetTOProgressResponse> {
     return this.bonusWinsService.updateTotalTurnover(
       updateDto.playerId,
       updateDto.operatorId,

@@ -140,7 +140,7 @@ export class BonusWinsService {
     operatorId: string,
     siteName: string,
     betAmount: number,
-  ): Promise<UpdateTotalTurnoverResponse> {
+  ): Promise<GetTOProgressResponse> {
     try {
       const activeBonusWin = await this.playerPromotionService.findExistingPromotion(
         playerId,
@@ -150,10 +150,14 @@ export class BonusWinsService {
 
       if (!activeBonusWin) {
         return {
-          success: false,
           totalTurnover: 0,
+          minRequiredTurnover: 0,
           remainingTO: 0,
-          ...PLAYER_PROMOTION_ERROR_CODES.NO_ACTIVE_BONUS_WIN,
+          progressPercentage: 0,
+          canClaim: false,
+          totalWinAmount: 0,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.NO_ACTIVE_BONUS_WIN.code,
+          errorMessage: PLAYER_PROMOTION_ERROR_CODES.NO_ACTIVE_BONUS_WIN.message,
         };
       }
 
@@ -164,12 +168,12 @@ export class BonusWinsService {
       );
 
       if (result) {
-        const remainingTO = Math.max(0, result.minRequiredTurnover - result.totalTurnover);
-        return {
-          success: true,
-          totalTurnover: result.totalTurnover,
-          remainingTO,
-        };
+        return this.getTOProgress(
+          playerId,
+          operatorId,
+          siteName,
+          activeBonusWin.promotionId.toString(),
+        );
       }
     } catch (error) {
       this.loggerService.error('Error in updateTotalTurnover', error.stack, {
@@ -182,10 +186,14 @@ export class BonusWinsService {
     }
 
     return {
-      success: false,
       totalTurnover: 0,
+      minRequiredTurnover: 0,
       remainingTO: 0,
-      ...PLAYER_PROMOTION_ERROR_CODES.UPDATE_TOTAL_TO_FAILED,
+      progressPercentage: 0,
+      canClaim: false,
+      totalWinAmount: 0,
+      errorCode: PLAYER_PROMOTION_ERROR_CODES.UPDATE_TOTAL_TO_FAILED.code,
+      errorMessage: PLAYER_PROMOTION_ERROR_CODES.UPDATE_TOTAL_TO_FAILED.message,
     };
   }
 
