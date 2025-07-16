@@ -8,12 +8,15 @@ import {
 } from '../../promotion/schemas/player-promotion.schema';
 import { Promotion, PromotionDocument } from '../../promotion/schemas/promotion.schema';
 import { LoggerService } from '../../core/logger/logger.service';
+import { PlayerPromotionService } from '../../promotion/services/player-promotion.service';
 import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
+import { UpdateTotalTurnoverResponse } from '../../promotion/responses/update-total-turnover.response';
 
 describe('BonusWinsService', () => {
   let service: BonusWinsService;
   let playerPromotionModel: jest.Mocked<Model<PlayerPromotionDocument>>;
   let promotionModel: jest.Mocked<Model<PromotionDocument>>;
+  let playerPromotionService: jest.Mocked<PlayerPromotionService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -40,12 +43,19 @@ describe('BonusWinsService', () => {
             log: jest.fn(),
           },
         },
+        {
+          provide: PlayerPromotionService,
+          useValue: {
+            findExistingPromotion: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<BonusWinsService>(BonusWinsService);
     playerPromotionModel = module.get(getModelToken(PlayerPromotion.name));
     promotionModel = module.get(getModelToken(Promotion.name));
+    playerPromotionService = module.get(PlayerPromotionService);
   });
 
   describe('getTOProgress', () => {
@@ -289,6 +299,102 @@ describe('BonusWinsService', () => {
       expect(result.progressPercentage).toBe(0);
       expect(result.errorCode).toBe('SB3000');
       expect(result.errorMessage).toBe('Player promotion not found');
+    });
+  });
+
+  describe('updateTotalTurnover', () => {
+    it('should update total turnover when active bonus win exists', async () => {
+      const mockActiveBonusWin = {
+        _id: 'promo123',
+        playerId: 'player1',
+        operatorId: 'op1',
+        siteName: 'site1',
+        promotionId: 'promo1',
+        totalTurnover: 50,
+        minRequiredTurnover: 100,
+        totalWinAmount: 25,
+        bonusClaimed: false,
+        remainingBonusItems: 0,
+      };
+
+      const mockUpdatedPromotion = {
+        ...mockActiveBonusWin,
+        totalTurnover: 75, // 50 + 25
+      };
+
+      playerPromotionService.findExistingPromotion.mockResolvedValue(mockActiveBonusWin as any);
+      playerPromotionModel.findOneAndUpdate.mockResolvedValue(mockUpdatedPromotion as any);
+
+      const result: UpdateTotalTurnoverResponse = await service.updateTotalTurnover(
+        'player1',
+        'op1',
+        'site1',
+        25,
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.totalTurnover).toBe(75);
+      expect(result.remainingTO).toBe(25); // 100 - 75
+      expect(playerPromotionService.findExistingPromotion).toHaveBeenCalledWith(
+        'player1',
+        'op1',
+        'site1',
+      );
+    });
+
+    it('should return error when no active bonus win exists', async () => {
+      playerPromotionService.findExistingPromotion.mockResolvedValue(null);
+
+      const result: UpdateTotalTurnoverResponse = await service.updateTotalTurnover(
+        'player1',
+        'op1',
+        'site1',
+        25,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.totalTurnover).toBe(0);
+      expect(result.remainingTO).toBe(0);
+      expect(result.code).toBe('SB3022');
+      expect(result.message).toBe('No active bonus win found for turnover tracking');
+      expect(playerPromotionService.findExistingPromotion).toHaveBeenCalledWith(
+        'player1',
+        'op1',
+        'site1',
+      );
+    });
+
+    it('should handle database errors gracefully', async () => {
+      const mockActiveBonusWin = {
+        _id: 'promo123',
+        playerId: 'player1',
+        operatorId: 'op1',
+        siteName: 'site1',
+        promotionId: 'promo1',
+        totalTurnover: 50,
+        minRequiredTurnover: 100,
+        totalWinAmount: 25,
+        bonusClaimed: false,
+        remainingBonusItems: 0,
+      };
+
+      playerPromotionService.findExistingPromotion.mockResolvedValue(mockActiveBonusWin as any);
+      playerPromotionModel.findOneAndUpdate.mockImplementation(() => {
+        throw new Error('Database error');
+      });
+
+      const result: UpdateTotalTurnoverResponse = await service.updateTotalTurnover(
+        'player1',
+        'op1',
+        'site1',
+        25,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.totalTurnover).toBe(0);
+      expect(result.remainingTO).toBe(0);
+      expect(result.code).toBe('SB3014');
+      expect(result.message).toBe('Failed to update total turnover');
     });
   });
 });
