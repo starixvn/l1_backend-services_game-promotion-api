@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { PromotionService } from './promotion.service';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { PromotionTicket } from '../../promotion-ticket/schemas/promotion-ticket.schema';
+import { PlayerPromotion } from '../schemas/player-promotion.schema';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionStatus } from '../models/promotion-filter.dto';
@@ -134,6 +135,17 @@ describe('PromotionService', () => {
         },
         {
           provide: getModelToken(PromotionTicket.name),
+          useValue: {
+            find: jest.fn().mockReturnValue({
+              exec: jest.fn().mockResolvedValue([]),
+            }),
+            aggregate: jest.fn().mockReturnValue({
+              exec: jest.fn().mockResolvedValue([]),
+            }),
+          },
+        },
+        {
+          provide: getModelToken(PlayerPromotion.name),
           useValue: {
             find: jest.fn().mockReturnValue({
               exec: jest.fn().mockResolvedValue([]),

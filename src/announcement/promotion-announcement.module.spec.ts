@@ -71,6 +71,15 @@ describe('PromotionAnnouncementModule (Integration)', () => {
       }),
     };
 
+    const MockPlayerPromotionModel = {
+      find: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+      aggregate: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [PromotionAnnouncementModule],
     })
@@ -80,6 +89,8 @@ describe('PromotionAnnouncementModule (Integration)', () => {
       .useValue(MockPromotionModel)
       .overrideProvider(getModelToken(PromotionTicket.name))
       .useValue(MockPromotionTicketModel)
+      .overrideProvider(getModelToken('PlayerPromotion'))
+      .useValue(MockPlayerPromotionModel)
       .compile();
 
     app = moduleFixture.createNestApplication();
