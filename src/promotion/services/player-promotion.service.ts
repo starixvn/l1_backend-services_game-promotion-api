@@ -158,7 +158,12 @@ export class PlayerPromotionService {
     siteName: string,
     giftCode?: string,
   ): Promise<PlayerPromotionDocument | null> {
-    const query: any = { playerId, operatorId, siteName, bonusClaimed: false };
+    const query: any = {
+      playerId,
+      operatorId,
+      siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
+      bonusClaimed: false,
+    };
 
     if (giftCode) {
       query.promotionCode = giftCode;
@@ -238,7 +243,7 @@ export class PlayerPromotionService {
       .find({
         playerId,
         operatorId,
-        siteName,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
       })
       .lean()
       .exec();
@@ -276,7 +281,10 @@ export class PlayerPromotionService {
         currencyGroups: { $in: [currencyGroup] },
         $and: [
           {
-            $or: [{ offeredSiteNames: { $size: 0 } }, { offeredSiteNames: siteName }],
+            $or: [
+              { offeredSiteNames: { $size: 0 } },
+              { offeredSiteNames: { $regex: new RegExp(`^${siteName}$`, 'i') } },
+            ],
           },
           {
             $or: [{ offeredPlayerIds: { $size: 0 } }, { offeredPlayerIds: playerId }],
@@ -584,7 +592,7 @@ export class PlayerPromotionService {
         currencyGroups: { $in: [playerDto.currencyGroup] },
         $or: [
           { offeredSiteNames: { $size: 0 } }, // Offer all sites if siteName is empty
-          { offeredSiteNames: { $in: [playerDto.siteName] } }, // Check if player's site is in the list
+          { offeredSiteNames: { $regex: new RegExp(`^${playerDto.siteName}$`, 'i') } }, // Check if player's site is in the list
         ],
       })
       .lean()
@@ -609,7 +617,7 @@ export class PlayerPromotionService {
       .findOne({
         playerId,
         operatorId,
-        siteName,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
         promotionCode: promotionCode,
       })
       .lean()

@@ -52,7 +52,7 @@ export class BonusWinsService {
         {
           playerId,
           operatorId,
-          siteName,
+          siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
           promotionId,
         },
         {
@@ -109,7 +109,7 @@ export class BonusWinsService {
       .findOne({
         playerId,
         operatorId,
-        siteName,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
         remainingBonusItems: 0, // Promotion finished
         bonusClaimed: false, // Bonus not claimed yet
         minRequiredTurnover: { $gt: 0 }, // Has TO requirement
@@ -215,7 +215,7 @@ export class BonusWinsService {
         {
           playerId,
           operatorId,
-          siteName,
+          siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
           promotionId,
           remainingBonusItems: 0,
           turnoverMultiplier: { $gte: 2.0, $ne: null },
@@ -282,7 +282,7 @@ export class BonusWinsService {
       .findOne({
         playerId,
         operatorId,
-        siteName,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
         promotionId,
       })
       .lean()
@@ -490,7 +490,7 @@ export class BonusWinsService {
         {
           playerId,
           operatorId,
-          siteName,
+          siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
           promotionId,
           bonusClaimed: { $ne: true },
         },
@@ -564,7 +564,7 @@ export class BonusWinsService {
         operatorId,
         playerId,
         promotionId,
-        siteName,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
       },
       {
         $set: {
