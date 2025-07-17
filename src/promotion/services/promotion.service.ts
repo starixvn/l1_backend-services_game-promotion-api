@@ -10,6 +10,7 @@ import {
   PromotionTicket,
   PromotionTicketDocument,
 } from '../../promotion-ticket/schemas/promotion-ticket.schema';
+import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
 
 @Injectable()
 export class PromotionService {
@@ -18,6 +19,8 @@ export class PromotionService {
     private readonly promotionModel: Model<PromotionDocument>,
     @InjectModel(PromotionTicket.name)
     private readonly promotionTicketModel: Model<PromotionTicketDocument>,
+    @InjectModel(PlayerPromotion.name)
+    private readonly playerPromotionModel: Model<PlayerPromotionDocument>,
   ) {}
 
   /**
@@ -309,6 +312,22 @@ export class PromotionService {
           { $match: { promotionId: promotion._id.toString() } },
           { $group: { _id: '$playerId', totalWin: { $sum: '$winAmount' } } },
           { $project: { playerId: '$_id', totalWin: 1, _id: 0 } },
+          {
+            $lookup: {
+              from: 'game_player_promotions',
+              localField: 'playerId',
+              foreignField: 'playerId',
+              as: 'playerPromotion',
+            },
+          },
+          { $unwind: '$playerPromotion' },
+          {
+            $match: {
+              'playerPromotion.promotionId': promotion._id,
+              'playerPromotion.isCompleted': false,
+            },
+          },
+          { $project: { playerId: 1, totalWin: 1, _id: 0 } },
         ])
         .exec();
       promotion.players = playerStats;
