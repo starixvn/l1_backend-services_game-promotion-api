@@ -5,7 +5,6 @@ import { CompletePromotionDto } from 'src/promotion/models/complete-promotion.dt
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { LoggerService } from '../../core/logger/logger.service';
 import { CalculateTORequirementResponse } from '../../promotion/responses/calculate-to-requirement.response';
-import { CheckTORequirementResponse } from '../../promotion/responses/check-to-requirement.response';
 import { ClaimBonusWinsResponse } from '../../promotion/responses/claim-bonus-wins.response';
 import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
 import { UpdateTotalWinResponse } from '../../promotion/responses/update-total-win.response';
@@ -290,75 +289,6 @@ export class BonusWinsService {
   }
 
   /**
-   * Check if TO requirement is met for bonus claim
-   * @param playerId Player ID
-   * @param operatorId Operator ID
-   * @param siteName Site name
-   * @param promotionId Promotion ID
-   * @returns TO requirement validation result
-   */
-  async checkTORequirement(
-    playerId: string,
-    operatorId: string,
-    siteName: string,
-    promotionId: string,
-  ): Promise<CheckTORequirementResponse> {
-    try {
-      const playerPromotion = await this.findByPromotion(
-        playerId,
-        operatorId,
-        siteName,
-        promotionId,
-      );
-
-      if (!playerPromotion || !!playerPromotion.claimedAt) {
-        return {
-          success: false,
-          canClaim: false,
-          totalTurnover: 0,
-          minRequiredTurnover: 0,
-          remainingTO: 0,
-          totalWinAmount: 0,
-          ...(playerPromotion?.claimedAt
-            ? PLAYER_PROMOTION_ERROR_CODES.BONUS_ALREADY_CLAIMED
-            : PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND),
-        };
-      }
-
-      const { totalTurnover, minRequiredTurnover, totalWinAmount } = playerPromotion;
-
-      const canClaim = this.canClaimBonusWins(totalTurnover, minRequiredTurnover, totalWinAmount);
-
-      return {
-        success: true,
-        canClaim,
-        totalTurnover,
-        minRequiredTurnover,
-        remainingTO: Math.max(0, minRequiredTurnover - totalTurnover),
-        totalWinAmount,
-      };
-    } catch (error) {
-      this.loggerService.error('Error in checkTORequirement', error.stack, {
-        playerId,
-        operatorId,
-        siteName,
-        promotionId,
-        error: error.message,
-      });
-
-      return {
-        success: false,
-        canClaim: false,
-        totalTurnover: 0,
-        minRequiredTurnover: 0,
-        remainingTO: 0,
-        totalWinAmount: 0,
-        ...PLAYER_PROMOTION_ERROR_CODES.STREAM_PROCESSING_ERROR,
-      };
-    }
-  }
-
-  /**
    * Get TO progress status for a player promotion
    * @param playerId Player ID
    * @param operatorId Operator ID
@@ -403,7 +333,12 @@ export class BonusWinsService {
         .lean()
         .exec();
 
-      const canClaim = this.canClaimBonusWins(totalTurnover, minRequiredTurnover, totalWinAmount);
+      const canClaim = this.canClaimBonusWins(
+        totalTurnover,
+        minRequiredTurnover,
+        totalWinAmount,
+        promotion?.claimExpirationDate,
+      );
 
       // Calculate progress percentage (0-100) rounded to 2 decimal places
       // If no TO required (minRequiredTurnover = 0), show 100% progress
@@ -458,7 +393,7 @@ export class BonusWinsService {
     promotionId: string,
   ): Promise<ClaimBonusWinsResponse> {
     try {
-      const toRequirementResult = await this.checkTORequirement(
+      const toRequirementResult = await this.getTOProgress(
         playerId,
         operatorId,
         siteName,
@@ -546,9 +481,16 @@ export class BonusWinsService {
     totalTurnover: number,
     minRequiredTurnover: number,
     totalWinAmount: number,
+    claimExpirationDate: Date | undefined,
   ): boolean {
     // When minRequiredTurnover = 0, players cannot claim (security measure)
-    return minRequiredTurnover > 0 && totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
+    return (
+      minRequiredTurnover > 0 &&
+      totalTurnover >= minRequiredTurnover &&
+      totalWinAmount > 0 &&
+      !!claimExpirationDate &&
+      claimExpirationDate > new Date()
+    );
   }
 
   /**

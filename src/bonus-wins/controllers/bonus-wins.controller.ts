@@ -1,8 +1,8 @@
-import { Controller, Post, Body, HttpStatus } from '@nestjs/common';
+import { Body, Controller, HttpStatus, Post } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { BonusWinsService } from '../services/bonus-wins.service';
 import * as Models from '../../promotion/models';
 import * as Responses from '../../promotion/responses';
+import { BonusWinsService } from '../services/bonus-wins.service';
 
 @ApiTags('bonus-wins')
 @Controller('bonus-wins')
@@ -24,24 +24,6 @@ export class BonusWinsController {
       updateDto.operatorId,
       updateDto.siteName,
       updateDto.betAmount,
-    );
-  }
-
-  @Post('check-to-requirement')
-  @ApiOperation({ summary: 'Check if TO requirement is met for bonus claim' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'TO requirement validation result',
-    type: Responses.CheckTORequirementResponse,
-  })
-  async checkTORequirement(
-    @Body() checkDto: Models.CheckTORequirementDto,
-  ): Promise<Responses.CheckTORequirementResponse> {
-    return this.bonusWinsService.checkTORequirement(
-      checkDto.playerId,
-      checkDto.operatorId,
-      checkDto.siteName,
-      checkDto.promotionId,
     );
   }
 
