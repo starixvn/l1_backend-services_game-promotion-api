@@ -126,22 +126,23 @@ export class PlayerPromotionService {
     siteName: string,
     giftCode?: string,
   ): Promise<PlayerPromotionDocument | null> {
-    const playerPromotion = await this.findPlayerPromotion(
+    const playerPromotions = await this.findPlayerPromotion(
       playerId,
       operatorId,
       siteName,
       giftCode,
     );
-    if (!playerPromotion) {
-      return null;
-    }
 
-    const promotion = await this.promotionModel.findById(playerPromotion.promotionId).lean().exec();
-    if (!promotion) {
-      return null;
+    for (const playerPromotion of playerPromotions) {
+      const promotion = await this.promotionModel
+        .findById(playerPromotion.promotionId)
+        .lean()
+        .exec();
+      if (this.isPromotionActive(playerPromotion, promotion)) {
+        return playerPromotion;
+      }
     }
-
-    return this.isPromotionActive(playerPromotion, promotion) ? playerPromotion : null;
+    return null;
   }
 
   /**
@@ -157,7 +158,7 @@ export class PlayerPromotionService {
     operatorId: string,
     siteName: string,
     giftCode?: string,
-  ): Promise<PlayerPromotionDocument | null> {
+  ): Promise<PlayerPromotionDocument[]> {
     const query: any = {
       playerId,
       operatorId,
@@ -169,7 +170,7 @@ export class PlayerPromotionService {
       query.promotionCode = giftCode;
     }
 
-    return this.playerPromotionModel.findOne(query).lean().exec();
+    return this.playerPromotionModel.find(query).lean().exec();
   }
 
   /**
@@ -180,9 +181,13 @@ export class PlayerPromotionService {
    */
   private isPromotionActive(
     playerPromotion: PlayerPromotionDocument,
-    promotion: PromotionDocument,
+    promotion: PromotionDocument | null,
   ): boolean {
     const now = new Date();
+
+    if (!promotion) {
+      return false;
+    }
 
     return (
       (playerPromotion.isCompleted && now <= promotion.claimExpirationDate) ||
