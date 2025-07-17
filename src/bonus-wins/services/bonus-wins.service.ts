@@ -8,7 +8,6 @@ import { CalculateTORequirementResponse } from '../../promotion/responses/calcul
 import { CheckTORequirementResponse } from '../../promotion/responses/check-to-requirement.response';
 import { ClaimBonusWinsResponse } from '../../promotion/responses/claim-bonus-wins.response';
 import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
-import { UpdateTotalTurnoverResponse } from '../../promotion/responses/update-total-turnover.response';
 import { UpdateTotalWinResponse } from '../../promotion/responses/update-total-win.response';
 import {
   PlayerPromotion,
@@ -392,6 +391,9 @@ export class BonusWinsService {
           errorCode: playerPromotion?.claimedAt
             ? PLAYER_PROMOTION_ERROR_CODES.BONUS_ALREADY_CLAIMED.code
             : PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
+          errorMessage: playerPromotion?.claimedAt
+            ? PLAYER_PROMOTION_ERROR_CODES.BONUS_ALREADY_CLAIMED.message
+            : PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.message,
         };
       }
 
