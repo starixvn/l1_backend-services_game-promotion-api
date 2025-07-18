@@ -146,7 +146,7 @@ export class BonusWinsService {
         siteName,
       );
 
-      if (!activeBonusWin) {
+      if (!activeBonusWin || !activeBonusWin.isCompleted) {
         return {
           totalTurnover: 0,
           minRequiredTurnover: 0,
