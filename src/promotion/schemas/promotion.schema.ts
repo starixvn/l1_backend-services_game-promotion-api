@@ -1,4 +1,4 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory, Virtual } from '@nestjs/mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 import { Document, Schema as MongooseSchema } from 'mongoose';
 
@@ -141,9 +141,12 @@ export class Promotion {
   @Prop({ type: Number, default: 2, required: true })
   minTurnoverMultiplier: number;
 
-  get isClaimingDateExpired(): boolean {
-    return new Date() > this.claimExpirationDate;
-  }
+  @Virtual({
+    get: function (this: Promotion) {
+      return new Date() > this.claimExpirationDate;
+    },
+  })
+  isClaimingDurationEnded: boolean;
 }
 
 export const PromotionSchema = SchemaFactory.createForClass(Promotion);

@@ -293,7 +293,7 @@ export class BonusWinsService {
         .lean()
         .exec();
 
-      if (promotion?.isClaimingDateExpired) {
+      if (promotion?.isClaimingDurationEnded) {
         return {
           totalTurnover: 0,
           minRequiredTurnover: 0,
