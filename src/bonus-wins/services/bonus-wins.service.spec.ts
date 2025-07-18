@@ -78,7 +78,9 @@ describe('BonusWinsService', () => {
       } as any);
       promotionModel.findById.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
+          exec: jest
+            .fn()
+            .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
 
@@ -115,7 +117,9 @@ describe('BonusWinsService', () => {
       } as any);
       promotionModel.findById.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
+          exec: jest
+            .fn()
+            .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
 
@@ -151,7 +155,9 @@ describe('BonusWinsService', () => {
       } as any);
       promotionModel.findById.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
+          exec: jest
+            .fn()
+            .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
 
@@ -188,7 +194,9 @@ describe('BonusWinsService', () => {
       } as any);
       promotionModel.findById.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
+          exec: jest
+            .fn()
+            .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
 
@@ -224,7 +232,9 @@ describe('BonusWinsService', () => {
       } as any);
       promotionModel.findById.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
+          exec: jest
+            .fn()
+            .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
 
@@ -260,7 +270,9 @@ describe('BonusWinsService', () => {
       } as any);
       promotionModel.findById.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
+          exec: jest
+            .fn()
+            .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
 
@@ -284,7 +296,9 @@ describe('BonusWinsService', () => {
       } as any);
       promotionModel.findById.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue({ claimExpirationDate: new Date() }),
+          exec: jest
+            .fn()
+            .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
 

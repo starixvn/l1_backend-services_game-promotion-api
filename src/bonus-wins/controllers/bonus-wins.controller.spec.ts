@@ -115,9 +115,9 @@ describe('BonusWinsController', () => {
         remainingTO: 0,
         totalWinAmount: 50,
       };
-      service.checkTORequirement.mockResolvedValue(response);
-      await expect(controller.checkTORequirement(dto)).resolves.toEqual(response);
-      expect(service.checkTORequirement).toHaveBeenCalledWith(
+      service.getTOProgress.mockResolvedValue(response);
+      await expect(controller.getTOProgress(dto)).resolves.toEqual(response);
+      expect(service.getTOProgress).toHaveBeenCalledWith(
         dto.playerId,
         dto.operatorId,
         dto.siteName,
@@ -140,8 +140,8 @@ describe('BonusWinsController', () => {
         remainingTO: 60,
         totalWinAmount: 20,
       };
-      service.checkTORequirement.mockResolvedValue(response);
-      await expect(controller.checkTORequirement(dto)).resolves.toEqual(response);
+      service.getTOProgress.mockResolvedValue(response);
+      await expect(controller.getTOProgress(dto)).resolves.toEqual(response);
     });
 
     it('should return error when player promotion not found', async () => {
@@ -161,8 +161,8 @@ describe('BonusWinsController', () => {
         errorCode: 'SB3000',
         errorMessage: 'Player promotion not found',
       };
-      service.checkTORequirement.mockResolvedValue(response);
-      await expect(controller.checkTORequirement(dto)).resolves.toEqual(response);
+      service.getTOProgress.mockResolvedValue(response);
+      await expect(controller.getTOProgress(dto)).resolves.toEqual(response);
     });
   });
 
