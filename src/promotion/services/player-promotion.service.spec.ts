@@ -171,9 +171,9 @@ describe('PlayerPromotionService', () => {
       };
 
       // Mock findExistingPromotion to return null (no existing promotion)
-      playerPromotionModel.findOne.mockReturnValue({
+      playerPromotionModel.find.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue(null),
+          exec: jest.fn().mockResolvedValue([]),
         }),
       });
 
@@ -191,7 +191,7 @@ describe('PlayerPromotionService', () => {
       expect(result.length).toBe(2);
       expect(result[0]._id).toBe('promo1');
       expect(result[1]._id).toBe('promo2');
-      expect(playerPromotionModel.findOne).toHaveBeenCalled();
+      expect(playerPromotionModel.find).toHaveBeenCalled();
       expect(promotionModel.find).toHaveBeenCalled();
     });
 
@@ -205,9 +205,9 @@ describe('PlayerPromotionService', () => {
       };
 
       // Mock findExistingPromotion to return an existing promotion
-      playerPromotionModel.findOne.mockReturnValue({
+      playerPromotionModel.find.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+          exec: jest.fn().mockResolvedValue([mockPlayerPromotion]),
         }),
       });
 
@@ -216,7 +216,7 @@ describe('PlayerPromotionService', () => {
 
       // Assert
       expect(result.length).toBe(0);
-      expect(playerPromotionModel.findOne).toHaveBeenCalled();
+      expect(playerPromotionModel.find).toHaveBeenCalled();
     });
   });
 
@@ -300,9 +300,9 @@ describe('PlayerPromotionService', () => {
 
     it('should return existing promotion if player has one', async () => {
       // Mock findExistingPromotion to return existing promotion
-      playerPromotionModel.findOne.mockReturnValue({
+      playerPromotionModel.find.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+          exec: jest.fn().mockResolvedValue([mockPlayerPromotion]),
         }),
       });
 
@@ -331,14 +331,14 @@ describe('PlayerPromotionService', () => {
       );
       expect(result?.promotion).not.toHaveProperty('_id');
       expect(result?.promotion).not.toHaveProperty('__v');
-      expect(playerPromotionModel.findOne).toHaveBeenCalled();
+      expect(playerPromotionModel.find).toHaveBeenCalled();
     });
 
     it('should claim and return new promotion if player has none but has available ones', async () => {
       // Mock findExistingPromotion to return null
-      playerPromotionModel.findOne.mockReturnValue({
+      playerPromotionModel.find.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue(null),
+          exec: jest.fn().mockResolvedValue([]),
         }),
       });
 
@@ -381,9 +381,9 @@ describe('PlayerPromotionService', () => {
 
     it('should return null if player has no promotion and no available promotions', async () => {
       // Mock findExistingPromotion to return null
-      playerPromotionModel.findOne.mockReturnValue({
+      playerPromotionModel.find.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue(null),
+          exec: jest.fn().mockResolvedValue([]),
         }),
       });
 
