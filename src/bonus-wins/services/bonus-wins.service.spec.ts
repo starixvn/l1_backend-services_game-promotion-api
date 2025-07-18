@@ -1,15 +1,15 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Model } from 'mongoose';
-import { BonusWinsService } from './bonus-wins.service';
+import { LoggerService } from '../../core/logger/logger.service';
+import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
 import {
   PlayerPromotion,
   PlayerPromotionDocument,
 } from '../../promotion/schemas/player-promotion.schema';
 import { Promotion, PromotionDocument } from '../../promotion/schemas/promotion.schema';
-import { LoggerService } from '../../core/logger/logger.service';
 import { PlayerPromotionService } from '../../promotion/services/player-promotion.service';
-import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
+import { BonusWinsService } from './bonus-wins.service';
 
 describe('BonusWinsService', () => {
   let service: BonusWinsService;
@@ -311,7 +311,6 @@ describe('BonusWinsService', () => {
 
       expect(result.progressPercentage).toBe(0);
       expect(result.errorCode).toBe('SB3000');
-      expect(result.errorMessage).toBe('Player promotion not found');
     });
   });
 
@@ -367,7 +366,6 @@ describe('BonusWinsService', () => {
       expect(result.canClaim).toBe(false);
       expect(result.totalWinAmount).toBe(0);
       expect(result.errorCode).toBe('SB3022');
-      expect(result.errorMessage).toBe('No active bonus win found for turnover tracking');
       expect(playerPromotionService.findExistingPromotion).toHaveBeenCalledWith(
         'player1',
         'op1',
@@ -405,7 +403,6 @@ describe('BonusWinsService', () => {
       expect(result.canClaim).toBe(false);
       expect(result.totalWinAmount).toBe(0);
       expect(result.errorCode).toBe('SB3022');
-      expect(result.errorMessage).toBe('No active bonus win found for turnover tracking');
     });
   });
 });

@@ -1,7 +1,6 @@
 export * from './assign-promotion.dto';
 export * from './bet-level.dto';
 export * from './calculate-to-requirement.dto';
-export * from './check-to-requirement.dto';
 export * from './claim-bonus-wins.dto';
 export * from './complete-promotion.dto';
 export * from './create-promotion.dto';

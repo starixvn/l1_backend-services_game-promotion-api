@@ -3,7 +3,6 @@ import { ApiClientConfig } from './config/api-client.config';
 import {
   AssignPromotionDto,
   CalculateTORequirementDto,
-  CheckTORequirementDto,
   ClaimBonusWinsDto,
   CompletePromotionDto,
   CreatePromotionTicketDto,
@@ -20,7 +19,6 @@ import { TotalWinDto } from './dtos/total-win.dto';
 import {
   AssignmentResponse,
   CalculateTORequirementResponse,
-  CheckTORequirementResponse,
   ClaimBonusWinsResponse,
   CreatePromotionTicketResponse,
   DeductBonusItemResponse,
@@ -30,7 +28,6 @@ import {
   PromotionResponse,
   RollbackResponse,
   UpdatePromotionTicketResponse,
-  UpdateTotalTurnoverResponse,
   UpdateTotalWinResponse,
 } from './responses';
 import { PromotionExpiryResponse } from './responses/promotion.response';
@@ -123,17 +120,6 @@ export class GamePromotionApiClient {
     const response: AxiosResponse<CalculateTORequirementResponse> = await this.httpClient.post(
       '/player-promotions/calculate-to-requirement',
       calculateDto,
-    );
-    return response.data;
-  }
-
-  /**
-   * Check if TO requirement is met for bonus claim
-   */
-  async checkTORequirement(checkDto: CheckTORequirementDto): Promise<CheckTORequirementResponse> {
-    const response: AxiosResponse<CheckTORequirementResponse> = await this.httpClient.post(
-      '/bonus-wins/check-to-requirement',
-      checkDto,
     );
     return response.data;
   }

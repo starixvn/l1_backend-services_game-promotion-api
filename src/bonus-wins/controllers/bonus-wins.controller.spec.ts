@@ -1,14 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BonusWinsController } from './bonus-wins.controller';
-import { BonusWinsService } from '../services/bonus-wins.service';
-import { CheckTORequirementDto, GetTOProgressDto, ClaimBonusWinsDto } from '../../promotion/models';
-import { CheckTORequirementResponse } from '../../promotion/responses/check-to-requirement.response';
-import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
+import { ClaimBonusWinsDto, GetTOProgressDto } from '../../promotion/models';
 import { ClaimBonusWinsResponse } from '../../promotion/responses/claim-bonus-wins.response';
+import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
+import { BonusWinsService } from '../services/bonus-wins.service';
+import { BonusWinsController } from './bonus-wins.controller';
 
 const mockBonusWinsService = {
   updateTotalTurnover: jest.fn(),
-  checkTORequirement: jest.fn(),
   getTOProgress: jest.fn(),
   claimBonusWins: jest.fn(),
 };
@@ -96,73 +94,6 @@ describe('BonusWinsController', () => {
         dto.siteName,
         dto.betAmount,
       );
-    });
-  });
-
-  describe('checkTORequirement', () => {
-    it('should return canClaim true when TO requirement is met', async () => {
-      const dto: CheckTORequirementDto = {
-        playerId: 'player1',
-        operatorId: 'op1',
-        siteName: 'site1',
-        promotionId: 'promo1',
-      };
-      const response: CheckTORequirementResponse = {
-        success: true,
-        canClaim: true,
-        totalTurnover: 100,
-        minRequiredTurnover: 100,
-        remainingTO: 0,
-        totalWinAmount: 50,
-      };
-      service.getTOProgress.mockResolvedValue(response);
-      await expect(controller.getTOProgress(dto)).resolves.toEqual(response);
-      expect(service.getTOProgress).toHaveBeenCalledWith(
-        dto.playerId,
-        dto.operatorId,
-        dto.siteName,
-        dto.promotionId,
-      );
-    });
-
-    it('should return canClaim false when TO requirement is not met', async () => {
-      const dto: CheckTORequirementDto = {
-        playerId: 'player2',
-        operatorId: 'op2',
-        siteName: 'site2',
-        promotionId: 'promo2',
-      };
-      const response: CheckTORequirementResponse = {
-        success: true,
-        canClaim: false,
-        totalTurnover: 40,
-        minRequiredTurnover: 100,
-        remainingTO: 60,
-        totalWinAmount: 20,
-      };
-      service.getTOProgress.mockResolvedValue(response);
-      await expect(controller.getTOProgress(dto)).resolves.toEqual(response);
-    });
-
-    it('should return error when player promotion not found', async () => {
-      const dto: CheckTORequirementDto = {
-        playerId: 'player3',
-        operatorId: 'op3',
-        siteName: 'site3',
-        promotionId: 'promo3',
-      };
-      const response: CheckTORequirementResponse = {
-        success: false,
-        canClaim: false,
-        totalTurnover: 0,
-        minRequiredTurnover: 0,
-        remainingTO: 0,
-        totalWinAmount: 0,
-        errorCode: 'SB3000',
-        errorMessage: 'Player promotion not found',
-      };
-      service.getTOProgress.mockResolvedValue(response);
-      await expect(controller.getTOProgress(dto)).resolves.toEqual(response);
     });
   });
 

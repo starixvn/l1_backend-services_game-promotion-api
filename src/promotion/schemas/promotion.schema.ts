@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 
 export type PromotionDocument = Promotion & Document;
 export type PromotionExpiryDocument = Promotion & {
@@ -140,6 +140,10 @@ export class Promotion {
   })
   @Prop({ type: Number, default: 2, required: true })
   minTurnoverMultiplier: number;
+
+  get isClaimingDateExpired(): boolean {
+    return new Date() > this.claimExpirationDate;
+  }
 }
 
 export const PromotionSchema = SchemaFactory.createForClass(Promotion);

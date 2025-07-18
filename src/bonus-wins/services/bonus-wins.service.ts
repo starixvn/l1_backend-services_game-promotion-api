@@ -90,41 +90,6 @@ export class BonusWinsService {
   }
 
   /**
-   * Find active bonus win for TO tracking
-   * Sorting priority: FIFO > Earliest expiry > Highest win amount
-   * @param playerId Player ID
-   * @param operatorId Operator ID
-   * @param siteName Site name
-   * @returns Active bonus win or null
-   */
-  private async findActiveBonusWin(
-    playerId: string,
-    operatorId: string,
-    siteName: string,
-  ): Promise<PlayerPromotionDocument | null> {
-    const now = new Date();
-
-    return this.playerPromotionModel
-      .findOne({
-        playerId,
-        operatorId,
-        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
-        remainingBonusItems: 0, // Promotion finished
-        bonusClaimed: false, // Bonus not claimed yet
-        minRequiredTurnover: { $gt: 0 }, // Has TO requirement
-        startDate: { $lte: now },
-        endDate: { $gt: now },
-      })
-      .sort({
-        createdAt: 1, // FIFO - first priority
-        endDate: 1, // Earliest expiry - second priority
-        totalWinAmount: -1, // Highest win amount - third priority
-      })
-      .lean()
-      .exec();
-  }
-
-  /**
    * Update total turnover for active bonus win
    * Tracks TO for all eligible games
    * @param playerId Player ID
@@ -155,7 +120,6 @@ export class BonusWinsService {
           canClaim: false,
           totalWinAmount: 0,
           errorCode: PLAYER_PROMOTION_ERROR_CODES.NO_ACTIVE_BONUS_WIN.code,
-          errorMessage: PLAYER_PROMOTION_ERROR_CODES.NO_ACTIVE_BONUS_WIN.message,
         };
       }
 
@@ -191,7 +155,6 @@ export class BonusWinsService {
       canClaim: false,
       totalWinAmount: 0,
       errorCode: PLAYER_PROMOTION_ERROR_CODES.UPDATE_TOTAL_TO_FAILED.code,
-      errorMessage: PLAYER_PROMOTION_ERROR_CODES.UPDATE_TOTAL_TO_FAILED.message,
     };
   }
 
@@ -321,9 +284,6 @@ export class BonusWinsService {
           errorCode: playerPromotion?.claimedAt
             ? PLAYER_PROMOTION_ERROR_CODES.BONUS_ALREADY_CLAIMED.code
             : PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
-          errorMessage: playerPromotion?.claimedAt
-            ? PLAYER_PROMOTION_ERROR_CODES.BONUS_ALREADY_CLAIMED.message
-            : PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.message,
         };
       }
 
@@ -333,12 +293,19 @@ export class BonusWinsService {
         .lean()
         .exec();
 
-      const canClaim = this.canClaimBonusWins(
-        totalTurnover,
-        minRequiredTurnover,
-        totalWinAmount,
-        promotion?.claimExpirationDate,
-      );
+      if (promotion?.isClaimingDateExpired) {
+        return {
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          remainingTO: 0,
+          progressPercentage: 0,
+          canClaim: false,
+          totalWinAmount: 0,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIMING_EXPIRED.code,
+        };
+      }
+
+      const canClaim = this.canClaimBonusWins(totalTurnover, minRequiredTurnover, totalWinAmount);
 
       // Calculate progress percentage (0-100) rounded to 2 decimal places
       // If no TO required (minRequiredTurnover = 0), show 100% progress
@@ -373,7 +340,6 @@ export class BonusWinsService {
         canClaim: false,
         totalWinAmount: 0,
         errorCode: PLAYER_PROMOTION_ERROR_CODES.STREAM_PROCESSING_ERROR.code,
-        errorMessage: PLAYER_PROMOTION_ERROR_CODES.STREAM_PROCESSING_ERROR.message,
       };
     }
   }
@@ -417,7 +383,6 @@ export class BonusWinsService {
           minRequiredTurnover: 0,
           totalWinAmount: 0,
           errorCode: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.code,
-          errorMessage: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.message,
         };
       }
 
@@ -466,7 +431,6 @@ export class BonusWinsService {
       minRequiredTurnover: 0,
       totalWinAmount: 0,
       errorCode: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.code,
-      errorMessage: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.message,
     };
   }
 
@@ -481,16 +445,9 @@ export class BonusWinsService {
     totalTurnover: number,
     minRequiredTurnover: number,
     totalWinAmount: number,
-    claimExpirationDate: Date | undefined,
   ): boolean {
     // When minRequiredTurnover = 0, players cannot claim (security measure)
-    return (
-      minRequiredTurnover > 0 &&
-      totalTurnover >= minRequiredTurnover &&
-      totalWinAmount > 0 &&
-      !!claimExpirationDate &&
-      claimExpirationDate > new Date()
-    );
+    return minRequiredTurnover > 0 && totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
   }
 
   /**
@@ -531,7 +488,6 @@ export class BonusWinsService {
       canClaim: false,
       totalWinAmount: 0,
       errorCode: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
-      errorMessage: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.message,
     };
   }
 }
