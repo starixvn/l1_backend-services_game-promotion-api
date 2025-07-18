@@ -404,8 +404,8 @@ describe('BonusWinsService', () => {
       expect(result.progressPercentage).toBe(0);
       expect(result.canClaim).toBe(false);
       expect(result.totalWinAmount).toBe(0);
-      expect(result.errorCode).toBe('SB3014');
-      expect(result.errorMessage).toBe('Failed to update total turnover');
+      expect(result.errorCode).toBe('SB3022');
+      expect(result.errorMessage).toBe('No active bonus win found for turnover tracking');
     });
   });
 });
