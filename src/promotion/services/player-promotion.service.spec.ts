@@ -168,6 +168,7 @@ describe('PlayerPromotionService', () => {
         operatorId: 'op123',
         siteName: 'site1',
         currencyGroup: 'currency1',
+        gameId: 1001,
       };
 
       // Mock findExistingPromotion to return null (no existing promotion)
@@ -202,6 +203,7 @@ describe('PlayerPromotionService', () => {
         operatorId: 'op123',
         siteName: 'site1',
         currencyGroup: 'currency1',
+        gameId: 1001,
       };
 
       // Mock findExistingPromotion to return an existing promotion
@@ -296,6 +298,7 @@ describe('PlayerPromotionService', () => {
       operatorId: 'op123',
       siteName: 'site1',
       currencyGroup: 'currency1',
+      gameId: 1001,
     };
 
     it('should return existing promotion if player has one', async () => {

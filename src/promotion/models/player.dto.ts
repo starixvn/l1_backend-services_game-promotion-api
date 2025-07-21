@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsOptional } from 'class-validator';
 
 export class PlayerDto {
   @ApiProperty({
@@ -33,4 +33,12 @@ export class PlayerDto {
   @IsNotEmpty()
   @IsString()
   currencyGroup: string;
+
+  @ApiProperty({
+    description: 'Game ID',
+    example: 1,
+  })
+  @IsNumber()
+  @IsOptional()
+  gameId: number;
 }

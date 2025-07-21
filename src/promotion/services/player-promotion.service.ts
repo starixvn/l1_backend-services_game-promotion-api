@@ -29,10 +29,15 @@ export class PlayerPromotionService {
    * @returns Current player promotion or null if none available
    */
   async claimPromotion(playerDto: PlayerDto): Promise<Responses.PlayerPromotionResponse | null> {
-    const { operatorId, siteName, playerId, currencyGroup } = playerDto;
+    const { operatorId, siteName, playerId, currencyGroup, gameId } = playerDto;
 
     // Step 1: Check if player already has an active promotion
-    const existingPromotion = await this.findExistingPromotion(playerId, operatorId, siteName);
+    const existingPromotion = await this.findExistingPromotion(
+      playerId,
+      operatorId,
+      siteName,
+      gameId,
+    );
     if (existingPromotion) {
       return this.mapToPlayerPromotionResponse(existingPromotion);
     }
@@ -124,6 +129,7 @@ export class PlayerPromotionService {
     playerId: string,
     operatorId: string,
     siteName: string,
+    gameId?: number,
     giftCode?: string,
   ): Promise<PlayerPromotionDocument | null> {
     const playerPromotions = await this.findPlayerPromotion(
@@ -138,7 +144,11 @@ export class PlayerPromotionService {
         .findById(playerPromotion.promotionId)
         .lean()
         .exec();
-      if (this.isPromotionActive(playerPromotion, promotion)) {
+
+      if (
+        this.isPromotionActive(playerPromotion, promotion) &&
+        (promotion?.gameIds.length === 0 || (gameId && promotion?.gameIds.includes(gameId)))
+      ) {
         return playerPromotion;
       }
     }
@@ -514,7 +524,7 @@ export class PlayerPromotionService {
         return this.createErrorResponse(validationResult.errorCode);
       }
 
-      const { operatorId, siteName, playerId, currencyGroup } = playerDto;
+      const { operatorId, siteName, playerId, currencyGroup, gameId } = playerDto;
 
       // Check if player already has an active promotion (with gift code filter)
       const existingPromotion = await this.hasPlayerClaimedPromotion(
@@ -528,7 +538,7 @@ export class PlayerPromotionService {
       }
 
       // Find and validate promotion by gift code
-      const promotion = await this.findPromotionByGiftCode(giftCode, playerDto);
+      const promotion = await this.findPromotionByGiftCode(giftCode, playerDto, gameId);
       if (!promotion) {
         return this.createErrorResponse(PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE);
       }
@@ -585,6 +595,7 @@ export class PlayerPromotionService {
   private async findPromotionByGiftCode(
     giftCode: string,
     playerDto: PlayerDto,
+    gameId: number,
   ): Promise<PromotionDocument | null> {
     const now = new Date();
     return this.promotionModel
@@ -592,6 +603,7 @@ export class PlayerPromotionService {
         code: giftCode,
         operatorId: playerDto.operatorId,
         isGiftCode: true,
+        gameIds: { $in: [gameId] },
         startDate: { $lte: now },
         endDate: { $gt: now },
         currencyGroups: { $in: [playerDto.currencyGroup] },

@@ -4,4 +4,5 @@ export interface RedeemPromotionDto {
   siteName: string;
   currencyGroup: string;
   giftCode: string;
+  gameId: number;
 }
