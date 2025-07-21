@@ -103,12 +103,14 @@ export class BonusWinsService {
     operatorId: string,
     siteName: string,
     betAmount: number,
+    gameId: number,
   ): Promise<GetTOProgressResponse> {
     try {
       const activeBonusWin = await this.playerPromotionService.findExistingPromotion(
         playerId,
         operatorId,
         siteName,
+        gameId,
       );
 
       if (!activeBonusWin || !activeBonusWin.isCompleted) {

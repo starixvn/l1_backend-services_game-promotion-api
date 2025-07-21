@@ -21,4 +21,9 @@ export class UpdateTotalTurnoverDto {
   @IsNumber()
   @IsNotEmpty()
   betAmount: number;
+
+  @ApiProperty({ description: 'Game ID' })
+  @IsNumber()
+  @IsNotEmpty()
+  gameId: number;
 }

@@ -342,6 +342,7 @@ describe('BonusWinsService', () => {
         'op1',
         'site1',
         25,
+        1001,
       );
 
       expect(result.canClaim).toBe(false);
@@ -349,6 +350,7 @@ describe('BonusWinsService', () => {
         'player1',
         'op1',
         'site1',
+        1001,
       );
     });
 
@@ -360,6 +362,7 @@ describe('BonusWinsService', () => {
         'op1',
         'site1',
         25,
+        1001,
       );
 
       expect(result.progressPercentage).toBe(0);
@@ -370,6 +373,7 @@ describe('BonusWinsService', () => {
         'player1',
         'op1',
         'site1',
+        1001,
       );
     });
 
@@ -397,6 +401,7 @@ describe('BonusWinsService', () => {
         'op1',
         'site1',
         25,
+        1001,
       );
 
       expect(result.progressPercentage).toBe(0);
