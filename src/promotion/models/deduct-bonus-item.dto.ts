@@ -9,4 +9,7 @@ export class DeductBonusItemDto {
 
   @IsString()
   promotionId: string;
+
+  @IsString()
+  siteName: string;
 }

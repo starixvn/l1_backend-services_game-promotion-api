@@ -69,6 +69,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
     const inputOperatorId = 'operator123';
     const inputPlayerId = 'player456';
     const inputPromotionId = 'promotion789';
+    const inputSiteName = 'site123';
 
     it('should successfully deduct bonus item when promotion exists with remaining items', async () => {
       // Arrange
@@ -91,6 +92,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
         inputOperatorId,
         inputPlayerId,
         inputPromotionId,
+        inputSiteName,
       );
 
       // Assert
@@ -100,6 +102,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
           playerId: inputPlayerId,
           promotionId: inputPromotionId,
           remainingBonusItems: { $gt: 0 },
+          siteName: { $regex: new RegExp(`^${inputSiteName}$`, 'i') },
         },
         {
           $inc: { remainingBonusItems: -1 },
@@ -126,6 +129,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
         inputOperatorId,
         inputPlayerId,
         inputPromotionId,
+        inputSiteName,
       );
 
       // Assert
@@ -135,6 +139,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
           playerId: inputPlayerId,
           promotionId: inputPromotionId,
           remainingBonusItems: { $gt: 0 },
+          siteName: { $regex: new RegExp(`^${inputSiteName}$`, 'i') },
         },
         {
           $inc: { remainingBonusItems: -1 },
@@ -161,6 +166,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
         inputOperatorId,
         inputPlayerId,
         inputPromotionId,
+        inputSiteName,
       );
 
       // Assert
@@ -170,6 +176,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
           playerId: inputPlayerId,
           promotionId: inputPromotionId,
           remainingBonusItems: { $gt: 0 },
+          siteName: { $regex: new RegExp(`^${inputSiteName}$`, 'i') },
         },
         {
           $inc: { remainingBonusItems: -1 },
@@ -189,7 +196,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
 
       // Act & Assert
       await expect(
-        service.deductBonusItem(inputOperatorId, inputPlayerId, inputPromotionId),
+        service.deductBonusItem(inputOperatorId, inputPlayerId, inputPromotionId, inputSiteName),
       ).rejects.toThrow('Database connection failed');
     });
 
@@ -202,7 +209,12 @@ describe('PlayerPromotionService - deductBonusItem', () => {
       mockPlayerPromotionModel.findOneAndUpdate.mockResolvedValue(mockUpdatedPromotion);
 
       // Act
-      await service.deductBonusItem(inputOperatorId, inputPlayerId, inputPromotionId);
+      await service.deductBonusItem(
+        inputOperatorId,
+        inputPlayerId,
+        inputPromotionId,
+        inputSiteName,
+      );
 
       // Assert
       expect(mockPlayerPromotionModel.findOneAndUpdate).toHaveBeenCalledTimes(1);

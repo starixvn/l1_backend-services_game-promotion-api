@@ -407,6 +407,7 @@ describe('PlayerPromotionService', () => {
     const inputOperatorId = 'operator123';
     const inputPlayerId = 'player456';
     const inputPromotionId = 'promotion789';
+    const inputSiteName = 'site123';
 
     it('should successfully deduct bonus item when promotion exists with remaining items', async () => {
       // Arrange
@@ -429,6 +430,7 @@ describe('PlayerPromotionService', () => {
         inputOperatorId,
         inputPlayerId,
         inputPromotionId,
+        inputSiteName,
       );
 
       // Assert
@@ -438,6 +440,7 @@ describe('PlayerPromotionService', () => {
           playerId: inputPlayerId,
           promotionId: inputPromotionId,
           remainingBonusItems: { $gt: 0 },
+          siteName: { $regex: new RegExp(`^${inputSiteName}$`, 'i') },
         },
         {
           $inc: { remainingBonusItems: -1 },
@@ -464,6 +467,7 @@ describe('PlayerPromotionService', () => {
         inputOperatorId,
         inputPlayerId,
         inputPromotionId,
+        inputSiteName,
       );
 
       // Assert
@@ -472,6 +476,7 @@ describe('PlayerPromotionService', () => {
           operatorId: inputOperatorId,
           playerId: inputPlayerId,
           promotionId: inputPromotionId,
+          siteName: { $regex: /^site123$/i },
           remainingBonusItems: { $gt: 0 },
         },
         {
@@ -499,6 +504,7 @@ describe('PlayerPromotionService', () => {
         inputOperatorId,
         inputPlayerId,
         inputPromotionId,
+        inputSiteName,
       );
 
       // Assert
@@ -507,6 +513,7 @@ describe('PlayerPromotionService', () => {
           operatorId: inputOperatorId,
           playerId: inputPlayerId,
           promotionId: inputPromotionId,
+          siteName: { $regex: /^site123$/i },
           remainingBonusItems: { $gt: 0 },
         },
         {
@@ -527,7 +534,7 @@ describe('PlayerPromotionService', () => {
 
       // Act & Assert
       await expect(
-        service.deductBonusItem(inputOperatorId, inputPlayerId, inputPromotionId),
+        service.deductBonusItem(inputOperatorId, inputPlayerId, inputPromotionId, inputSiteName),
       ).rejects.toThrow('Database connection failed');
     });
 
@@ -540,7 +547,12 @@ describe('PlayerPromotionService', () => {
       playerPromotionModel.findOneAndUpdate.mockResolvedValue(mockUpdatedPromotion);
 
       // Act
-      await service.deductBonusItem(inputOperatorId, inputPlayerId, inputPromotionId);
+      await service.deductBonusItem(
+        inputOperatorId,
+        inputPlayerId,
+        inputPromotionId,
+        inputSiteName,
+      );
 
       // Assert
       expect(playerPromotionModel.findOneAndUpdate).toHaveBeenCalledTimes(1);

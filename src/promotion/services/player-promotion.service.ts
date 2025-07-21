@@ -397,12 +397,14 @@ export class PlayerPromotionService {
     operatorId: string,
     playerId: string,
     promotionId: string,
+    siteName: string,
   ): Promise<DeductBonusItemResponse> {
     const result = await this.playerPromotionModel.findOneAndUpdate(
       {
         operatorId,
         playerId,
         promotionId,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
         remainingBonusItems: { $gt: 0 },
       },
       {
