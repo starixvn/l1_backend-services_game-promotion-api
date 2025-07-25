@@ -195,14 +195,12 @@ export class PlayerPromotionService {
   ): boolean {
     const now = new Date();
 
-    if (!promotion) {
+    if (!promotion || (playerPromotion.isCompleted && playerPromotion.totalWinAmount === 0)) {
       return false;
     }
 
     return (
-      (playerPromotion.isCompleted &&
-        now <= promotion.claimExpirationDate &&
-        playerPromotion.totalWinAmount > 0) ||
+      (playerPromotion.isCompleted && now <= promotion.claimExpirationDate) ||
       (now >= playerPromotion.startDate && now <= playerPromotion.endDate)
     );
   }
