@@ -200,7 +200,9 @@ export class PlayerPromotionService {
     }
 
     return (
-      (playerPromotion.isCompleted && now <= promotion.claimExpirationDate) ||
+      (playerPromotion.isCompleted &&
+        now <= promotion.claimExpirationDate &&
+        playerPromotion.totalWinAmount > 0) ||
       (now >= playerPromotion.startDate && now <= playerPromotion.endDate)
     );
   }
