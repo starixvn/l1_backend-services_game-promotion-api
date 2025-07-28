@@ -12,6 +12,10 @@ import {
 } from '../../promotion-ticket/schemas/promotion-ticket.schema';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
 
+const EXPIRY_CHECK_SECONDS = 60;
+const MILLISECONDS_PER_SECOND = 1000;
+const DEFAULT_PAGE_SIZE = 10;
+
 @Injectable()
 export class PromotionService {
   constructor(
@@ -46,7 +50,7 @@ export class PromotionService {
     const now = new Date();
 
     const pageIndex = filterDto?.pageIndex || 1;
-    const pageSize = filterDto?.pageSize || 10;
+    const pageSize = filterDto?.pageSize || DEFAULT_PAGE_SIZE;
     const skip = (pageIndex - 1) * pageSize;
 
     if (filterDto) {
@@ -295,7 +299,10 @@ export class PromotionService {
   async getExpiringPromotions(gameId?: string): Promise<PromotionExpiryDocument[]> {
     const now = new Date();
     const query: Record<string, any> = {
-      endDate: { $lt: now },
+      endDate: {
+        $lt: now,
+        $gte: new Date(now.getTime() - EXPIRY_CHECK_SECONDS * MILLISECONDS_PER_SECOND),
+      },
     };
 
     if (gameId) {
@@ -306,33 +313,32 @@ export class PromotionService {
       .find(query, null, { sort: { endDate: 1, _id: 1 }, lean: true })
       .exec()) as unknown as PromotionExpiryDocument[];
 
+    const playerPromotions = await this.playerPromotionModel
+      .find({
+        promotionId: { $in: promotionExpirys.map(promotion => promotion._id) },
+        totalWinAmount: { $gt: 0 },
+        isCompleted: false,
+      })
+      .exec();
+
+    const promotionsWithPlayers: PromotionExpiryDocument[] = [];
+
     for (const promotion of promotionExpirys) {
-      const playerStats = await this.promotionTicketModel
-        .aggregate([
-          { $match: { promotionId: promotion._id.toString() } },
-          { $group: { _id: '$playerId', totalWin: { $sum: '$winAmount' } } },
-          { $project: { playerId: '$_id', totalWin: 1, _id: 0 } },
-          {
-            $lookup: {
-              from: 'game_player_promotions',
-              localField: 'playerId',
-              foreignField: 'playerId',
-              as: 'playerPromotion',
-            },
-          },
-          { $unwind: '$playerPromotion' },
-          {
-            $match: {
-              'playerPromotion.promotionId': promotion._id,
-              'playerPromotion.isCompleted': false,
-            },
-          },
-          { $project: { playerId: 1, totalWin: 1, _id: 0 } },
-        ])
-        .exec();
-      promotion.players = playerStats;
+      const playerPromotionExpireds = playerPromotions.filter(
+        playerPromotion => playerPromotion.promotionId.toString() === promotion._id.toString(),
+      );
+
+      if (playerPromotionExpireds.length > 0) {
+        const playerStats = playerPromotionExpireds.map(playerPromotion => ({
+          playerId: playerPromotion.playerId,
+          totalWin: playerPromotion.totalWinAmount,
+        }));
+
+        promotion.players = playerStats;
+        promotionsWithPlayers.push(promotion);
+      }
     }
 
-    return promotionExpirys;
+    return promotionsWithPlayers;
   }
 }
