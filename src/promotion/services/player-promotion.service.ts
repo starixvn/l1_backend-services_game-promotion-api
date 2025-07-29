@@ -139,14 +139,20 @@ export class PlayerPromotionService {
       giftCode,
     );
 
+    const promotions = await this.promotionModel
+      .find({
+        _id: { $in: playerPromotions.map(playerPromotion => playerPromotion.promotionId) },
+      })
+      .lean()
+      .exec();
+
     for (const playerPromotion of playerPromotions) {
-      const promotion = await this.promotionModel
-        .findById(playerPromotion.promotionId)
-        .lean()
-        .exec();
+      const promotion = promotions.find(
+        promotion => promotion._id.toString() === playerPromotion.promotionId.toString(),
+      );
 
       if (
-        this.isPromotionActive(playerPromotion, promotion) &&
+        this.isPromotionActive(playerPromotion, promotion || null) &&
         (promotion?.gameIds.length === 0 || (gameId && promotion?.gameIds.includes(gameId)))
       ) {
         return playerPromotion;
