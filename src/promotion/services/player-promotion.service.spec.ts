@@ -309,10 +309,10 @@ describe('PlayerPromotionService', () => {
         }),
       });
 
-      // Mock promotionModel.findById for findExistingPromotion
-      promotionModel.findById.mockReturnValue({
+      // Mock promotionModel.find for findExistingPromotion
+      promotionModel.find.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue(mockPromotions[0]),
+          exec: jest.fn().mockResolvedValue(mockPromotions),
         }),
       });
 

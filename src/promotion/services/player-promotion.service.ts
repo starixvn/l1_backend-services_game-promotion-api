@@ -147,7 +147,7 @@ export class PlayerPromotionService {
       .exec();
 
     for (const playerPromotion of playerPromotions) {
-      const promotion = promotions.find(
+      const promotion = promotions?.find(
         promotion => promotion._id.toString() === playerPromotion.promotionId.toString(),
       );
 
