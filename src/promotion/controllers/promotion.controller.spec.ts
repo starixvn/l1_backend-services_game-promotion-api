@@ -24,6 +24,7 @@ const mockPromotion = {
   gameConfigType: 2,
   gameIds: [1001],
   betLevels: [],
+  coinValues: [],
 };
 
 const mockPromotionArray = [

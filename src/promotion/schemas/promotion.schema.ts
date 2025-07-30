@@ -27,6 +27,22 @@ export class BetLevel {
   @Prop({ required: true })
   betLevel: number;
 }
+@Schema({ timestamps: true })
+export class CoinValue {
+  @ApiProperty({
+    description: 'Currency group ID (MongoDB ObjectId)',
+    example: '60d21b4667d0d01ce67a7e3b',
+  })
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  currencyGroup: MongooseSchema.Types.ObjectId;
+
+  @ApiProperty({
+    description: 'Coin value amount',
+    example: 0.2,
+  })
+  @Prop({ required: true })
+  coinValue: number;
+}
 
 @Schema({ timestamps: true, collection: 'game_promotions' })
 export class Promotion {
@@ -125,6 +141,13 @@ export class Promotion {
   })
   @Prop({ type: [{ type: BetLevel }], default: [] })
   betLevels: BetLevel[];
+
+  @ApiProperty({
+    description: 'List of coin levels for this promotion',
+    type: [CoinValue],
+  })
+  @Prop({ type: [{ type: CoinValue }], default: [] })
+  coinValues: CoinValue[];
 
   @ApiProperty({
     description: 'Indicates if this promotion is a gift code',

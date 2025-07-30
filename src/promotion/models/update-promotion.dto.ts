@@ -12,6 +12,7 @@ import { Type, Transform } from 'class-transformer';
 import { Types } from 'mongoose';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { BetLevelDto } from './bet-level.dto';
+import { CoinValueDto } from './coin-value.dto';
 import { GameConfigType } from './create-promotion.dto';
 
 export class UpdatePromotionDto {
@@ -139,6 +140,22 @@ export class UpdatePromotionDto {
   @Type(() => BetLevelDto)
   @IsOptional()
   betLevels?: BetLevelDto[];
+
+  @ApiPropertyOptional({
+    description: 'List of coin values for this promotion',
+    type: [CoinValueDto],
+    example: [
+      {
+        currencyGroup: '60d21b4667d0d01ce67a7e3b',
+        coinValue: 0.2,
+      },
+    ],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CoinValueDto)
+  @IsOptional()
+  coinValues?: CoinValueDto[];
 
   @ApiPropertyOptional({
     description: 'Indicates if this promotion is a gift code',
