@@ -513,6 +513,7 @@ export class PlayerPromotionService {
       bonusClaimed: playerPromotion.bonusClaimed,
       claimedAt: playerPromotion.claimedAt,
       isCompleted: playerPromotion.isCompleted,
+      coinValue: playerPromotion.coinValue,
     };
 
     return {

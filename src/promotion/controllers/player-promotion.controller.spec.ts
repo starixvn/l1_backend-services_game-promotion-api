@@ -1,17 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PlayerPromotionController } from './player-promotion.controller';
-import { PlayerPromotionService } from '../services/player-promotion.service';
-import { PlayerDto } from '../models/player.dto';
+import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { AssignPromotionDto } from '../models/assign-promotion.dto';
 import { DeductBonusItemDto } from '../models/deduct-bonus-item.dto';
-import { RollbackBonusItemDto } from '../models/rollback-bonus-item.dto';
+import { PlayerDto } from '../models/player.dto';
 import { RedeemPromotionDto } from '../models/redeem-promotion.dto';
-import { PlayerPromotionResponse } from '../responses/player-promotion.response';
-import { EligiblePromotionsResponse } from '../responses/eligible-promotion.response';
+import { RollbackBonusItemDto } from '../models/rollback-bonus-item.dto';
 import { AssignmentResponse } from '../responses/assignment-response';
-import { DeductBonusItemResponse } from '../responses/deduct-bonus-item.response';
-import { RollbackResponse } from '../responses/deduct-bonus-item.response';
-import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
+import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
+import { EligiblePromotionsResponse } from '../responses/eligible-promotion.response';
+import { PlayerPromotionResponse } from '../responses/player-promotion.response';
+import { PlayerPromotionService } from '../services/player-promotion.service';
+import { PlayerPromotionController } from './player-promotion.controller';
 
 describe('PlayerPromotionController', () => {
   let controller: PlayerPromotionController;
@@ -77,6 +76,7 @@ describe('PlayerPromotionController', () => {
           bonusClaimed: false,
           claimedAt: new Date(),
           isCompleted: false,
+          coinValue: 0,
         },
       };
       mockPlayerPromotionService.claimPromotion.mockResolvedValue(expectedResponse);
@@ -327,6 +327,7 @@ describe('PlayerPromotionController', () => {
           bonusClaimed: false,
           claimedAt: new Date(),
           isCompleted: false,
+          coinValue: 0,
         },
       };
       mockPlayerPromotionService.redeemPromotion.mockResolvedValue(expectedResponse);

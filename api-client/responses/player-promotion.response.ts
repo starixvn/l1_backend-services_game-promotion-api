@@ -18,6 +18,7 @@ export interface PlayerPromotion {
   createdAt?: Date;
   turnoverMultiplier: number;
   updatedAt?: Date;
+  coinValue: number;
 }
 
 export interface PlayerPromotionResponse {
