@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
+import { LoggerService } from '../../core/logger/logger.service';
+import { PlayerDto } from '../models/player.dto';
+import * as Responses from '../responses';
+import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
+import { EligiblePromotion } from '../responses/eligible-promotion.response';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
-import { PlayerDto } from '../models/player.dto';
-import { EligiblePromotion } from '../responses/eligible-promotion.response';
-import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
-import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
-import { LoggerService } from '../../core/logger/logger.service';
-import * as Responses from '../responses';
 
 /**
  * Service for managing player promotions
@@ -355,6 +355,10 @@ export class PlayerPromotionService {
       betLevel => betLevel.currencyGroup.toString() === currencyGroup.toString(),
     );
 
+    const coinValueInfo = promotion.coinValues.find(
+      coinValue => coinValue.currencyGroup.toString() === currencyGroup.toString(),
+    );
+
     const playerPromotion = new this.playerPromotionModel({
       playerId,
       operatorId,
@@ -374,6 +378,7 @@ export class PlayerPromotionService {
       minRequiredTurnover: 0,
       turnoverMultiplier: promotion.minTurnoverMultiplier,
       isCompleted: false,
+      coinValue: coinValueInfo?.coinValue || 0,
     });
 
     return playerPromotion.save();

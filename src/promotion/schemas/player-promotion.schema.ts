@@ -64,6 +64,9 @@ export class PlayerPromotion {
 
   @Prop({ type: Boolean, default: false })
   isCompleted: boolean;
+
+  @Prop({ type: Number, default: 0 })
+  coinValue: number;
 }
 
 export const PlayerPromotionSchema = SchemaFactory.createForClass(PlayerPromotion);
