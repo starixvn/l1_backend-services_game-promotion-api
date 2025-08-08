@@ -1,3 +1,4 @@
+import * as dotenv from 'dotenv';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core';
@@ -6,6 +7,8 @@ import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
 
 export function initializeTracing(): void {
+  dotenv.config();
+
   const otlpExporter = new OTLPTraceExporter({
     url: process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
   });
