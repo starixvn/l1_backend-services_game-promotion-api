@@ -7,6 +7,9 @@ import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
 
 export function initializeTracing(): void {
+  const enableOTEL = process.env.OTEL_ENABLED ?? false;
+  if (!enableOTEL) return;
+
   dotenv.config();
 
   const otlpExporter = new OTLPTraceExporter({

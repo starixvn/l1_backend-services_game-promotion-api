@@ -38,6 +38,7 @@ export class PlayerPromotionService {
       siteName,
       gameId,
     );
+
     if (existingPromotion) {
       return this.mapToPlayerPromotionResponse(existingPromotion);
     }
