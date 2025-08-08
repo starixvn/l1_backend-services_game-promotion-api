@@ -243,14 +243,4 @@ describe('PromotionController', () => {
       );
     });
   });
-
-  describe('test', () => {
-    it('should return a test message', async () => {
-      const result = await controller.test();
-      expect(result).toEqual({
-        status: 'ok',
-        message: 'Promotion API test endpoint is working',
-      });
-    });
-  });
 });

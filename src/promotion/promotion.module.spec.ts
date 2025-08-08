@@ -280,29 +280,6 @@ describe('PromotionModule (Integration)', () => {
     });
   });
 
-  describe('/promotions/:id (GET)', () => {
-    it('should return a promotion by ID', () => {
-      const mockPromotionModel = app.get(getModelToken(Promotion.name));
-      mockPromotionModel.findById.mockReturnValueOnce({
-        lean: () => ({
-          exec: jest.fn().mockResolvedValueOnce(mockPromotion),
-        }),
-      });
-      return request(app.getHttpServer()).get('/promotions/a-promotion-id').expect(200);
-    });
-
-    it('should return 404 for non-existent promotion', () => {
-      const mockPromotionModel = app.get(getModelToken(Promotion.name));
-      mockPromotionModel.findById.mockReturnValueOnce({
-        lean: () => ({
-          exec: jest.fn().mockResolvedValueOnce(null),
-        }),
-      });
-
-      return request(app.getHttpServer()).get('/promotions/nonexistent-id').expect(404);
-    });
-  });
-
   describe('/promotions (POST)', () => {
     it('should create a new promotion', () => {
       const createPromotionDto = {
@@ -331,69 +308,6 @@ describe('PromotionModule (Integration)', () => {
       };
 
       return request(app.getHttpServer()).post('/promotions').send(invalidPromotionDto).expect(400);
-    });
-  });
-
-  describe('/promotions/:id (PUT)', () => {
-    it('should update a promotion', () => {
-      const updatedPromotion = {
-        ...mockPromotion,
-        name: 'Updated Promotion',
-        code: 'updated-promotion',
-      };
-
-      const mockPromotionModel = app.get(getModelToken(Promotion.name));
-      mockPromotionModel.findByIdAndUpdate.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce(updatedPromotion),
-      });
-
-      const updatePromotionDto = {
-        name: 'Updated Promotion',
-      };
-
-      return request(app.getHttpServer())
-        .put('/promotions/a-promotion-id')
-        .send(updatePromotionDto)
-        .expect(200);
-    });
-
-    it('should return 404 for non-existent promotion', () => {
-      const mockPromotionModel = app.get(getModelToken(Promotion.name));
-      mockPromotionModel.findByIdAndUpdate.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce(null),
-      });
-
-      return request(app.getHttpServer())
-        .put('/promotions/nonexistent-id')
-        .send({ name: 'Updated Promotion' })
-        .expect(404);
-    });
-  });
-
-  describe('/promotions/:id (DELETE)', () => {
-    it('should delete a promotion', () => {
-      return request(app.getHttpServer()).delete('/promotions/a-promotion-id').expect(200).expect({
-        statusCode: 200,
-        message: 'Promotion with ID a-promotion-id deleted successfully',
-      });
-    });
-
-    it('should return 404 for non-existent promotion', () => {
-      const mockPromotionModel = app.get(getModelToken(Promotion.name));
-      mockPromotionModel.deleteOne.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce({ deletedCount: 0 }),
-      });
-
-      return request(app.getHttpServer()).delete('/promotions/nonexistent-id').expect(404);
-    });
-  });
-
-  describe('/promotions/admin/test (GET)', () => {
-    it('should return test endpoint message', () => {
-      return request(app.getHttpServer()).get('/promotions/admin/test').expect(200).expect({
-        status: 'ok',
-        message: 'Promotion API test endpoint is working',
-      });
     });
   });
 

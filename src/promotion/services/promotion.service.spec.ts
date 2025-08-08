@@ -9,6 +9,7 @@ import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionStatus } from '../models/promotion-filter.dto';
 import { NotFoundException } from '@nestjs/common';
+import { LoggerService } from '../../core/logger/logger.service';
 
 // Mock data
 const mockDate = new Date();
@@ -153,6 +154,12 @@ describe('PromotionService', () => {
             aggregate: jest.fn().mockReturnValue({
               exec: jest.fn().mockResolvedValue([]),
             }),
+          },
+        },
+        {
+          provide: LoggerService,
+          useValue: {
+            error: jest.fn(),
           },
         },
       ],

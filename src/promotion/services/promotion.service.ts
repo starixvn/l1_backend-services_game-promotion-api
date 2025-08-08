@@ -6,6 +6,7 @@ import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
 import { PaginationResponse } from '../responses/pagination.response';
+import { LoggerService } from '../../core/logger/logger.service';
 import {
   PromotionTicket,
   PromotionTicketDocument,
@@ -25,6 +26,7 @@ export class PromotionService {
     private readonly promotionTicketModel: Model<PromotionTicketDocument>,
     @InjectModel(PlayerPromotion.name)
     private readonly playerPromotionModel: Model<PlayerPromotionDocument>,
+    private readonly logger: LoggerService,
   ) {}
 
   /**
@@ -201,6 +203,11 @@ export class PromotionService {
    * @returns The found promotion or null
    */
   async findOne(id: string): Promise<Promotion> {
+    if (!id) {
+      this.logger.error(`Promotion ID is required`);
+      throw new NotFoundException(`Promotion ID is required`);
+    }
+
     const promotion = await this.promotionModel.findById(id).lean().exec();
     if (!promotion) {
       throw new NotFoundException(`Promotion with ID ${id} not found`);
@@ -215,6 +222,11 @@ export class PromotionService {
    * @returns The updated promotion
    */
   async update(id: string, updatePromotionDto: UpdatePromotionDto): Promise<Promotion> {
+    if (!id) {
+      this.logger.error(`Promotion ID is required`);
+      throw new NotFoundException(`Promotion ID is required`);
+    }
+
     const update: Record<string, any> = { ...updatePromotionDto };
 
     const updatedPromotion = await this.promotionModel
@@ -234,6 +246,10 @@ export class PromotionService {
    * @returns true if deleted, false otherwise
    */
   async remove(id: string): Promise<boolean> {
+    if (!id) {
+      this.logger.error(`Promotion ID is required`);
+      throw new NotFoundException(`Promotion ID is required`);
+    }
     const result = await this.promotionModel.deleteOne({ _id: id }).exec();
     if (result.deletedCount === 0) {
       throw new NotFoundException(`Promotion with ID ${id} not found`);

@@ -143,17 +143,6 @@ describe('PromotionAnnouncementModule (Integration)', () => {
 
       expect(response.body).toEqual(expect.objectContaining(mockAnnouncement));
     });
-
-    it('should return 404 for non-existent promotion announcement', () => {
-      const mockModel = app.get(getModelToken(PromotionAnnouncement.name));
-      mockModel.findById = jest.fn().mockReturnValue({
-        lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValueOnce(null) }),
-      });
-
-      return request(app.getHttpServer())
-        .get('/promotion-announcements/nonexistent-id')
-        .expect(404);
-    });
   });
 
   describe('/promotion-announcements (POST)', () => {

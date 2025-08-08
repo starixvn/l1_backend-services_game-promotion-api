@@ -16,6 +16,8 @@ import {
   PromotionTicket,
   PromotionTicketSchema,
 } from '../promotion-ticket/schemas/promotion-ticket.schema';
+import { LoggerService } from '../core/logger/logger.service';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -26,7 +28,7 @@ import {
     ]),
   ],
   controllers: [PromotionAnnouncementController],
-  providers: [PromotionAnnouncementService, PromotionService],
+  providers: [PromotionAnnouncementService, PromotionService, LoggerService],
   exports: [PromotionAnnouncementService],
 })
 export class PromotionAnnouncementModule {}
