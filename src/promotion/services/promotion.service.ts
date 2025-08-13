@@ -263,7 +263,7 @@ export class PromotionService {
    * @returns true if the code exists, false otherwise
    */
   async doesCodeExist(code: string): Promise<boolean> {
-    const existing = await this.promotionModel.exists({ code });
+    const existing = await this.promotionModel.exists({ code: code.toUpperCase() });
     return !!existing;
   }
 
