@@ -656,7 +656,7 @@ describe('PromotionService', () => {
 
       const result = await service.doesCodeExist(code);
       expect(result).toBe(true);
-      expect(model.exists).toHaveBeenCalledWith({ code });
+      expect(model.exists).toHaveBeenCalledWith({ code: code.toUpperCase() });
     });
 
     it('should return false if promotion with code does not exist', async () => {
@@ -665,7 +665,7 @@ describe('PromotionService', () => {
 
       const result = await service.doesCodeExist(code);
       expect(result).toBe(false);
-      expect(model.exists).toHaveBeenCalledWith({ code });
+      expect(model.exists).toHaveBeenCalledWith({ code: code.toUpperCase() });
     });
   });
 });
