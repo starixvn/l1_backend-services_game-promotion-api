@@ -41,4 +41,8 @@ export class UpdatePromotionTicketDto {
   @ApiProperty({ description: 'Win amount' })
   @IsNumber()
   winAmount: number;
+
+  @ApiProperty({ description: 'Base win amount' })
+  @IsNumber()
+  baseBetWin: number;
 }

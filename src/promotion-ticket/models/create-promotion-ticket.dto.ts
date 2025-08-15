@@ -38,7 +38,25 @@ export class CreatePromotionTicketDto {
   @IsPositive()
   gameRoundId: number;
 
+  @ApiProperty({ description: 'Base bet amount' })
+  @IsNumber()
+  baseTotalAmount: number;
+
   @ApiProperty({ description: 'Win amount' })
   @IsNumber()
   winAmount: number;
+
+  @ApiProperty({ description: 'Base win amount' })
+  @IsNumber()
+  @IsPositive()
+  baseBetWin: number;
+
+  @ApiProperty({ description: 'Exchange rate ID' })
+  @IsNumber()
+  @IsPositive()
+  exchangeRateId: number;
+
+  @ApiProperty({ description: 'Currency' })
+  @IsString()
+  currency: string;
 }

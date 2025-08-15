@@ -41,6 +41,10 @@ describe('PromotionTicketController', () => {
       appType: 1,
       betAmount: 10.5,
       winAmount: 25.0,
+      baseTotalAmount: 25.0,
+      baseBetWin: 15.0,
+      exchangeRateId: 0,
+      currency: 'USD',
     };
 
     it('should successfully create a promotion ticket and return success response', async () => {
@@ -112,6 +116,10 @@ describe('PromotionTicketController', () => {
         appType: 1,
         betAmount: 10.5,
         winAmount: 25.0,
+        baseTotalAmount: 25.0,
+        baseBetWin: 15.0,
+        exchangeRateId: 0,
+        currency: 'USD',
       });
     });
   });

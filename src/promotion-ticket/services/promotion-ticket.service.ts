@@ -79,6 +79,7 @@ export class PromotionTicketService {
         {
           $set: {
             winAmount: updateTicketDto.winAmount,
+            baseBetWin: updateTicketDto.baseBetWin,
           },
         },
         {
