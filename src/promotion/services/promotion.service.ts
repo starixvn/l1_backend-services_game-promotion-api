@@ -11,6 +11,9 @@ import {
   PromotionTicket,
   PromotionTicketDocument,
 } from '../../promotion-ticket/schemas/promotion-ticket.schema';
+import { PromotionSummaryDto } from '../models/promotion-summary.dto';
+import { PromotionSummaryResponse } from '../responses/summary-promotion.response';
+import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
 
 const EXPIRY_CHECK_SECONDS = 60;
@@ -356,5 +359,34 @@ export class PromotionService {
     }
 
     return promotionsWithPlayers;
+  }
+
+  /**
+   * Get promotion summary statistics
+   * @param summaryDto - Summary parameters
+   * @returns Promotion summary data
+   */
+  async getPromotionSummary(summaryDto: PromotionSummaryDto): Promise<PromotionSummaryResponse> {
+    const { operatorId, promotionId } = summaryDto;
+
+    // Get promotion details
+    const promotion = await this.promotionModel
+      .findOne({ _id: promotionId, operatorId })
+      .lean()
+      .exec();
+
+    if (!promotion) {
+      throw new NotFoundException(PROMOTION_NOT_FOUND_DESCRIPTION);
+    }
+
+    // Handle promotion summary
+
+    return {
+      status: 'ACTIVE',
+      bonusRedeemed: 0,
+      totalTurnover: 0,
+      minRequiredTurnover: 0,
+      uniquePlayers: 0,
+    };
   }
 }

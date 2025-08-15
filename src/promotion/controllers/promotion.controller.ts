@@ -26,6 +26,8 @@ import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.
 import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 import { PaginationResponse } from '../responses/pagination.response';
 import { ParseMongoIdPipe } from '../../core/pipes/parse-mongo-id.pipe';
+import { PromotionSummaryDto } from '../models/promotion-summary.dto';
+import { PromotionSummaryResponse } from '../responses/summary-promotion.response';
 
 const PROMOTION_ID_PARAM = {
   name: 'id',
@@ -293,5 +295,24 @@ export class PromotionController {
   })
   async getUnmappedNotStartedPromotions(): Promise<Promotion[]> {
     return this.promotionService.getUnmappedNotStartedPromotions();
+  }
+
+  /**
+   * Get promotion summary statistics
+   * @param query - Summary parameters
+   * @returns Promotion summary data
+   */
+  @Get('summary')
+  @ApiOperation({ summary: 'Get promotion summary statistics' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns promotion summary statistics',
+    type: PromotionSummaryResponse,
+  })
+  @ApiResponse({ status: 404, description: 'Promotion not found' })
+  async getPromotionSummary(
+    @Query() query: PromotionSummaryDto,
+  ): Promise<PromotionSummaryResponse> {
+    return this.promotionService.getPromotionSummary(query);
   }
 }

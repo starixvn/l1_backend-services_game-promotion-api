@@ -1,9 +1,10 @@
-import { Controller, Post, Body, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpStatus, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PlayerPromotionService } from '../services/player-promotion.service';
 import * as Models from '../models';
 import * as Responses from '../responses';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
+import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
 
 @ApiTags('player-promotions')
 @Controller('player-promotions')
@@ -99,6 +100,33 @@ export class PlayerPromotionController {
       rollbackDto.playerId,
       rollbackDto.promotionId,
       rollbackData,
+    );
+  }
+
+  /**
+   * Get player promotion status
+   * @param query - Player promotion status query parameters
+   * @returns Player promotion status information
+   */
+  @Get('state')
+  @ApiOperation({ summary: 'Get player promotion state' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns player promotion status information',
+    type: Responses.PlayerPromotionStateResponse,
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - missing required parameters' })
+  @ApiResponse({ status: 404, description: 'Player promotion or promotion not found' })
+  async getPlayerPromotionState(
+    @Query() query: PlayerPromotionStateDto,
+  ): Promise<Responses.PlayerPromotionStateResponse> {
+    const { playerId, operatorId, siteName, promotionId } = query;
+
+    return this.playerPromotionService.getPlayerPromotionState(
+      playerId,
+      operatorId,
+      siteName,
+      promotionId,
     );
   }
 

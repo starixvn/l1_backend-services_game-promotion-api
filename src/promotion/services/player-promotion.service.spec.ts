@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
+import { NotFoundException } from '@nestjs/common';
 import { PlayerPromotionService } from './player-promotion.service';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
 import { Promotion } from '../schemas/promotion.schema';
@@ -7,6 +8,7 @@ import { PlayerDto } from '../models';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { DeductBonusItemResponse } from '../responses/deduct-bonus-item.response';
 import { LoggerService } from '../../core/logger/logger.service';
+import { PROMOTION_STATUS } from '../../constants/player-promotion';
 
 // Mock LoggerService
 const mockLoggerService = {
@@ -568,6 +570,243 @@ describe('PlayerPromotionService', () => {
           lean: true,
         }),
       );
+    });
+  });
+
+  describe('getPlayerPromotionState', () => {
+    const playerId = 'player1';
+    const operatorId = 'op123';
+    const siteName = 'site1';
+    const promotionId = 'promo1';
+
+    it('should return player promotion status when promotion exists', async () => {
+      // Arrange
+      const mockPlayerPromotion = {
+        _id: 'player-promo1',
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        promotionId: 'promo1',
+        remainingBonusItems: 5,
+        totalWinAmount: 1500,
+        totalTurnover: 3000,
+        minRequiredTurnover: 5000,
+        isCompleted: false,
+      };
+
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      });
+
+      // Act
+      const result = await service.getPlayerPromotionState(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+
+      // Assert
+      expect(playerPromotionModel.findOne).toHaveBeenCalledWith({
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      });
+      expect(result).toEqual({
+        remainingBonusItems: 5,
+        totalWinAmount: 1500,
+        totalTurnover: 3000,
+        minRequiredTurnover: 5000,
+        remainingTO: 2000, // 5000 - 3000
+        promotionStatus: PROMOTION_STATUS.TO_IN_PROGRESS, // remainingTO > 0
+      });
+    });
+
+    it('should return ready to claim status when turnover is completed', async () => {
+      // Arrange
+      const mockPlayerPromotion = {
+        _id: 'player-promo1',
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        promotionId: 'promo1',
+        remainingBonusItems: 5,
+        totalWinAmount: 2000,
+        totalTurnover: 5000,
+        minRequiredTurnover: 5000,
+        isCompleted: false,
+      };
+
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      });
+
+      // Act
+      const result = await service.getPlayerPromotionState(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+
+      // Assert
+      expect(result).toEqual({
+        remainingBonusItems: 5,
+        totalWinAmount: 2000,
+        totalTurnover: 5000,
+        minRequiredTurnover: 5000,
+        remainingTO: 0, // 5000 - 5000
+        promotionStatus: PROMOTION_STATUS.READY_TO_CLAIM, // remainingTO = 0
+      });
+    });
+
+    it('should return 0 remainingTO when promotion is completed', async () => {
+      // Arrange
+      const mockPlayerPromotion = {
+        _id: 'player-promo1',
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        promotionId: 'promo1',
+        remainingBonusItems: 0,
+        totalWinAmount: 2000,
+        totalTurnover: 3000,
+        minRequiredTurnover: 5000,
+        isCompleted: true,
+      };
+
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      });
+
+      // Act
+      const result = await service.getPlayerPromotionState(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+
+      // Assert
+      expect(result).toEqual({
+        remainingBonusItems: 0,
+        totalWinAmount: 2000,
+        totalTurnover: 3000,
+        minRequiredTurnover: 5000,
+        remainingTO: 0, // Should be 0 when isCompleted is true
+        promotionStatus: PROMOTION_STATUS.READY_TO_CLAIM, // remainingTO = 0
+      });
+    });
+
+    it('should handle negative remainingTO correctly', async () => {
+      // Arrange
+      const mockPlayerPromotion = {
+        _id: 'player-promo1',
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        promotionId: 'promo1',
+        remainingBonusItems: 5,
+        totalWinAmount: 2000,
+        totalTurnover: 6000, // More than required
+        minRequiredTurnover: 5000,
+        isCompleted: false,
+      };
+
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      });
+
+      // Act
+      const result = await service.getPlayerPromotionState(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+
+      // Assert
+      expect(result).toEqual({
+        remainingBonusItems: 5,
+        totalWinAmount: 2000,
+        totalTurnover: 6000,
+        minRequiredTurnover: 5000,
+        remainingTO: -1000, // 5000 - 6000 = -1000
+        promotionStatus: PROMOTION_STATUS.READY_TO_CLAIM, // remainingTO <= 0
+      });
+    });
+
+    it('should throw NotFoundException when player promotion does not exist', async () => {
+      // Arrange
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      });
+
+      // Act & Assert
+      await expect(
+        service.getPlayerPromotionState(playerId, operatorId, siteName, promotionId),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should handle database errors gracefully', async () => {
+      // Arrange
+      const mockError = new Error('Database connection failed');
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockRejectedValue(mockError),
+        }),
+      });
+
+      // Act & Assert
+      await expect(
+        service.getPlayerPromotionState(playerId, operatorId, siteName, promotionId),
+      ).rejects.toThrow('Database connection failed');
+    });
+
+    it('should call database with correct query parameters', async () => {
+      // Arrange
+      const mockPlayerPromotion = {
+        _id: 'player-promo1',
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        promotionId: 'promo1',
+        remainingBonusItems: 5,
+        totalWinAmount: 1500,
+        totalTurnover: 3000,
+        minRequiredTurnover: 5000,
+        isCompleted: false,
+      };
+
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      });
+
+      // Act
+      await service.getPlayerPromotionState(playerId, operatorId, siteName, promotionId);
+
+      // Assert
+      expect(playerPromotionModel.findOne).toHaveBeenCalledWith({
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        promotionId: 'promo1',
+      });
+      expect(playerPromotionModel.findOne().lean).toHaveBeenCalled();
+      expect(playerPromotionModel.findOne().lean().exec).toHaveBeenCalled();
     });
   });
 });

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
@@ -8,6 +8,8 @@ import * as Responses from '../responses';
 import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
 import { EligiblePromotion } from '../responses/eligible-promotion.response';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
+import { PlayerPromotionStateResponse } from '../responses/player-promotion.response';
+import { PROMOTION_STATUS } from '../../constants/player-promotion';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 
 /**
@@ -485,6 +487,46 @@ export class PlayerPromotionService {
     return {
       success: false,
       ...PLAYER_PROMOTION_ERROR_CODES.ROLLBACK_FAILED,
+    };
+  }
+
+  /**
+   * Get promotion status for a specific player and promotion
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @returns Player promotion status information
+   */
+  async getPlayerPromotionState(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<PlayerPromotionStateResponse> {
+    const playerPromotion = await this.playerPromotionModel
+      .findOne({ playerId, operatorId, siteName, promotionId })
+      .lean()
+      .exec();
+
+    if (!playerPromotion) {
+      throw new NotFoundException(PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND);
+    }
+
+    const remainingTO = playerPromotion.isCompleted
+      ? 0
+      : playerPromotion.minRequiredTurnover - playerPromotion.totalTurnover;
+
+    const promotionStatus =
+      remainingTO > 0 ? PROMOTION_STATUS.TO_IN_PROGRESS : PROMOTION_STATUS.READY_TO_CLAIM;
+
+    return {
+      remainingBonusItems: playerPromotion.remainingBonusItems,
+      totalWinAmount: playerPromotion.totalWinAmount,
+      totalTurnover: playerPromotion.totalTurnover,
+      minRequiredTurnover: playerPromotion.minRequiredTurnover,
+      remainingTO: remainingTO,
+      promotionStatus,
     };
   }
 
