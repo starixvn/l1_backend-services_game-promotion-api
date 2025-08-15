@@ -22,6 +22,11 @@ export class UpdateTotalTurnoverDto {
   @IsNotEmpty()
   betAmount: number;
 
+  @ApiProperty({ description: 'Base bet amount to add to total turnover' })
+  @IsNumber()
+  @IsNotEmpty()
+  baseTotalAmount: number;
+
   @ApiProperty({ description: 'Game ID' })
   @IsNumber()
   @IsNotEmpty()

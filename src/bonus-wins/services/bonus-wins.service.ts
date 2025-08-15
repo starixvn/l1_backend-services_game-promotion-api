@@ -44,9 +44,11 @@ export class BonusWinsService {
     siteName: string,
     promotionId: string,
     winAmount: number,
+    baseTotalWinAmount: number,
   ): Promise<UpdateTotalWinResponse> {
     try {
       const roundedWinAmount = Math.round(winAmount * 100) / 100;
+      const roundedBaseTotalWinAmount = Math.round(baseTotalWinAmount * 100) / 100;
       const result = await this.playerPromotionModel.findOneAndUpdate(
         {
           playerId,
@@ -55,7 +57,7 @@ export class BonusWinsService {
           promotionId,
         },
         {
-          $set: { totalWinAmount: roundedWinAmount },
+          $set: { totalWinAmount: roundedWinAmount, baseTotalWinAmount: roundedBaseTotalWinAmount },
         },
         {
           new: true,
@@ -104,6 +106,7 @@ export class BonusWinsService {
     siteName: string,
     betAmount: number,
     gameId: number,
+    baseTotalAmount: number,
   ): Promise<GetTOProgressResponse> {
     try {
       const activeBonusWin = await this.playerPromotionService.findExistingPromotion(
@@ -127,7 +130,7 @@ export class BonusWinsService {
 
       const result = await this.playerPromotionModel.findOneAndUpdate(
         { _id: activeBonusWin._id },
-        { $inc: { totalTurnover: betAmount } },
+        { $inc: { totalTurnover: betAmount, baseTotalTurnover: baseTotalAmount } },
         { new: true, lean: true },
       );
 
@@ -189,6 +192,9 @@ export class BonusWinsService {
             $set: {
               minRequiredTurnover: {
                 $multiply: ['$totalWinAmount', '$turnoverMultiplier'],
+              },
+              baseMinRequiredTurnover: {
+                $multiply: ['$baseTotalWinAmount', '$turnoverMultiplier'],
               },
             },
           },

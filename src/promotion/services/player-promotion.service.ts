@@ -380,6 +380,9 @@ export class PlayerPromotionService {
       turnoverMultiplier: promotion.minTurnoverMultiplier,
       isCompleted: false,
       coinValue: coinValueInfo?.coinValue || 0,
+      baseTotalWinAmount: 0,
+      baseTotalTurnover: 0,
+      baseMinRequiredTurnover: 0,
     });
 
     return playerPromotion.save();
@@ -515,6 +518,9 @@ export class PlayerPromotionService {
       claimedAt: playerPromotion.claimedAt,
       isCompleted: playerPromotion.isCompleted,
       coinValue: playerPromotion.coinValue,
+      baseTotalWinAmount: playerPromotion.baseTotalWinAmount,
+      baseTotalTurnover: playerPromotion.baseTotalTurnover,
+      baseMinRequiredTurnover: playerPromotion.baseMinRequiredTurnover,
     };
 
     return {

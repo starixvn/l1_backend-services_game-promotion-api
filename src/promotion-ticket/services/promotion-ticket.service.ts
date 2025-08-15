@@ -19,6 +19,10 @@ interface PlayerPromotionContext {
   siteName: string;
   promotionId: string;
 }
+interface PlayerPromotionWinAmount {
+  totalWinAmount: number;
+  baseTotalWinAmount: number;
+}
 
 /**
  * Service for managing promotion tickets
@@ -115,13 +119,18 @@ export class PromotionTicketService {
    * @param totalWinDto Total win calculation data
    * @returns Total win amount (number)
    */
-  async calculateTotalWin(totalWinDto: TotalWinDto): Promise<number> {
+  async calculateTotalWin(totalWinDto: TotalWinDto): Promise<PlayerPromotionWinAmount> {
     const tickets = await this.promotionTicketModel
       .find(this.buildPlayerPromotionQuery(totalWinDto))
       .lean()
       .exec();
+    const totalWinAmount = tickets.reduce((sum, ticket) => sum + (ticket.winAmount || 0), 0);
+    const baseTotalWinAmount = tickets.reduce((sum, ticket) => sum + (ticket.baseBetWin || 0), 0);
 
-    return tickets.reduce((sum, ticket) => sum + (ticket.winAmount || 0), 0);
+    return {
+      totalWinAmount,
+      baseTotalWinAmount,
+    };
   }
 
   /**
@@ -136,7 +145,8 @@ export class PromotionTicketService {
         context.operatorId,
         context.siteName,
         context.promotionId,
-        winAmount,
+        winAmount.totalWinAmount,
+        winAmount.baseTotalWinAmount,
       );
 
       // Trigger TO requirement calculation if no bonus items remain

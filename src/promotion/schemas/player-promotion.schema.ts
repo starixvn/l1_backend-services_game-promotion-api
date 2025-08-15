@@ -67,6 +67,15 @@ export class PlayerPromotion {
 
   @Prop({ type: Number, default: 0 })
   coinValue: number;
+
+  @Prop({ type: Number, default: 0 })
+  baseTotalWinAmount: number;
+
+  @Prop({ type: Number, default: 0 })
+  baseTotalTurnover: number;
+
+  @Prop({ type: Number, default: 0 })
+  baseMinRequiredTurnover: number;
 }
 
 export const PlayerPromotionSchema = SchemaFactory.createForClass(PlayerPromotion);
