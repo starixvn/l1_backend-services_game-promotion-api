@@ -8,4 +8,8 @@ export interface CreatePromotionTicketDto {
   betAmount: number;
   appType: number;
   winAmount: number;
+  baseTotalAmount: number;
+  baseBetWin: number;
+  exchangeRateId: number;
+  currency: string;
 }
