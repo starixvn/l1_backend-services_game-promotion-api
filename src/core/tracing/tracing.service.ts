@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { trace, context, Span, SpanStatusCode, SpanKind } from '@opentelemetry/api';
+import { trace, context, Span, SpanKind, SpanStatusCode } from '@opentelemetry/api';
+
+type SpanAttributes = Record<string, string | number | boolean>;
 
 /**
  * Optional utility service for creating custom spans when needed.
@@ -11,7 +13,7 @@ export class TracingService {
   private readonly tracer = trace.getTracer('game-promotion-api');
 
   /**
-   * Create a custom span and execute a function within its context
+   * Execute a function within a span context
    * @param name Span name
    * @param fn Function to execute within the span
    * @param attributes Optional span attributes
@@ -20,7 +22,7 @@ export class TracingService {
   async withSpan<T>(
     name: string,
     fn: (span: Span) => Promise<T> | T,
-    attributes?: Record<string, string | number | boolean>,
+    attributes?: SpanAttributes,
   ): Promise<T> {
     const span = this.tracer.startSpan(name, {
       kind: SpanKind.INTERNAL,
@@ -47,7 +49,7 @@ export class TracingService {
    * Add attributes to the current active span
    * @param attributes Key-value pairs to add as span attributes
    */
-  addAttributes(attributes: Record<string, string | number | boolean>): void {
+  addAttributes(attributes: SpanAttributes): void {
     const activeSpan = trace.getActiveSpan();
     if (activeSpan) {
       activeSpan.setAttributes(attributes);
@@ -59,7 +61,7 @@ export class TracingService {
    * @param name Event name
    * @param attributes Optional event attributes
    */
-  addEvent(name: string, attributes?: Record<string, string | number | boolean>): void {
+  addEvent(name: string, attributes?: SpanAttributes): void {
     const activeSpan = trace.getActiveSpan();
     if (activeSpan) {
       activeSpan.addEvent(name, attributes);
@@ -119,7 +121,7 @@ export class TracingService {
     fn: (span: Span) => Promise<T> | T,
     query?: Record<string, any>,
   ): Promise<T> {
-    const attributes: Record<string, string | number | boolean> = {
+    const attributes: SpanAttributes = {
       'db.operation': operation,
       'db.collection.name': collection,
       'db.system': 'mongodb',
@@ -144,7 +146,7 @@ export class TracingService {
     url: string,
     fn: (span: Span) => Promise<T> | T,
   ): Promise<T> {
-    const attributes = {
+    const attributes: SpanAttributes = {
       'http.method': method,
       'http.url': url,
       'http.client': 'axios',
