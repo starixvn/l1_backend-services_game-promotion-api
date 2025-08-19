@@ -592,6 +592,9 @@ describe('PlayerPromotionService', () => {
         totalTurnover: 3000,
         minRequiredTurnover: 5000,
         isCompleted: false,
+        baseTotalWinAmount: 6,
+        baseTotalTurnover: 300,
+        baseMinRequiredTurnover: 12,
       };
 
       playerPromotionModel.findOne.mockReturnValue({
@@ -617,11 +620,11 @@ describe('PlayerPromotionService', () => {
       });
       expect(result).toEqual({
         remainingBonusItems: 5,
-        totalWinAmount: 1500,
-        totalTurnover: 3000,
-        minRequiredTurnover: 5000,
-        remainingTO: 2000, // 5000 - 3000
-        promotionStatus: PROMOTION_STATUS.TO_IN_PROGRESS, // remainingTO > 0
+        totalWinAmount: 6,
+        totalTurnover: 300,
+        minRequiredTurnover: 12,
+        remainingTO: 0,
+        promotionStatus: PROMOTION_STATUS.READY_TO_CLAIM,
       });
     });
 
@@ -638,6 +641,9 @@ describe('PlayerPromotionService', () => {
         totalTurnover: 5000,
         minRequiredTurnover: 5000,
         isCompleted: false,
+        baseTotalWinAmount: 2000,
+        baseTotalTurnover: 5000,
+        baseMinRequiredTurnover: 5000,
       };
 
       playerPromotionModel.findOne.mockReturnValue({
@@ -678,6 +684,9 @@ describe('PlayerPromotionService', () => {
         totalTurnover: 3000,
         minRequiredTurnover: 5000,
         isCompleted: true,
+        baseTotalWinAmount: 2000,
+        baseTotalTurnover: 6000,
+        baseMinRequiredTurnover: 5000,
       };
 
       playerPromotionModel.findOne.mockReturnValue({
@@ -698,10 +707,10 @@ describe('PlayerPromotionService', () => {
       expect(result).toEqual({
         remainingBonusItems: 0,
         totalWinAmount: 2000,
-        totalTurnover: 3000,
+        totalTurnover: 6000,
         minRequiredTurnover: 5000,
-        remainingTO: 0, // Should be 0 when isCompleted is true
-        promotionStatus: PROMOTION_STATUS.READY_TO_CLAIM, // remainingTO = 0
+        remainingTO: 0,
+        promotionStatus: PROMOTION_STATUS.READY_TO_CLAIM,
       });
     });
 
@@ -718,6 +727,9 @@ describe('PlayerPromotionService', () => {
         totalTurnover: 6000, // More than required
         minRequiredTurnover: 5000,
         isCompleted: false,
+        baseTotalWinAmount: 2000,
+        baseTotalTurnover: 6000,
+        baseMinRequiredTurnover: 5000,
       };
 
       playerPromotionModel.findOne.mockReturnValue({
@@ -740,8 +752,8 @@ describe('PlayerPromotionService', () => {
         totalWinAmount: 2000,
         totalTurnover: 6000,
         minRequiredTurnover: 5000,
-        remainingTO: -1000, // 5000 - 6000 = -1000
-        promotionStatus: PROMOTION_STATUS.READY_TO_CLAIM, // remainingTO <= 0
+        remainingTO: 0,
+        promotionStatus: PROMOTION_STATUS.READY_TO_CLAIM,
       });
     });
 

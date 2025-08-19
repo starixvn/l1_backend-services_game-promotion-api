@@ -513,19 +513,20 @@ export class PlayerPromotionService {
       throw new NotFoundException(PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND);
     }
 
-    const remainingTO = playerPromotion.isCompleted
-      ? 0
-      : playerPromotion.minRequiredTurnover - playerPromotion.totalTurnover;
+    const remainingTO = Math.max(
+      playerPromotion.baseMinRequiredTurnover - playerPromotion.baseTotalTurnover,
+      0,
+    );
 
     const promotionStatus =
       remainingTO > 0 ? PROMOTION_STATUS.TO_IN_PROGRESS : PROMOTION_STATUS.READY_TO_CLAIM;
 
     return {
       remainingBonusItems: playerPromotion.remainingBonusItems,
-      totalWinAmount: playerPromotion.totalWinAmount,
-      totalTurnover: playerPromotion.totalTurnover,
-      minRequiredTurnover: playerPromotion.minRequiredTurnover,
-      remainingTO: remainingTO,
+      totalWinAmount: playerPromotion.baseTotalWinAmount,
+      totalTurnover: playerPromotion.baseTotalTurnover,
+      minRequiredTurnover: playerPromotion.baseMinRequiredTurnover,
+      remainingTO,
       promotionStatus,
     };
   }

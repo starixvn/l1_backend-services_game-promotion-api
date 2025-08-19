@@ -209,6 +209,58 @@ export class PromotionController {
   }
 
   /**
+   * Get promotion summary statistics
+   * @param query - Summary parameters
+   * @returns Promotion summary data
+   */
+  @Get('summary')
+  @ApiOperation({ summary: 'Get promotion summary statistics' })
+  @ApiQuery({
+    name: 'promotionId',
+    required: true,
+    description: 'Promotion ID',
+    type: String,
+  })
+  @ApiQuery({
+    name: 'operatorId',
+    required: true,
+    description: 'Operator ID',
+    type: String,
+  })
+  @ApiQuery({
+    name: 'siteName',
+    required: true,
+    description: 'Site name',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns promotion summary statistics',
+    type: PromotionSummaryResponse,
+  })
+  @ApiResponse({ status: 404, description: 'Promotion not found' })
+  async getPromotionSummary(
+    @Query() query: PromotionSummaryDto,
+  ): Promise<PromotionSummaryResponse> {
+    return this.promotionService.getPromotionSummary(query);
+  }
+
+  /**
+   * Get promotions that are NOT_STARTED and not mapped to any announcement
+   * @returns Array of unmapped NOT_STARTED promotions
+   */
+  @Post('unmapped-not-started')
+  @ApiOperation({ summary: 'Get NOT_STARTED promotions that are not mapped to any announcement' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns unmapped NOT_STARTED promotions',
+    type: [Promotion],
+  })
+  async getUnmappedNotStartedPromotions(): Promise<Promotion[]> {
+    return this.promotionService.getUnmappedNotStartedPromotions();
+  }
+
+  /**
    * Get a single promotion by ID
    * @param id - The promotion ID
    * @returns The found promotion
@@ -280,39 +332,5 @@ export class PromotionController {
       statusCode: HttpStatus.OK,
       message: `Promotion with ID ${id} deleted successfully`,
     };
-  }
-
-  /**
-   * Get promotions that are NOT_STARTED and not mapped to any announcement
-   * @returns Array of unmapped NOT_STARTED promotions
-   */
-  @Post('unmapped-not-started')
-  @ApiOperation({ summary: 'Get NOT_STARTED promotions that are not mapped to any announcement' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns unmapped NOT_STARTED promotions',
-    type: [Promotion],
-  })
-  async getUnmappedNotStartedPromotions(): Promise<Promotion[]> {
-    return this.promotionService.getUnmappedNotStartedPromotions();
-  }
-
-  /**
-   * Get promotion summary statistics
-   * @param query - Summary parameters
-   * @returns Promotion summary data
-   */
-  @Get('summary')
-  @ApiOperation({ summary: 'Get promotion summary statistics' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns promotion summary statistics',
-    type: PromotionSummaryResponse,
-  })
-  @ApiResponse({ status: 404, description: 'Promotion not found' })
-  async getPromotionSummary(
-    @Query() query: PromotionSummaryDto,
-  ): Promise<PromotionSummaryResponse> {
-    return this.promotionService.getPromotionSummary(query);
   }
 }

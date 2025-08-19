@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Promotion, PromotionDocument, PromotionExpiryDocument } from '../schemas/promotion.schema';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
@@ -13,8 +13,8 @@ import {
 } from '../../promotion-ticket/schemas/promotion-ticket.schema';
 import { PromotionSummaryDto } from '../models/promotion-summary.dto';
 import { PromotionSummaryResponse } from '../responses/summary-promotion.response';
-import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
+import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 
 const EXPIRY_CHECK_SECONDS = 60;
 const MILLISECONDS_PER_SECOND = 1000;
@@ -361,32 +361,71 @@ export class PromotionService {
     return promotionsWithPlayers;
   }
 
+  private getPromotionStatus(startDate: Date, endDate: Date): PromotionStatus {
+    const now = new Date();
+
+    if (now < startDate) {
+      return PromotionStatus.NOT_STARTED;
+    }
+
+    if (now > endDate) {
+      return PromotionStatus.ENDED;
+    }
+
+    return PromotionStatus.RUNNING;
+  }
+
   /**
    * Get promotion summary statistics
    * @param summaryDto - Summary parameters
    * @returns Promotion summary data
    */
   async getPromotionSummary(summaryDto: PromotionSummaryDto): Promise<PromotionSummaryResponse> {
-    const { operatorId, promotionId } = summaryDto;
-
-    // Get promotion details
-    const promotion = await this.promotionModel
-      .findOne({ _id: promotionId, operatorId })
-      .lean()
-      .exec();
+    const { operatorId, promotionId, siteName } = summaryDto;
+    const promotion = await this.promotionModel.findById(promotionId).lean();
 
     if (!promotion) {
       throw new NotFoundException(PROMOTION_NOT_FOUND_DESCRIPTION);
     }
 
-    // Handle promotion summary
-
+    const status = this.getPromotionStatus(promotion.startDate, promotion.endDate);
+    const [result] = await this.playerPromotionModel.aggregate([
+      {
+        $match: {
+          promotionId: new Types.ObjectId(promotionId),
+          operatorId,
+          siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          bonusRedeemed: {
+            $sum: {
+              $cond: [{ $eq: ['$bonusClaimed', true] }, '$baseTotalWinAmount', 0],
+            },
+          },
+          totalTurnover: { $sum: '$baseTotalTurnover' },
+          minRequiredTurnover: { $sum: '$baseMinRequiredTurnover' },
+          uniquePlayers: { $addToSet: '$playerId' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          bonusRedeemed: 1,
+          totalTurnover: 1,
+          minRequiredTurnover: 1,
+          uniquePlayers: { $size: '$uniquePlayers' },
+        },
+      },
+    ]);
     return {
-      status: 'ACTIVE',
-      bonusRedeemed: 0,
-      totalTurnover: 0,
-      minRequiredTurnover: 0,
-      uniquePlayers: 0,
+      status,
+      bonusRedeemed: result?.bonusRedeemed || 0,
+      totalTurnover: result?.totalTurnover || 0,
+      minRequiredTurnover: result?.minRequiredTurnover || 0,
+      uniquePlayers: result?.uniquePlayers || 0,
     };
   }
 }
