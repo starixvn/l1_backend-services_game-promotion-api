@@ -32,16 +32,16 @@ export class PromotionTicket {
   @Prop({ required: true, type: Number })
   winAmount: number;
 
-  @Prop({ required: true, type: Number })
+  @Prop({ required: false, type: Number })
   baseTotalAmount: number;
 
-  @Prop({ required: true, type: Number })
+  @Prop({ required: false, type: Number })
   baseBetWin: number;
 
-  @Prop({ required: true, type: Number })
+  @Prop({ required: false, type: Number })
   exchangeRateId: number;
 
-  @Prop({ required: true, type: String })
+  @Prop({ required: false, type: String })
   currency: string;
 }
 

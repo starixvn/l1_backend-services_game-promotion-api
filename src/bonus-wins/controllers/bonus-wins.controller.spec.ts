@@ -38,6 +38,7 @@ describe('BonusWinsController', () => {
         operatorId: 'op1',
         siteName: 'site1',
         betAmount: 100.0,
+        baseTotalAmount: 100,
         gameId: 1001,
       };
       const response = {
@@ -53,6 +54,7 @@ describe('BonusWinsController', () => {
         dto.siteName,
         dto.betAmount,
         dto.gameId,
+        dto.baseTotalAmount,
       );
     });
 
@@ -63,6 +65,7 @@ describe('BonusWinsController', () => {
         siteName: 'site2',
         betAmount: 50.0,
         gameId: 1001,
+        baseTotalAmount: 100,
       };
       const response = {
         success: false,
@@ -82,6 +85,7 @@ describe('BonusWinsController', () => {
         siteName: 'site3',
         betAmount: 25.0,
         gameId: 1001,
+        baseTotalAmount: 100,
       };
       const response = {
         success: false,
@@ -98,6 +102,7 @@ describe('BonusWinsController', () => {
         dto.siteName,
         dto.betAmount,
         dto.gameId,
+        dto.baseTotalAmount,
       );
     });
   });

@@ -77,6 +77,9 @@ describe('PlayerPromotionController', () => {
           claimedAt: new Date(),
           isCompleted: false,
           coinValue: 0,
+          baseTotalWinAmount: 0,
+          baseTotalTurnover: 0,
+          baseMinRequiredTurnover: 0,
         },
       };
       mockPlayerPromotionService.claimPromotion.mockResolvedValue(expectedResponse);
@@ -328,6 +331,9 @@ describe('PlayerPromotionController', () => {
           claimedAt: new Date(),
           isCompleted: false,
           coinValue: 0,
+          baseTotalWinAmount: 0,
+          baseTotalTurnover: 0,
+          baseMinRequiredTurnover: 0,
         },
       };
       mockPlayerPromotionService.redeemPromotion.mockResolvedValue(expectedResponse);
