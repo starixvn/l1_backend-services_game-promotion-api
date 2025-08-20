@@ -10,33 +10,33 @@ export class CreatePromotionTicketDto {
   @IsString()
   operatorId: string;
 
-  @ApiProperty({ description: 'Site name' })
-  @IsString()
-  siteName: string;
-
   @ApiProperty({ description: 'Promotion identifier' })
   @IsString()
   promotionId: string;
+
+  @ApiProperty({ description: 'Site name' })
+  @IsString()
+  siteName: string;
 
   @ApiProperty({ description: 'Game identifier' })
   @IsNumber()
   @IsPositive()
   gameId: number;
 
-  @ApiProperty({ description: 'Game round identifier' })
+  @ApiProperty({ description: 'Bet amount' })
   @IsNumber()
   @IsPositive()
-  gameRoundId: number;
+  betAmount: number;
 
   @ApiProperty({ description: 'Application type' })
   @IsNumber()
   @IsPositive()
   appType: number;
 
-  @ApiProperty({ description: 'Bet amount' })
+  @ApiProperty({ description: 'Game round identifier' })
   @IsNumber()
   @IsPositive()
-  betAmount: number;
+  gameRoundId: number;
 
   @ApiProperty({ description: 'Win amount' })
   @IsNumber()

@@ -11,20 +11,20 @@ export class ClaimBonusWinsDto {
   playerId: string;
 
   @ApiProperty({
-    description: 'Operator ID',
-    example: 'op123',
-  })
-  @IsString()
-  @IsNotEmpty()
-  operatorId: string;
-
-  @ApiProperty({
     description: 'Site name',
     example: 'site456',
   })
   @IsString()
   @IsNotEmpty()
   siteName: string;
+
+  @ApiProperty({
+    description: 'Operator ID',
+    example: 'op123',
+  })
+  @IsString()
+  @IsNotEmpty()
+  operatorId: string;
 
   @ApiProperty({
     description: 'Promotion ID',
