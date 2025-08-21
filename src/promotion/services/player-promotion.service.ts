@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
+import { LoggerService } from '../../core/logger/logger.service';
+import { PlayerDto } from '../models/player.dto';
+import * as Responses from '../responses';
+import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
+import { EligiblePromotion } from '../responses/eligible-promotion.response';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
-import { PlayerDto } from '../models/player.dto';
-import { EligiblePromotion } from '../responses/eligible-promotion.response';
-import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
-import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
 
 /**
  * Service for managing player promotions
@@ -18,6 +20,7 @@ export class PlayerPromotionService {
     private readonly playerPromotionModel: Model<PlayerPromotionDocument>,
     @InjectModel(Promotion.name)
     private readonly promotionModel: Model<PromotionDocument>,
+    private readonly loggerService: LoggerService,
   ) {}
 
   /**
@@ -25,26 +28,31 @@ export class PlayerPromotionService {
    * @param playerDto Player information
    * @returns Current player promotion or null if none available
    */
-  async claimPromotion(playerDto: PlayerDto): Promise<any> {
-    const { operatorId, siteName, playerId, currencyGroup } = playerDto;
+  async claimPromotion(playerDto: PlayerDto): Promise<Responses.PlayerPromotionResponse | null> {
+    const { operatorId, siteName, playerId, currencyGroup, gameId } = playerDto;
 
     // Step 1: Check if player already has an active promotion
-    const existingPromotion = await this.findExistingPromotion(playerId, operatorId, siteName);
+    const existingPromotion = await this.findExistingPromotion(
+      playerId,
+      operatorId,
+      siteName,
+      gameId,
+    );
+
     if (existingPromotion) {
-      const result = { ...existingPromotion };
-      delete result._id;
-      delete result.__v;
-      return result;
+      return this.mapToPlayerPromotionResponse(existingPromotion);
     }
 
     // Step 2: Find available promotions for the player
     const availablePromotions = await this.getAvailablePromotions(playerDto);
-    if (availablePromotions.length === 0) {
+    const nonGiftCodePromotions = availablePromotions.filter(promotion => !promotion.isGiftCode);
+
+    if (nonGiftCodePromotions.length === 0) {
       return null;
     }
 
     // Step 3: Claim the first available promotion
-    const firstPromotion = availablePromotions[0];
+    const firstPromotion = nonGiftCodePromotions[0];
     const playerPromotion = await this.assignPromotionToPlayer(
       playerId,
       firstPromotion._id,
@@ -52,14 +60,7 @@ export class PlayerPromotionService {
       siteName,
       currencyGroup,
     );
-    const result = playerPromotion.toObject ? playerPromotion.toObject() : { ...playerPromotion };
-    delete result._id;
-    delete result.__v;
-    return result;
-  }
-
-  async getCurrentPromotion(playerDto: PlayerDto): Promise<PlayerPromotionDocument | null> {
-    return this.claimPromotion(playerDto);
+    return this.mapToPlayerPromotionResponse(playerPromotion);
   }
 
   /**
@@ -108,7 +109,11 @@ export class PlayerPromotionService {
         name: promotion.name,
         code: promotion.code,
         bonusItemCount: promotion.bonusItemCount,
+        gameIds: promotion.gameIds,
         currencyGroup: playerCurrencyGroup,
+        isGiftCode: promotion.isGiftCode,
+        startDate: promotion.startDate,
+        endDate: promotion.endDate,
       };
     });
   }
@@ -118,26 +123,93 @@ export class PlayerPromotionService {
    * @param playerId Player ID
    * @param operatorId Operator ID
    * @param siteName Site name
+   * @param giftCode Optional gift code to filter by
    * @returns Existing promotion or null
    */
-  private async findExistingPromotion(
+  async findExistingPromotion(
     playerId: string,
     operatorId: string,
     siteName: string,
+    gameId?: number,
+    giftCode?: string,
   ): Promise<PlayerPromotionDocument | null> {
-    const now = new Date();
+    const playerPromotions = await this.findPlayerPromotion(
+      playerId,
+      operatorId,
+      siteName,
+      giftCode,
+    );
 
-    return this.playerPromotionModel
-      .findOne({
-        playerId,
-        operatorId,
-        siteName,
-        remainingBonusItems: { $gt: 0 },
-        startDate: { $lte: now },
-        endDate: { $gt: now },
+    const promotions = await this.promotionModel
+      .find({
+        _id: { $in: playerPromotions.map(playerPromotion => playerPromotion.promotionId) },
       })
       .lean()
       .exec();
+
+    for (const playerPromotion of playerPromotions) {
+      const promotion = promotions?.find(
+        promotion => promotion._id.toString() === playerPromotion.promotionId.toString(),
+      );
+
+      if (
+        this.isPromotionActive(playerPromotion, promotion || null) &&
+        (promotion?.gameIds.length === 0 || (gameId && promotion?.gameIds.includes(gameId)))
+      ) {
+        return playerPromotion;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find player promotion by basic criteria
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param giftCode Optional gift code
+   * @returns Player promotion or null
+   */
+  private async findPlayerPromotion(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    giftCode?: string,
+  ): Promise<PlayerPromotionDocument[]> {
+    const query: any = {
+      playerId,
+      operatorId,
+      siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
+      bonusClaimed: false,
+    };
+
+    if (giftCode) {
+      query.promotionCode = giftCode;
+    }
+
+    return this.playerPromotionModel.find(query).lean().exec();
+  }
+
+  /**
+   * Check if promotion is active based on completion status and time conditions
+   * @param playerPromotion Player promotion document
+   * @param promotion Promotion document
+   * @returns True if promotion is active
+   */
+  private isPromotionActive(
+    playerPromotion: PlayerPromotionDocument,
+    promotion: PromotionDocument | null,
+  ): boolean {
+    const now = new Date();
+
+    if (!promotion || (playerPromotion.isCompleted && playerPromotion.totalWinAmount === 0)) {
+      return false;
+    }
+
+    return (
+      (playerPromotion.isCompleted && now <= promotion.claimExpirationDate) ||
+      (now >= playerPromotion.startDate && now <= playerPromotion.endDate)
+    );
   }
 
   /**
@@ -184,7 +256,7 @@ export class PlayerPromotionService {
     operatorId: string,
     siteName: string,
   ): Promise<PromotionDocument[]> {
-    if (promotions.length === 0) {
+    if (!promotions || promotions.length === 0) {
       return [];
     }
 
@@ -193,7 +265,7 @@ export class PlayerPromotionService {
       .find({
         playerId,
         operatorId,
-        siteName,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
       })
       .lean()
       .exec();
@@ -231,7 +303,10 @@ export class PlayerPromotionService {
         currencyGroups: { $in: [currencyGroup] },
         $and: [
           {
-            $or: [{ offeredSiteNames: { $size: 0 } }, { offeredSiteNames: siteName }],
+            $or: [
+              { offeredSiteNames: { $size: 0 } },
+              { offeredSiteNames: { $regex: new RegExp(`^${siteName}$`, 'i') } },
+            ],
           },
           {
             $or: [{ offeredPlayerIds: { $size: 0 } }, { offeredPlayerIds: playerId }],
@@ -281,6 +356,10 @@ export class PlayerPromotionService {
       betLevel => betLevel.currencyGroup.toString() === currencyGroup.toString(),
     );
 
+    const coinValueInfo = promotion.coinValues.find(
+      coinValue => coinValue.currencyGroup.toString() === currencyGroup.toString(),
+    );
+
     const playerPromotion = new this.playerPromotionModel({
       playerId,
       operatorId,
@@ -294,7 +373,13 @@ export class PlayerPromotionService {
       startDate: promotion.startDate,
       endDate: promotion.endDate,
       lastUsedDate: null,
-      isGiftCode: true,
+      isGiftCode: promotion.isGiftCode,
+      totalTurnover: 0,
+      totalWinAmount: 0,
+      minRequiredTurnover: 0,
+      turnoverMultiplier: promotion.minTurnoverMultiplier,
+      isCompleted: false,
+      coinValue: coinValueInfo?.coinValue || 0,
     });
 
     return playerPromotion.save();
@@ -324,12 +409,14 @@ export class PlayerPromotionService {
     operatorId: string,
     playerId: string,
     promotionId: string,
+    siteName: string,
   ): Promise<DeductBonusItemResponse> {
     const result = await this.playerPromotionModel.findOneAndUpdate(
       {
         operatorId,
         playerId,
         promotionId,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
         remainingBonusItems: { $gt: 0 },
       },
       {
@@ -396,5 +483,178 @@ export class PlayerPromotionService {
       success: false,
       ...PLAYER_PROMOTION_ERROR_CODES.ROLLBACK_FAILED,
     };
+  }
+
+  /**
+   * Map PlayerPromotionDocument to PlayerPromotionResponse
+   * @param playerPromotion Player promotion document
+   * @returns PlayerPromotionResponse
+   */
+  private mapToPlayerPromotionResponse(
+    playerPromotion: PlayerPromotionDocument,
+  ): Responses.PlayerPromotionResponse {
+    const promotionData = {
+      playerId: playerPromotion.playerId,
+      operatorId: playerPromotion.operatorId,
+      siteName: playerPromotion.siteName,
+      promotionId: playerPromotion.promotionId,
+      promotionCode: playerPromotion.promotionCode,
+      currencyGroup: playerPromotion.currencyGroup,
+      remainingBonusItems: playerPromotion.remainingBonusItems,
+      initialBonusItem: playerPromotion.initialBonusItem,
+      betLevel: playerPromotion.betLevel,
+      startDate: playerPromotion.startDate,
+      endDate: playerPromotion.endDate,
+      lastUsedDate: playerPromotion.lastUsedDate,
+      isGiftCode: playerPromotion.isGiftCode,
+      totalTurnover: playerPromotion.totalTurnover,
+      totalWinAmount: playerPromotion.totalWinAmount,
+      minRequiredTurnover: playerPromotion.minRequiredTurnover,
+      turnoverMultiplier: playerPromotion.turnoverMultiplier,
+      bonusClaimed: playerPromotion.bonusClaimed,
+      claimedAt: playerPromotion.claimedAt,
+      isCompleted: playerPromotion.isCompleted,
+      coinValue: playerPromotion.coinValue,
+    };
+
+    return {
+      success: true,
+      promotion: promotionData,
+    };
+  }
+
+  /**
+   * Redeem a gift code promotion
+   * @param playerDto Player information
+   * @param giftCode Gift code to redeem
+   * @returns Player promotion response or null if invalid
+   */
+  async redeemPromotion(
+    playerDto: PlayerDto,
+    giftCode: string,
+  ): Promise<Responses.PlayerPromotionResponse> {
+    try {
+      const validationResult = this.validateGiftCodeInput(giftCode);
+      if (!validationResult.isValid) {
+        return this.createErrorResponse(validationResult.errorCode);
+      }
+
+      const { operatorId, siteName, playerId, currencyGroup, gameId } = playerDto;
+
+      // Check if player already has an active promotion (with gift code filter)
+      const existingPromotion = await this.hasPlayerClaimedPromotion(
+        playerId,
+        operatorId,
+        siteName,
+        giftCode,
+      );
+      if (existingPromotion) {
+        return this.createErrorResponse(PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE);
+      }
+
+      // Find and validate promotion by gift code
+      const promotion = await this.findPromotionByGiftCode(giftCode, playerDto, gameId);
+      if (!promotion) {
+        return this.createErrorResponse(PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE);
+      }
+
+      // Claim the promotion
+      const playerPromotion = await this.assignPromotionToPlayer(
+        playerId,
+        promotion._id,
+        operatorId,
+        siteName,
+        currencyGroup,
+      );
+      return this.mapToPlayerPromotionResponse(playerPromotion);
+    } catch (error) {
+      this.loggerService.error(error);
+      return this.createErrorResponse(PLAYER_PROMOTION_ERROR_CODES.UNEXPECTED_GIFT_CODE_ERROR);
+    }
+  }
+
+  /**
+   * Validate gift code input
+   * @param giftCode Gift code to validate
+   * @returns Validation result with error code if invalid
+   */
+  private validateGiftCodeInput(giftCode: string): { isValid: boolean; errorCode?: any } {
+    if (!giftCode) {
+      return {
+        isValid: false,
+        errorCode: PLAYER_PROMOTION_ERROR_CODES.GIFT_CODE_REQUIRED,
+      };
+    }
+    return { isValid: true };
+  }
+
+  /**
+   * Create error response with consistent structure
+   * @param errorCode Error code object
+   * @returns Error response
+   */
+  private createErrorResponse(errorCode: any): Responses.PlayerPromotionResponse {
+    return {
+      success: false,
+      ...errorCode,
+    };
+  }
+
+  /**
+   * Find promotion by gift code
+   * @param giftCode Gift code
+   * @param operatorId Operator ID
+   * @param currencyGroup Currency group
+   * @returns Promotion or null
+   */
+  private async findPromotionByGiftCode(
+    giftCode: string,
+    playerDto: PlayerDto,
+    gameId: number,
+  ): Promise<PromotionDocument | null> {
+    const now = new Date();
+    return this.promotionModel
+      .findOne({
+        code: giftCode,
+        operatorId: playerDto.operatorId,
+        isGiftCode: true,
+        gameIds: { $in: [gameId] },
+        startDate: { $lte: now },
+        endDate: { $gt: now },
+        currencyGroups: { $in: [playerDto.currencyGroup] },
+        $or: [
+          { offeredSiteNames: { $size: 0 } }, // Offer all sites if siteName is empty
+          { offeredSiteNames: { $regex: new RegExp(`^${playerDto.siteName}$`, 'i') } }, // Check if player's site is in the list
+        ],
+      })
+      .lean()
+      .exec();
+  }
+
+  /**
+   * Check if player has already claimed a specific promotion
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionCode Promotion code
+   * @returns Boolean indicating if claimed
+   */
+  private async hasPlayerClaimedPromotion(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionCode: string,
+  ): Promise<boolean> {
+    const claimedPromotion = await this.playerPromotionModel
+      .findOne({
+        playerId,
+        operatorId,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
+        promotionCode: promotionCode,
+      })
+      .lean()
+      .exec();
+
+    return !!claimedPromotion;
   }
 }

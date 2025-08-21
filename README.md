@@ -10,6 +10,7 @@ This API provides CRUD operations for managing game promotions in a minigame dat
 
 - Create, read, update, and delete promotions
 - Advanced promotion filtering (by operator, status, code)
+- Bet levels and coin values configuration for promotions
 - Health check endpoint
 - MongoDB integration via Mongoose
 - Input validation using class-validator
@@ -86,6 +87,23 @@ This interactive UI allows you to:
 - See request/response schemas
 - Test API endpoints directly from the browser
 
+## Documentation
+
+### API Endpoints Documentation
+
+- **[Promotion API](diagrams/api-endpoints/PromotionAPI.md)** - Core promotion management endpoints
+- **[Turnover Tracking APIs](diagrams/api-endpoints/TurnoverTrackingAPIs.md)** - Turnover tracking and bonus win claim APIs
+
+### Sequence Diagrams
+
+- **[Turnover Tracking Flow](diagrams/sequence/TurnoverTrackingFlow.md)** - Complete flow of turnover tracking system
+
+### Architecture Diagrams
+
+- **[Data Models](diagrams/data-models/)** - Database schemas and data models
+- **[Architecture](diagrams/architecture/)** - System architecture diagrams
+- **[Deployment](diagrams/deployment/)** - Deployment and infrastructure diagrams
+
 ## API Endpoints
 
 ### Health Check
@@ -114,6 +132,56 @@ Promotions can be filtered by their current status:
 
 Example: `GET /promotions?status=running&operatorIds=op123,op456&code=summer-promo`
 
+## Promotion Configuration
+
+### Bet Levels and Coin Values
+
+Promotions can be configured with both bet levels and coin values to support different currency configurations:
+
+#### Bet Levels (ClassicSlot)
+- **Purpose**: Define bet amounts for different currency groups in ClassicSlot games
+- **Game Type**: Used with `gameConfigType: 2` (ClassicSlot)
+- **Structure**: Array of objects with `currencyGroup` (ObjectId) and `betLevel` (Number)
+- **Optional**: Can be omitted if not needed
+- **Example**:
+```json
+{
+  "gameConfigType": 2,
+  "betLevels": [
+    {
+      "currencyGroup": "60d21b4667d0d01ce67a7e3b",
+      "betLevel": 0.2
+    }
+  ]
+}
+```
+
+#### Coin Values (CascadingSlot)
+- **Purpose**: Define coin values for different currency groups in CascadingSlot games
+- **Game Type**: Used with `gameConfigType: 3` (CascadingSlot)
+- **Structure**: Array of objects with `currencyGroup` (ObjectId) and `coinValue` (Number)
+- **Optional**: Can be omitted if not needed
+- **Example**:
+```json
+{
+  "gameConfigType": 3,
+  "coinValues": [
+    {
+      "currencyGroup": "60d21b4667d0d01ce67a7e3b",
+      "coinValue": 0.2
+    }
+  ]
+}
+```
+
+### Game Configuration Types
+- **ClassicSlot** (2): Traditional slot game configuration - uses bet levels
+- **CascadingSlot** (3): Cascading slot game configuration - uses coin values
+
+### Gift Code Support
+- **isGiftCode**: Boolean flag to indicate if the promotion is a gift code
+- **minTurnoverMultiplier**: Minimum turnover multiplier required (default: 2X)
+
 ## Collections
 
 The API uses the following MongoDB collections:
@@ -129,14 +197,21 @@ The API uses the following MongoDB collections:
     currencyGroups: [ObjectId],       // Array of currency groups, not allowed to be empty
     startDate: Date,                  // Start date and time
     endDate: Date,                    // End date and time
+    claimExpirationDate: Date,        // Date when bonus items become unclaimable
     bonusItemCount: Number,           // Number of free spins per player
     offeredPlayerIds: [String],       // List of eligible player IDs, empty means all
     gameConfigType: Number,           // 2: "ClassicSlot" | 3: "CascadingSlot"
     gameIds: [Number],                // List of eligible games, not null
-    betLevels: [{                     // List of bet levels for this promotion
+    betLevels: [{                     // List of bet levels for this promotion (optional)
         currencyGroup: ObjectId,
         betLevel: Number
-    }]
+    }],
+    coinValues: [{                    // List of coin values for this promotion (optional)
+        currencyGroup: ObjectId,
+        coinValue: Number
+    }],
+    isGiftCode: Boolean,              // Indicates if this promotion is a gift code
+    minTurnoverMultiplier: Number     // Minimum TO multiplier required (at least 2X)
 }
 ```
 

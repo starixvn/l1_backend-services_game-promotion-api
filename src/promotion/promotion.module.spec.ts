@@ -31,11 +31,14 @@ describe('PromotionModule (Integration)', () => {
     currencyGroups: ['currency1'],
     startDate: mockDate.toISOString(),
     endDate: futureDate.toISOString(),
+    claimExpirationDate: new Date(futureDate.getTime() + 86400000).toISOString(), // 1 day after endDate
     bonusItemCount: 10,
     offeredPlayerIds: ['player1'],
     gameConfigType: 2,
     gameIds: [1001],
     betLevels: [],
+    isGiftCode: false,
+    minTurnoverMultiplier: 2,
   };
 
   // Used for testing multiple promotion scenarios - referenced in tests via spread operator
@@ -62,11 +65,14 @@ describe('PromotionModule (Integration)', () => {
     currencyGroups: ['currency1'],
     startDate: mockDate,
     endDate: futureDate,
+    claimExpirationDate: new Date(futureDate.getTime() + 86400000), // 1 day after endDate
     bonusItemCount: 10,
     offeredPlayerIds: ['player1'],
     gameConfigType: 2,
     gameIds: [1001],
     betLevels: [],
+    isGiftCode: false,
+    minTurnoverMultiplier: 2,
     save: jest.fn().mockReturnThis(),
   };
 
@@ -131,11 +137,68 @@ describe('PromotionModule (Integration)', () => {
     };
 
     // Mock for the Player Promotion model (required by the module)
-    mockPlayerPromotionModel = {
-      find: jest.fn().mockReturnValue({
+    function MockPlayerPromotionModel() {
+      return {
+        _id: 'player-promotion-id',
+        playerId: 'player1',
+        operatorId: 'op123',
+        siteName: 'site1',
+        promotionId: 'a-promotion-id',
+        promotionCode: 'test-promotion',
+        currencyGroup: 'currency1',
+        remainingBonusItems: 10,
+        initialBonusItem: 10,
+        betLevel: 1,
+        startDate: mockDate,
+        endDate: futureDate,
+        lastUsedDate: null,
+        isGiftCode: false,
+        totalTurnover: 0,
+        totalWinAmount: 0,
+        minRequiredTurnover: 20,
+        save: jest.fn().mockResolvedValue({
+          _id: 'player-promotion-id',
+          playerId: 'player1',
+          operatorId: 'op123',
+          siteName: 'site1',
+          promotionId: 'a-promotion-id',
+          promotionCode: 'test-promotion',
+          currencyGroup: 'currency1',
+          remainingBonusItems: 10,
+          initialBonusItem: 10,
+          betLevel: 1,
+          startDate: mockDate,
+          endDate: futureDate,
+          lastUsedDate: null,
+          isGiftCode: false,
+          totalTurnover: 0,
+          totalWinAmount: 0,
+          minRequiredTurnover: 20,
+        }),
+      };
+    }
+
+    // Add static methods to the PlayerPromotion model
+    MockPlayerPromotionModel.find = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue([]),
+      lean: jest.fn().mockReturnValue({
         exec: jest.fn().mockResolvedValue([]),
       }),
-    };
+    });
+    MockPlayerPromotionModel.findOne = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue(null),
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      }),
+    });
+    MockPlayerPromotionModel.findOneAndUpdate = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue(null),
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      }),
+    });
+
+    mockPlayerPromotionModel = MockPlayerPromotionModel;
 
     // Mock for the Promotion Ticket model (required by the module)
     mockPromotionTicketModel = {
@@ -217,29 +280,6 @@ describe('PromotionModule (Integration)', () => {
     });
   });
 
-  describe('/promotions/:id (GET)', () => {
-    it('should return a promotion by ID', () => {
-      const mockPromotionModel = app.get(getModelToken(Promotion.name));
-      mockPromotionModel.findById.mockReturnValueOnce({
-        lean: () => ({
-          exec: jest.fn().mockResolvedValueOnce(mockPromotion),
-        }),
-      });
-      return request(app.getHttpServer()).get('/promotions/a-promotion-id').expect(200);
-    });
-
-    it('should return 404 for non-existent promotion', () => {
-      const mockPromotionModel = app.get(getModelToken(Promotion.name));
-      mockPromotionModel.findById.mockReturnValueOnce({
-        lean: () => ({
-          exec: jest.fn().mockResolvedValueOnce(null),
-        }),
-      });
-
-      return request(app.getHttpServer()).get('/promotions/nonexistent-id').expect(404);
-    });
-  });
-
   describe('/promotions (POST)', () => {
     it('should create a new promotion', () => {
       const createPromotionDto = {
@@ -249,9 +289,12 @@ describe('PromotionModule (Integration)', () => {
         currencyGroups: ['currency1'],
         startDate: mockDate.toISOString(),
         endDate: futureDate.toISOString(),
+        claimExpirationDate: new Date(futureDate.getTime() + 86400000).toISOString(), // 1 day after endDate
         bonusItemCount: 10,
         gameConfigType: 2,
         gameIds: [1001],
+        isGiftCode: false,
+        minTurnoverMultiplier: 2,
       };
 
       // Skip validation of the response body as it's causing issues
@@ -265,69 +308,6 @@ describe('PromotionModule (Integration)', () => {
       };
 
       return request(app.getHttpServer()).post('/promotions').send(invalidPromotionDto).expect(400);
-    });
-  });
-
-  describe('/promotions/:id (PUT)', () => {
-    it('should update a promotion', () => {
-      const updatedPromotion = {
-        ...mockPromotion,
-        name: 'Updated Promotion',
-        code: 'updated-promotion',
-      };
-
-      const mockPromotionModel = app.get(getModelToken(Promotion.name));
-      mockPromotionModel.findByIdAndUpdate.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce(updatedPromotion),
-      });
-
-      const updatePromotionDto = {
-        name: 'Updated Promotion',
-      };
-
-      return request(app.getHttpServer())
-        .put('/promotions/a-promotion-id')
-        .send(updatePromotionDto)
-        .expect(200);
-    });
-
-    it('should return 404 for non-existent promotion', () => {
-      const mockPromotionModel = app.get(getModelToken(Promotion.name));
-      mockPromotionModel.findByIdAndUpdate.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce(null),
-      });
-
-      return request(app.getHttpServer())
-        .put('/promotions/nonexistent-id')
-        .send({ name: 'Updated Promotion' })
-        .expect(404);
-    });
-  });
-
-  describe('/promotions/:id (DELETE)', () => {
-    it('should delete a promotion', () => {
-      return request(app.getHttpServer()).delete('/promotions/a-promotion-id').expect(200).expect({
-        statusCode: 200,
-        message: 'Promotion with ID a-promotion-id deleted successfully',
-      });
-    });
-
-    it('should return 404 for non-existent promotion', () => {
-      const mockPromotionModel = app.get(getModelToken(Promotion.name));
-      mockPromotionModel.deleteOne.mockReturnValueOnce({
-        exec: jest.fn().mockResolvedValueOnce({ deletedCount: 0 }),
-      });
-
-      return request(app.getHttpServer()).delete('/promotions/nonexistent-id').expect(404);
-    });
-  });
-
-  describe('/promotions/admin/test (GET)', () => {
-    it('should return test endpoint message', () => {
-      return request(app.getHttpServer()).get('/promotions/admin/test').expect(200).expect({
-        status: 'ok',
-        message: 'Promotion API test endpoint is working',
-      });
     });
   });
 

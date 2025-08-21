@@ -35,6 +35,7 @@ describe('PlayerPromotionController - deductBonusItem', () => {
       operatorId: 'operator123',
       playerId: 'player456',
       promotionId: 'promotion789',
+      siteName: 'site123',
     };
 
     it('should successfully deduct bonus item and return success response', async () => {
@@ -52,6 +53,7 @@ describe('PlayerPromotionController - deductBonusItem', () => {
         inputDto.operatorId,
         inputDto.playerId,
         inputDto.promotionId,
+        inputDto.siteName,
       );
       expect(actualResult).toEqual(expectedServiceResponse);
     });
@@ -72,6 +74,7 @@ describe('PlayerPromotionController - deductBonusItem', () => {
         inputDto.operatorId,
         inputDto.playerId,
         inputDto.promotionId,
+        inputDto.siteName,
       );
       expect(actualResult).toEqual(expectedServiceResponse);
     });
@@ -87,6 +90,7 @@ describe('PlayerPromotionController - deductBonusItem', () => {
         inputDto.operatorId,
         inputDto.playerId,
         inputDto.promotionId,
+        inputDto.siteName,
       );
     });
 
@@ -106,6 +110,7 @@ describe('PlayerPromotionController - deductBonusItem', () => {
         'operator123',
         'player456',
         'promotion789',
+        'site123',
       );
     });
   });

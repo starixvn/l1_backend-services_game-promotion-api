@@ -1,0 +1,495 @@
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { CompletePromotionDto } from 'src/promotion/models/complete-promotion.dto';
+import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
+import { LoggerService } from '../../core/logger/logger.service';
+import { CalculateTORequirementResponse } from '../../promotion/responses/calculate-to-requirement.response';
+import { ClaimBonusWinsResponse } from '../../promotion/responses/claim-bonus-wins.response';
+import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
+import { UpdateTotalWinResponse } from '../../promotion/responses/update-total-win.response';
+import {
+  PlayerPromotion,
+  PlayerPromotionDocument,
+} from '../../promotion/schemas/player-promotion.schema';
+import { Promotion, PromotionDocument } from '../../promotion/schemas/promotion.schema';
+import { PlayerPromotionService } from '../../promotion/services/player-promotion.service';
+
+/**
+ * Service for managing bonus wins and turnover tracking
+ */
+@Injectable()
+export class BonusWinsService {
+  constructor(
+    @InjectModel(PlayerPromotion.name)
+    private readonly playerPromotionModel: Model<PlayerPromotionDocument>,
+    @InjectModel(Promotion.name)
+    private readonly promotionModel: Model<PromotionDocument>,
+    private readonly loggerService: LoggerService,
+    private readonly playerPromotionService: PlayerPromotionService,
+  ) {}
+
+  /**
+   * Update total win amount for a player promotion
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @param winAmount Win amount to add
+   * @returns Success response with updated total win amount
+   */
+  async updateTotalWinAmount(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+    winAmount: number,
+  ): Promise<UpdateTotalWinResponse> {
+    try {
+      const roundedWinAmount = Math.round(winAmount * 100) / 100;
+      const result = await this.playerPromotionModel.findOneAndUpdate(
+        {
+          playerId,
+          operatorId,
+          siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
+          promotionId,
+        },
+        {
+          $set: { totalWinAmount: roundedWinAmount },
+        },
+        {
+          new: true,
+          lean: true,
+        },
+      );
+
+      if (result) {
+        return {
+          success: true,
+          totalWinAmount: result.totalWinAmount,
+          remainingBonusItems: result.remainingBonusItems,
+        };
+      }
+    } catch (error) {
+      this.loggerService.error('Error in updateTotalWinAmount', error.stack, {
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        winAmount,
+        error: error.message,
+      });
+    }
+
+    return {
+      success: false,
+      totalWinAmount: 0,
+      remainingBonusItems: 0,
+      ...PLAYER_PROMOTION_ERROR_CODES.UPDATE_TOTAL_WIN_FAILED,
+    };
+  }
+
+  /**
+   * Update total turnover for active bonus win
+   * Tracks TO for all eligible games
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param betAmount Bet amount to add
+   * @returns Success response with updated total turnover and remaining TO
+   */
+  async updateTotalTurnover(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    betAmount: number,
+    gameId: number,
+  ): Promise<GetTOProgressResponse> {
+    try {
+      const activeBonusWin = await this.playerPromotionService.findExistingPromotion(
+        playerId,
+        operatorId,
+        siteName,
+        gameId,
+      );
+
+      if (!activeBonusWin || !activeBonusWin.isCompleted) {
+        return {
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          remainingTO: 0,
+          progressPercentage: 0,
+          canClaim: false,
+          totalWinAmount: 0,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.NO_ACTIVE_BONUS_WIN.code,
+        };
+      }
+
+      const result = await this.playerPromotionModel.findOneAndUpdate(
+        { _id: activeBonusWin._id },
+        { $inc: { totalTurnover: betAmount } },
+        { new: true, lean: true },
+      );
+
+      if (result) {
+        return this.getTOProgress(
+          playerId,
+          operatorId,
+          siteName,
+          activeBonusWin.promotionId.toString(),
+        );
+      }
+    } catch (error) {
+      this.loggerService.error('Error in updateTotalTurnover', error.stack, {
+        playerId,
+        operatorId,
+        siteName,
+        betAmount,
+        error: error.message,
+      });
+    }
+
+    return {
+      totalTurnover: 0,
+      minRequiredTurnover: 0,
+      remainingTO: 0,
+      progressPercentage: 0,
+      canClaim: false,
+      totalWinAmount: 0,
+      errorCode: PLAYER_PROMOTION_ERROR_CODES.UPDATE_TOTAL_TO_FAILED.code,
+    };
+  }
+
+  /**
+   * Calculate TO requirement for a player promotion
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @returns Success response with calculated TO requirement
+   */
+  async calculateTORequirement(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<CalculateTORequirementResponse> {
+    try {
+      const playerPromotion = await this.playerPromotionModel.findOneAndUpdate(
+        {
+          playerId,
+          operatorId,
+          siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
+          promotionId,
+          remainingBonusItems: 0,
+          turnoverMultiplier: { $gte: 2.0, $ne: null },
+        },
+        [
+          {
+            $set: {
+              minRequiredTurnover: {
+                $multiply: ['$totalWinAmount', '$turnoverMultiplier'],
+              },
+            },
+          },
+        ],
+        {
+          new: true,
+          lean: true,
+        },
+      );
+
+      if (playerPromotion) {
+        const { totalWinAmount, turnoverMultiplier, minRequiredTurnover } = playerPromotion;
+
+        return {
+          success: true,
+          minRequiredTurnover,
+          totalWinAmount,
+          turnoverMultiplier,
+        };
+      }
+    } catch (error) {
+      this.loggerService.error('Error in calculateTORequirement', error.stack, {
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        error: error.message,
+      });
+    }
+
+    return {
+      success: false,
+      minRequiredTurnover: 0,
+      totalWinAmount: 0,
+      turnoverMultiplier: 0,
+      ...PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND,
+    };
+  }
+
+  /**
+   * Find player promotion by promotion ID
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @returns Player promotion document or null
+   */
+  async findByPromotion(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<PlayerPromotionDocument | null> {
+    return this.playerPromotionModel
+      .findOne({
+        playerId,
+        operatorId,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
+        promotionId,
+      })
+      .lean()
+      .exec();
+  }
+
+  /**
+   * Get TO progress status for a player promotion
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @returns TO progress status
+   */
+  async getTOProgress(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<GetTOProgressResponse> {
+    try {
+      const playerPromotion = await this.findByPromotion(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+
+      if (!playerPromotion || !!playerPromotion.claimedAt) {
+        return {
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          remainingTO: 0,
+          progressPercentage: 0,
+          canClaim: false,
+          totalWinAmount: 0,
+          errorCode: playerPromotion?.claimedAt
+            ? PLAYER_PROMOTION_ERROR_CODES.BONUS_ALREADY_CLAIMED.code
+            : PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
+        };
+      }
+
+      const { totalTurnover, minRequiredTurnover, totalWinAmount } = playerPromotion;
+      const promotion = await this.promotionModel
+        .findById(playerPromotion.promotionId)
+        .lean()
+        .exec();
+
+      if (promotion && promotion.claimExpirationDate < new Date()) {
+        return {
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          remainingTO: 0,
+          progressPercentage: 0,
+          canClaim: false,
+          totalWinAmount: 0,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIMING_EXPIRED.code,
+        };
+      }
+
+      const canClaim = this.canClaimBonusWins(totalTurnover, minRequiredTurnover, totalWinAmount);
+
+      // Calculate progress percentage (0-100) rounded to 2 decimal places
+      // If no TO required (minRequiredTurnover = 0), show 100% progress
+      const progressPercentage =
+        minRequiredTurnover === 0
+          ? 100
+          : Math.round(Math.min(100, (totalTurnover / minRequiredTurnover) * 100) * 100) / 100;
+
+      return {
+        totalTurnover,
+        minRequiredTurnover,
+        remainingTO: Math.max(0, minRequiredTurnover - totalTurnover),
+        progressPercentage,
+        canClaim,
+        totalWinAmount,
+        claimExpirationDate: promotion?.claimExpirationDate,
+      };
+    } catch (error) {
+      this.loggerService.error('Error in getTOProgress', error.stack, {
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        error: error.message,
+      });
+
+      return {
+        totalTurnover: 0,
+        minRequiredTurnover: 0,
+        remainingTO: 0,
+        progressPercentage: 0,
+        canClaim: false,
+        totalWinAmount: 0,
+        errorCode: PLAYER_PROMOTION_ERROR_CODES.STREAM_PROCESSING_ERROR.code,
+      };
+    }
+  }
+
+  /**
+   * Claim bonus wins for a player
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @returns Claim bonus wins response
+   */
+  async claimBonusWins(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<ClaimBonusWinsResponse> {
+    try {
+      const toRequirementResult = await this.getTOProgress(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+
+      if (toRequirementResult.errorCode) {
+        return {
+          claimedAmount: 0,
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          totalWinAmount: 0,
+          errorCode: toRequirementResult.errorCode,
+        };
+      }
+
+      if (!toRequirementResult.canClaim) {
+        return {
+          claimedAmount: 0,
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          totalWinAmount: 0,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.code,
+        };
+      }
+
+      const updatedPromotion = await this.playerPromotionModel.findOneAndUpdate(
+        {
+          playerId,
+          operatorId,
+          siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
+          promotionId,
+          bonusClaimed: { $ne: true },
+        },
+        {
+          $set: {
+            bonusClaimed: true,
+            claimedAt: new Date(),
+          },
+        },
+        {
+          new: true,
+          lean: true,
+        },
+      );
+
+      if (updatedPromotion) {
+        const { totalTurnover, minRequiredTurnover, totalWinAmount } = updatedPromotion;
+        return {
+          claimedAmount: totalWinAmount,
+          totalTurnover,
+          minRequiredTurnover,
+          totalWinAmount,
+        };
+      }
+    } catch (error) {
+      this.loggerService.error('Error in claimBonusWins', error.stack, {
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        error: error.message,
+      });
+    }
+
+    return {
+      claimedAmount: 0,
+      totalTurnover: 0,
+      minRequiredTurnover: 0,
+      totalWinAmount: 0,
+      errorCode: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.code,
+    };
+  }
+
+  /**
+   * Calculate if player can claim bonus wins
+   * @param totalTurnover Current total turnover
+   * @param minRequiredTurnover Minimum required turnover
+   * @param totalWinAmount Total win amount from bonus items
+   * @returns Whether player can claim bonus wins
+   */
+  private canClaimBonusWins(
+    totalTurnover: number,
+    minRequiredTurnover: number,
+    totalWinAmount: number,
+  ): boolean {
+    // When minRequiredTurnover = 0, players cannot claim (security measure)
+    return minRequiredTurnover > 0 && totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
+  }
+
+  /**
+   * Complete a promotion by setting isCompleted to true
+   * @param completeDto Complete promotion data
+   * @returns Player promotion response or null if not found
+   */
+  async completePromotion(completeDto: CompletePromotionDto): Promise<GetTOProgressResponse> {
+    const { operatorId, siteName, playerId, promotionId } = completeDto;
+
+    const result = await this.playerPromotionModel.findOneAndUpdate(
+      {
+        operatorId,
+        playerId,
+        promotionId,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
+      },
+      {
+        $set: {
+          isCompleted: true,
+        },
+      },
+      {
+        new: true,
+        lean: true,
+      },
+    );
+
+    if (result) {
+      return this.getTOProgress(playerId, operatorId, siteName, promotionId);
+    }
+
+    return {
+      totalTurnover: 0,
+      minRequiredTurnover: 0,
+      remainingTO: 0,
+      progressPercentage: 0,
+      canClaim: false,
+      totalWinAmount: 0,
+      errorCode: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
+    };
+  }
+}

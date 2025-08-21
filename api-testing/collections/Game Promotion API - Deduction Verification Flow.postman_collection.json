@@ -41,7 +41,14 @@
 					"listen": "prerequest",
 					"script": {
 						"exec": [
-							""
+							"// Set startDate = now\r",
+							"const start = new Date();\r",
+							"pm.environment.set(\"isoTimestamp\", start.toISOString());\r",
+							"\r",
+							"// Set endDate = startDate + 1 day\r",
+							"const end = new Date(start);\r",
+							"end.setDate(end.getDate() + 1);\r",
+							"pm.environment.set(\"isoEndTimestamp\", end.toISOString());"
 						],
 						"type": "text/javascript",
 						"packages": {}
@@ -58,7 +65,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"name\": \"Deduction Test Promotion\",\n  \"code\": \"DEDUCT_TEST_{{$timestamp}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"startDate\": \"{{$isoTimestamp}}\",\n  \"endDate\": \"2025-06-30T23:59:59.000Z\",\n  \"bonusItemCount\": 50,\n  \"currencyGroups\": [\"{{currencyGroup}}\"],\n  \"betLevels\": [\n    {\n      \"currencyGroup\": \"{{currencyGroup}}\",\n      \"betLevel\": 0.1\n    }],\n  \"offeredSiteNames\": [\"{{siteName}}\"],\n  \"offeredPlayerIds\": [],\n  \"gameConfigType\": 2,\n  \"gameIds\": [{{gameId}}]\n}"
+					"raw": "{\n  \"name\": \"Deduction Test Promotion\",\n  \"code\": \"DEDUCT_TEST_{{$timestamp}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"startDate\": \"{{isoTimestamp}}\",\n  \"endDate\": {{isoEndTimestamp}},\n  \"bonusItemCount\": 50,\n  \"currencyGroups\": [\"{{currencyGroup}}\"],\n  \"betLevels\": [\n    {\n      \"currencyGroup\": \"{{currencyGroup}}\",\n      \"betLevel\": 0.1\n    }],\n  \"offeredSiteNames\": [\"{{siteName}}\"],\n  \"offeredPlayerIds\": [],\n  \"gameConfigType\": 2,\n  \"gameIds\": [{{gameId}}]\n}"
 				},
 				"url": {
 					"raw": "{{baseUrl}}/promotions",

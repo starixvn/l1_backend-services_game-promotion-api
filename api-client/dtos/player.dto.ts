@@ -3,4 +3,5 @@ export interface PlayerDto {
   siteName: string;
   playerId: string;
   currencyGroup: string;
+  gameId?: number;
 }

@@ -25,6 +25,7 @@ import { Promotion, PromotionExpiryDocument } from '../schemas/promotion.schema'
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
 import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 import { PaginationResponse } from '../responses/pagination.response';
+import { ParseMongoIdPipe } from '../../core/pipes/parse-mongo-id.pipe';
 
 const PROMOTION_ID_PARAM = {
   name: 'id',
@@ -219,7 +220,7 @@ export class PromotionController {
     type: Promotion,
   })
   @ApiResponse({ status: 404, description: PROMOTION_NOT_FOUND_DESCRIPTION })
-  async findOne(@Param('id') id: string): Promise<Promotion> {
+  async findOne(@Param('id', ParseMongoIdPipe) id: string): Promise<Promotion> {
     return this.promotionService.findOne(id);
   }
 
@@ -240,7 +241,7 @@ export class PromotionController {
   @ApiResponse({ status: 400, description: 'Bad request - invalid data' })
   @ApiResponse({ status: 404, description: PROMOTION_NOT_FOUND_DESCRIPTION })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseMongoIdPipe) id: string,
     @Body() updatePromotionDto: UpdatePromotionDto,
   ): Promise<Promotion> {
     return this.promotionService.update(id, updatePromotionDto);
@@ -269,35 +270,13 @@ export class PromotionController {
     },
   })
   @ApiResponse({ status: 404, description: PROMOTION_NOT_FOUND_DESCRIPTION })
-  async remove(@Param('id') id: string): Promise<{ statusCode: number; message: string }> {
+  async remove(
+    @Param('id', ParseMongoIdPipe) id: string,
+  ): Promise<{ statusCode: number; message: string }> {
     await this.promotionService.remove(id);
     return {
       statusCode: HttpStatus.OK,
       message: `Promotion with ID ${id} deleted successfully`,
-    };
-  }
-
-  /**
-   * Test endpoint for smoke testing
-   * @returns Test message
-   */
-  @Get('admin/test')
-  @ApiOperation({ summary: 'Test endpoint for smoke testing' })
-  @ApiResponse({
-    status: 200,
-    description: 'The API is working properly',
-    schema: {
-      type: 'object',
-      properties: {
-        status: { type: 'string', example: 'ok' },
-        message: { type: 'string', example: 'Promotion API test endpoint is working' },
-      },
-    },
-  })
-  async test(): Promise<{ status: string; message: string }> {
-    return {
-      status: 'ok',
-      message: 'Promotion API test endpoint is working',
     };
   }
 

@@ -24,6 +24,7 @@ const mockPromotion = {
   gameConfigType: 2,
   gameIds: [1001],
   betLevels: [],
+  coinValues: [],
 };
 
 const mockPromotionArray = [
@@ -102,6 +103,9 @@ describe('PromotionController', () => {
         bonusItemCount: 10,
         gameConfigType: 2,
         gameIds: [1001],
+        isGiftCode: false,
+        minTurnoverMultiplier: 2,
+        claimExpirationDate: futureDate,
       };
 
       jest.spyOn(service, 'createPromotion').mockResolvedValueOnce(mockPromotion as any);
@@ -237,16 +241,6 @@ describe('PromotionController', () => {
       await expect(controller.checkCodeExists(undefined as any)).rejects.toThrow(
         BadRequestException,
       );
-    });
-  });
-
-  describe('test', () => {
-    it('should return a test message', async () => {
-      const result = await controller.test();
-      expect(result).toEqual({
-        status: 'ok',
-        message: 'Promotion API test endpoint is working',
-      });
     });
   });
 });

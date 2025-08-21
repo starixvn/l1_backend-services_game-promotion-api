@@ -17,23 +17,75 @@
 export const PLAYER_PROMOTION_ERROR_CODES = {
   PLAYER_PROMOTION_NOT_FOUND: {
     code: 'SB3000',
-    message: 'Player promotion not found',
   },
   DEDUCTION_FAILED: {
     code: 'SB3001',
-    message: 'Cannot deduct bonus item',
   },
   DEDUCTION_SUCCESS: {
     code: 'SB3002',
-    message: 'Bonus item deducted successfully',
   },
   ROLLBACK_SUCCESS: {
     code: 'SB3003',
-    message: 'Bonus item rollback successful',
   },
   ROLLBACK_FAILED: {
     code: 'SB3004',
-    message: 'Cannot rollback bonus item deduction',
+  },
+  TO_REQUIREMENT_NOT_MET: {
+    code: 'SB3005',
+  },
+  BONUS_NOT_COMPLETED: {
+    code: 'SB3006',
+  },
+  INVALID_TARGET_GAME: {
+    code: 'SB3007',
+  },
+  STREAM_PROCESSING_ERROR: {
+    code: 'SB3008',
+  },
+  UPDATE_TOTAL_WIN_SUCCESS: {
+    code: 'SB3009',
+  },
+  UPDATE_TOTAL_WIN_FAILED: {
+    code: 'SB3010',
+  },
+  CALCULATE_TO_SUCCESS: {
+    code: 'SB3011',
+  },
+  CALCULATE_TO_FAILED: {
+    code: 'SB3012',
+  },
+  UPDATE_TOTAL_TO_SUCCESS: {
+    code: 'SB3013',
+  },
+  UPDATE_TOTAL_TO_FAILED: {
+    code: 'SB3014',
+  },
+  INVALID_TURNOVER_MULTIPLIER: {
+    code: 'SB3015',
+  },
+  BONUS_WIN_CLAIM_SUCCESS: {
+    code: 'SB3016',
+  },
+  BONUS_WIN_CLAIM_FAILED: {
+    code: 'SB3017',
+  },
+  BONUS_ALREADY_CLAIMED: {
+    code: 'SB3018',
+  },
+  GIFT_CODE_REQUIRED: {
+    code: 'SB3019',
+  },
+  INVALID_GIFT_CODE: {
+    code: 'SB3020',
+  },
+  UNEXPECTED_GIFT_CODE_ERROR: {
+    code: 'SB3021',
+  },
+  NO_ACTIVE_BONUS_WIN: {
+    code: 'SB3022',
+  },
+  CLAIMING_EXPIRED: {
+    code: 'SB3023',
   },
 } as const;
 
@@ -41,15 +93,12 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
 export const PROMOTION_ERROR_CODES = {
   PROMOTION_NOT_FOUND: {
     code: 'PR3100',
-    message: 'Promotion not found',
   },
   PROMOTION_EXPIRED: {
     code: 'PR3101',
-    message: 'Promotion has expired',
   },
   PROMOTION_NOT_ACTIVE: {
     code: 'PR3102',
-    message: 'Promotion is not active',
   },
 } as const;
 
@@ -57,11 +106,9 @@ export const PROMOTION_ERROR_CODES = {
 export const ANNOUNCEMENT_ERROR_CODES = {
   ANNOUNCEMENT_NOT_FOUND: {
     code: 'AN3200',
-    message: 'Announcement not found',
   },
   ANNOUNCEMENT_EXPIRED: {
     code: 'AN3201',
-    message: 'Announcement has expired',
   },
 } as const;
 
@@ -69,11 +116,15 @@ export const ANNOUNCEMENT_ERROR_CODES = {
 export const PROMOTION_TICKET_ERROR_CODES = {
   CREATION_SUCCESS: {
     code: 'PT3300',
-    message: 'Promotion ticket created successfully',
   },
   CREATION_FAILED: {
     code: 'PT3301',
-    message: 'Failed to create promotion ticket',
+  },
+  UPDATE_SUCCESS: {
+    code: 'PT3302',
+  },
+  UPDATE_FAILED: {
+    code: 'PT3303',
   },
 } as const;
 

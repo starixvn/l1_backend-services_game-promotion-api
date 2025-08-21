@@ -6,10 +6,16 @@ import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
 import { PaginationResponse } from '../responses/pagination.response';
+import { LoggerService } from '../../core/logger/logger.service';
 import {
   PromotionTicket,
   PromotionTicketDocument,
 } from '../../promotion-ticket/schemas/promotion-ticket.schema';
+import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
+
+const EXPIRY_CHECK_SECONDS = 60;
+const MILLISECONDS_PER_SECOND = 1000;
+const DEFAULT_PAGE_SIZE = 10;
 
 @Injectable()
 export class PromotionService {
@@ -18,6 +24,9 @@ export class PromotionService {
     private readonly promotionModel: Model<PromotionDocument>,
     @InjectModel(PromotionTicket.name)
     private readonly promotionTicketModel: Model<PromotionTicketDocument>,
+    @InjectModel(PlayerPromotion.name)
+    private readonly playerPromotionModel: Model<PlayerPromotionDocument>,
+    private readonly logger: LoggerService,
   ) {}
 
   /**
@@ -43,7 +52,7 @@ export class PromotionService {
     const now = new Date();
 
     const pageIndex = filterDto?.pageIndex || 1;
-    const pageSize = filterDto?.pageSize || 10;
+    const pageSize = filterDto?.pageSize || DEFAULT_PAGE_SIZE;
     const skip = (pageIndex - 1) * pageSize;
 
     if (filterDto) {
@@ -194,6 +203,11 @@ export class PromotionService {
    * @returns The found promotion or null
    */
   async findOne(id: string): Promise<Promotion> {
+    if (!id) {
+      this.logger.error(`Promotion ID is required`);
+      throw new NotFoundException(`Promotion ID is required`);
+    }
+
     const promotion = await this.promotionModel.findById(id).lean().exec();
     if (!promotion) {
       throw new NotFoundException(`Promotion with ID ${id} not found`);
@@ -208,6 +222,11 @@ export class PromotionService {
    * @returns The updated promotion
    */
   async update(id: string, updatePromotionDto: UpdatePromotionDto): Promise<Promotion> {
+    if (!id) {
+      this.logger.error(`Promotion ID is required`);
+      throw new NotFoundException(`Promotion ID is required`);
+    }
+
     const update: Record<string, any> = { ...updatePromotionDto };
 
     const updatedPromotion = await this.promotionModel
@@ -227,6 +246,10 @@ export class PromotionService {
    * @returns true if deleted, false otherwise
    */
   async remove(id: string): Promise<boolean> {
+    if (!id) {
+      this.logger.error(`Promotion ID is required`);
+      throw new NotFoundException(`Promotion ID is required`);
+    }
     const result = await this.promotionModel.deleteOne({ _id: id }).exec();
     if (result.deletedCount === 0) {
       throw new NotFoundException(`Promotion with ID ${id} not found`);
@@ -240,7 +263,7 @@ export class PromotionService {
    * @returns true if the code exists, false otherwise
    */
   async doesCodeExist(code: string): Promise<boolean> {
-    const existing = await this.promotionModel.exists({ code });
+    const existing = await this.promotionModel.exists({ code: code.toUpperCase() });
     return !!existing;
   }
 
@@ -292,10 +315,12 @@ export class PromotionService {
   async getExpiringPromotions(gameId?: string): Promise<PromotionExpiryDocument[]> {
     const now = new Date();
     const query: Record<string, any> = {
-      endDate: { $lt: now },
+      endDate: {
+        $lt: now,
+        $gte: new Date(now.getTime() - EXPIRY_CHECK_SECONDS * MILLISECONDS_PER_SECOND),
+      },
     };
 
-    // Add gameId filter if provided
     if (gameId) {
       query.gameIds = { $in: [parseInt(gameId)] };
     }
@@ -304,65 +329,32 @@ export class PromotionService {
       .find(query, null, { sort: { endDate: 1, _id: 1 }, lean: true })
       .exec()) as unknown as PromotionExpiryDocument[];
 
+    const playerPromotions = await this.playerPromotionModel
+      .find({
+        promotionId: { $in: promotionExpirys.map(promotion => promotion._id) },
+        totalWinAmount: { $gt: 0 },
+        isCompleted: false,
+      })
+      .exec();
+
+    const promotionsWithPlayers: PromotionExpiryDocument[] = [];
+
     for (const promotion of promotionExpirys) {
-      const matchPromotionStage = {
-        $match: {
-          promotionId: promotion._id.toString(),
-        },
-      };
+      const playerPromotionExpireds = playerPromotions.filter(
+        playerPromotion => playerPromotion.promotionId.toString() === promotion._id.toString(),
+      );
 
-      const lookupPlayerPromotionStage = {
-        $lookup: {
-          from: 'game_player_promotions',
-          localField: 'playerId',
-          foreignField: 'playerId',
-          as: 'playerPromotion',
-        },
-      };
+      if (playerPromotionExpireds.length > 0) {
+        const playerStats = playerPromotionExpireds.map(playerPromotion => ({
+          playerId: playerPromotion.playerId,
+          totalWin: playerPromotion.totalWinAmount,
+        }));
 
-      const filterActivePlayersStage = {
-        $match: {
-          $or: [
-            // Include players who don't have a promotion record yet
-            { playerPromotion: { $size: 0 } },
-            // Include players who still have remaining bonus items and match the promotion
-            {
-              $and: [
-                { 'playerPromotion.remainingBonusItems': { $gt: 0 } },
-                { 'playerPromotion.promotionId': promotion._id.toString() },
-              ],
-            },
-          ],
-        },
-      };
-
-      const groupByPlayerStage = {
-        $group: {
-          _id: '$playerId',
-          totalWin: { $sum: '$winAmount' },
-        },
-      };
-
-      const projectFinalStage = {
-        $project: {
-          playerId: '$_id',
-          totalWin: 1,
-          _id: 0,
-        },
-      };
-
-      const playerStats = await this.promotionTicketModel
-        .aggregate([
-          matchPromotionStage,
-          lookupPlayerPromotionStage,
-          filterActivePlayersStage,
-          groupByPlayerStage,
-          projectFinalStage,
-        ])
-        .exec();
-      promotion.players = playerStats;
+        promotion.players = playerStats;
+        promotionsWithPlayers.push(promotion);
+      }
     }
 
-    return promotionExpirys;
+    return promotionsWithPlayers;
   }
 }

@@ -10,6 +10,8 @@ import {
   PromotionTicket,
   PromotionTicketSchema,
 } from '../promotion-ticket/schemas/promotion-ticket.schema';
+import { CoreModule } from '../core/core.module';
+import { LoggerService } from '../core/logger/logger.service';
 
 @Module({
   imports: [
@@ -18,9 +20,10 @@ import {
       { name: PlayerPromotion.name, schema: PlayerPromotionSchema },
       { name: PromotionTicket.name, schema: PromotionTicketSchema },
     ]),
+    CoreModule,
   ],
   controllers: [PromotionController, PlayerPromotionController],
-  providers: [PromotionService, PlayerPromotionService],
+  providers: [PromotionService, PlayerPromotionService, LoggerService],
   exports: [PromotionService, PlayerPromotionService],
 })
 export class PromotionModule {}

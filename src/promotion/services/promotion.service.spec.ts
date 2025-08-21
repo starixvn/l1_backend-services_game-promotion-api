@@ -4,10 +4,12 @@ import { Model } from 'mongoose';
 import { PromotionService } from './promotion.service';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { PromotionTicket } from '../../promotion-ticket/schemas/promotion-ticket.schema';
+import { PlayerPromotion } from '../schemas/player-promotion.schema';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionStatus } from '../models/promotion-filter.dto';
 import { NotFoundException } from '@nestjs/common';
+import { LoggerService } from '../../core/logger/logger.service';
 
 // Mock data
 const mockDate = new Date();
@@ -28,6 +30,8 @@ interface MockPromotionType {
   gameConfigType?: number;
   gameIds?: number[];
   betLevels?: any[];
+  isGiftCode?: boolean;
+  minTurnoverMultiplier?: number;
 }
 
 const mockPromotion: MockPromotionType = {
@@ -44,6 +48,8 @@ const mockPromotion: MockPromotionType = {
   gameConfigType: 2,
   gameIds: [1001],
   betLevels: [],
+  isGiftCode: false,
+  minTurnoverMultiplier: 2,
 };
 
 const mockPromotionArray: MockPromotionType[] = [
@@ -139,6 +145,23 @@ describe('PromotionService', () => {
             }),
           },
         },
+        {
+          provide: getModelToken(PlayerPromotion.name),
+          useValue: {
+            find: jest.fn().mockReturnValue({
+              exec: jest.fn().mockResolvedValue([]),
+            }),
+            aggregate: jest.fn().mockReturnValue({
+              exec: jest.fn().mockResolvedValue([]),
+            }),
+          },
+        },
+        {
+          provide: LoggerService,
+          useValue: {
+            error: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -166,6 +189,9 @@ describe('PromotionService', () => {
         bonusItemCount: 10,
         gameConfigType: 2,
         gameIds: [1001],
+        isGiftCode: false,
+        minTurnoverMultiplier: 2,
+        claimExpirationDate: futureDate,
       };
 
       const result = await service.createPromotion(createPromotionDto);
@@ -183,6 +209,9 @@ describe('PromotionService', () => {
         bonusItemCount: 10,
         gameConfigType: 2,
         gameIds: [1001],
+        isGiftCode: false,
+        minTurnoverMultiplier: 2,
+        claimExpirationDate: futureDate,
       };
 
       const expectedPromotion = {
@@ -627,7 +656,7 @@ describe('PromotionService', () => {
 
       const result = await service.doesCodeExist(code);
       expect(result).toBe(true);
-      expect(model.exists).toHaveBeenCalledWith({ code });
+      expect(model.exists).toHaveBeenCalledWith({ code: code.toUpperCase() });
     });
 
     it('should return false if promotion with code does not exist', async () => {
@@ -636,7 +665,7 @@ describe('PromotionService', () => {
 
       const result = await service.doesCodeExist(code);
       expect(result).toBe(false);
-      expect(model.exists).toHaveBeenCalledWith({ code });
+      expect(model.exists).toHaveBeenCalledWith({ code: code.toUpperCase() });
     });
   });
 });

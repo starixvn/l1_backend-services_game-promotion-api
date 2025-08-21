@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 
 export type PromotionDocument = Promotion & Document;
 export type PromotionExpiryDocument = Promotion & {
@@ -26,6 +26,22 @@ export class BetLevel {
   })
   @Prop({ required: true })
   betLevel: number;
+}
+@Schema({ timestamps: true })
+export class CoinValue {
+  @ApiProperty({
+    description: 'Currency group ID (MongoDB ObjectId)',
+    example: '60d21b4667d0d01ce67a7e3b',
+  })
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  currencyGroup: MongooseSchema.Types.ObjectId;
+
+  @ApiProperty({
+    description: 'Coin value amount',
+    example: 0.2,
+  })
+  @Prop({ required: true })
+  coinValue: number;
 }
 
 @Schema({ timestamps: true, collection: 'game_promotions' })
@@ -83,6 +99,13 @@ export class Promotion {
   endDate: Date;
 
   @ApiProperty({
+    description: 'Date and time when bonus items become unclaimable',
+    example: '2024-07-15T23:59:59Z',
+  })
+  @Prop({ required: true })
+  claimExpirationDate: Date;
+
+  @ApiProperty({
     description: 'Number of free spins per player',
     example: 50,
   })
@@ -118,6 +141,28 @@ export class Promotion {
   })
   @Prop({ type: [{ type: BetLevel }], default: [] })
   betLevels: BetLevel[];
+
+  @ApiProperty({
+    description: 'List of coin levels for this promotion',
+    type: [CoinValue],
+  })
+  @Prop({ type: [{ type: CoinValue }], default: [] })
+  coinValues: CoinValue[];
+
+  @ApiProperty({
+    description: 'Indicates if this promotion is a gift code',
+    example: false,
+  })
+  @Prop({ default: false, required: true })
+  isGiftCode: boolean;
+
+  @ApiProperty({
+    description: 'Minimum TO multiplier required (at least 2X) to claim bonus wins',
+    example: 2,
+    minimum: 2,
+  })
+  @Prop({ type: Number, default: 2, required: true })
+  minTurnoverMultiplier: number;
 }
 
 export const PromotionSchema = SchemaFactory.createForClass(Promotion);

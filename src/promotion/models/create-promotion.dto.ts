@@ -7,11 +7,13 @@ import {
   IsOptional,
   ValidateNested,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { Types } from 'mongoose';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BetLevelDto } from './bet-level.dto';
+import { CoinValueDto } from './coin-value.dto';
 
 export enum GameConfigType {
   ClassicSlot = 2,
@@ -29,10 +31,11 @@ export class CreatePromotionDto {
 
   @ApiProperty({
     description: 'Promotion code derived from the name',
-    example: 'summer-classic-free-spins',
+    example: 'SUMMER-CLASSIC-FREE-SPINS',
   })
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
   code: string;
 
   @ApiProperty({
@@ -80,6 +83,15 @@ export class CreatePromotionDto {
   @Type(() => Date)
   @IsNotEmpty()
   endDate: Date;
+
+  @ApiProperty({
+    description: 'Date and time when bonus items become unclaimable',
+    example: '2024-07-15T23:59:59Z',
+  })
+  @IsDate()
+  @Type(() => Date)
+  @IsNotEmpty()
+  claimExpirationDate: Date;
 
   @ApiProperty({
     description: 'Number of free spins per player',
@@ -133,4 +145,39 @@ export class CreatePromotionDto {
   @Type(() => BetLevelDto)
   @IsOptional()
   betLevels?: BetLevelDto[];
+
+  @ApiPropertyOptional({
+    description: 'List of coin values for this promotion',
+    type: [CoinValueDto],
+    example: [
+      {
+        currencyGroup: '60d21b4667d0d01ce67a7e3b',
+        coinValue: 0.2,
+      },
+    ],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CoinValueDto)
+  @IsOptional()
+  coinValues?: CoinValueDto[];
+
+  @ApiPropertyOptional({
+    description: 'Indicates if this promotion is a gift code',
+    example: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  @Type(() => Boolean)
+  isGiftCode?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Minimum TO multiplier required (at least 2X) to claim bonus wins',
+    example: 2,
+    minimum: 2,
+  })
+  @IsNumber()
+  @Type(() => Number)
+  @IsOptional()
+  minTurnoverMultiplier?: number;
 }

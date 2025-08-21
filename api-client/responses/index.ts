@@ -1,6 +1,12 @@
-export { PlayerPromotion, PlayerPromotionResponse } from './player-promotion.response';
-export { EligiblePromotion, EligiblePromotionsResponse } from './eligible-promotions.response';
-export { AssignmentResponse } from './assignment.response';
-export { DeductBonusItemResponse, RollbackResponse } from './bonus-item.response';
-export { PromotionTicket, CreatePromotionTicketResponse } from './promotion-ticket.response';
-export { PromotionResponse, BetLevelResponse } from './promotion.response';
+export * from './assignment.response';
+export * from './bonus-item.response';
+export * from './calculate-to-requirement.response';
+// export * from './check-to-requirement.response';
+export * from './claim-bonus-wins.response';
+export * from './eligible-promotions.response';
+export * from './get-to-progress.response';
+export * from './player-promotion.response';
+export * from './promotion-ticket.response';
+export * from './promotion.response';
+export * from './update-total-turnover.response';
+export * from './update-total-win.response';

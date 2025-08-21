@@ -6,6 +6,23 @@ import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-prom
 import { Promotion } from '../schemas/promotion.schema';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { DeductBonusItemResponse } from '../responses/deduct-bonus-item.response';
+import { LoggerService } from '../../core/logger/logger.service';
+
+// Mock LoggerService
+const mockLoggerService = {
+  error: jest.fn(),
+  warn: jest.fn(),
+  log: jest.fn(),
+  debug: jest.fn(),
+  verbose: jest.fn(),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  setUser: jest.fn(),
+  setTags: jest.fn(),
+  setContext: jest.fn(),
+  flush: jest.fn(),
+};
 
 describe('PlayerPromotionService - deductBonusItem', () => {
   let service: PlayerPromotionService;
@@ -35,6 +52,10 @@ describe('PlayerPromotionService - deductBonusItem', () => {
           provide: getModelToken(Promotion.name),
           useValue: mockPromotionModelValue,
         },
+        {
+          provide: LoggerService,
+          useValue: mockLoggerService,
+        },
       ],
     }).compile();
 
@@ -48,6 +69,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
     const inputOperatorId = 'operator123';
     const inputPlayerId = 'player456';
     const inputPromotionId = 'promotion789';
+    const inputSiteName = 'site123';
 
     it('should successfully deduct bonus item when promotion exists with remaining items', async () => {
       // Arrange
@@ -70,6 +92,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
         inputOperatorId,
         inputPlayerId,
         inputPromotionId,
+        inputSiteName,
       );
 
       // Assert
@@ -79,6 +102,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
           playerId: inputPlayerId,
           promotionId: inputPromotionId,
           remainingBonusItems: { $gt: 0 },
+          siteName: { $regex: new RegExp(`^${inputSiteName}$`, 'i') },
         },
         {
           $inc: { remainingBonusItems: -1 },
@@ -105,6 +129,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
         inputOperatorId,
         inputPlayerId,
         inputPromotionId,
+        inputSiteName,
       );
 
       // Assert
@@ -114,6 +139,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
           playerId: inputPlayerId,
           promotionId: inputPromotionId,
           remainingBonusItems: { $gt: 0 },
+          siteName: { $regex: new RegExp(`^${inputSiteName}$`, 'i') },
         },
         {
           $inc: { remainingBonusItems: -1 },
@@ -140,6 +166,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
         inputOperatorId,
         inputPlayerId,
         inputPromotionId,
+        inputSiteName,
       );
 
       // Assert
@@ -149,6 +176,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
           playerId: inputPlayerId,
           promotionId: inputPromotionId,
           remainingBonusItems: { $gt: 0 },
+          siteName: { $regex: new RegExp(`^${inputSiteName}$`, 'i') },
         },
         {
           $inc: { remainingBonusItems: -1 },
@@ -168,7 +196,7 @@ describe('PlayerPromotionService - deductBonusItem', () => {
 
       // Act & Assert
       await expect(
-        service.deductBonusItem(inputOperatorId, inputPlayerId, inputPromotionId),
+        service.deductBonusItem(inputOperatorId, inputPlayerId, inputPromotionId, inputSiteName),
       ).rejects.toThrow('Database connection failed');
     });
 
@@ -181,7 +209,12 @@ describe('PlayerPromotionService - deductBonusItem', () => {
       mockPlayerPromotionModel.findOneAndUpdate.mockResolvedValue(mockUpdatedPromotion);
 
       // Act
-      await service.deductBonusItem(inputOperatorId, inputPlayerId, inputPromotionId);
+      await service.deductBonusItem(
+        inputOperatorId,
+        inputPlayerId,
+        inputPromotionId,
+        inputSiteName,
+      );
 
       // Assert
       expect(mockPlayerPromotionModel.findOneAndUpdate).toHaveBeenCalledTimes(1);

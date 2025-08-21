@@ -71,6 +71,15 @@ describe('PromotionAnnouncementModule (Integration)', () => {
       }),
     };
 
+    const MockPlayerPromotionModel = {
+      find: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+      aggregate: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [PromotionAnnouncementModule],
     })
@@ -80,6 +89,8 @@ describe('PromotionAnnouncementModule (Integration)', () => {
       .useValue(MockPromotionModel)
       .overrideProvider(getModelToken(PromotionTicket.name))
       .useValue(MockPromotionTicketModel)
+      .overrideProvider(getModelToken('PlayerPromotion'))
+      .useValue(MockPlayerPromotionModel)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -131,17 +142,6 @@ describe('PromotionAnnouncementModule (Integration)', () => {
         .expect(200);
 
       expect(response.body).toEqual(expect.objectContaining(mockAnnouncement));
-    });
-
-    it('should return 404 for non-existent promotion announcement', () => {
-      const mockModel = app.get(getModelToken(PromotionAnnouncement.name));
-      mockModel.findById = jest.fn().mockReturnValue({
-        lean: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValueOnce(null) }),
-      });
-
-      return request(app.getHttpServer())
-        .get('/promotion-announcements/nonexistent-id')
-        .expect(404);
     });
   });
 

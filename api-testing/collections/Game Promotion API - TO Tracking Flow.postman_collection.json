@@ -1,0 +1,353 @@
+{
+  "info": {
+    "_postman_id": "to-tracking-flow-1234",
+    "name": "Game Promotion API - TO Tracking Flow",
+    "description": "Focused TO (Turnover) tracking flow testing with Smart Bonus Win Detection:\n\n**Prerequisites:**\n- Player already has finished promotion(s) with valid bonus wins\n- Promotion has remainingBonusItems = 0 and bonusClaimed = false\n- minRequiredTurnover > 0 calculated from totalWinAmount * turnoverMultiplier\n\n**Core TO Tracking Flow:**\n1. Update total turnover (smart detection, no promotionId required)\n2. Verify TO progress\n3. Claim bonus wins when requirements met\n\n**Key Features:**\n- Tests smart bonus win detection (FIFO > Earliest expiry > Highest win)\n- Validates automatic promotion finding without promotionId\n- Tests TO progress tracking and requirement validation\n- Tests bonus win claiming after TO requirements met\n- Error handling for edge cases (no active bonus wins)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "18297178"
+  },
+  "item": [
+    {
+      "name": "1. Update Total Turnover (Smart Detection)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Smart detection finds active bonus win successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('totalTurnover');",
+              "    pm.expect(jsonData).to.have.property('remainingTO');",
+              "});",
+              "",
+              "pm.test('Response structure is correct (no promotionId required)', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.totalTurnover).to.be.greaterThan(0);",
+              "    pm.expect(jsonData.remainingTO).to.be.greaterThanOrEqual(0);",
+              "});",
+              "",
+              "pm.test('Save turnover values for progress tracking', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.environment.set('currentTotalTurnover', jsonData.totalTurnover);",
+              "    pm.environment.set('currentRemainingTO', jsonData.remainingTO);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{testPlayerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"betAmount\": 500.75\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bonus-wins/update-total-turnover",
+          "host": ["{{baseUrl}}"],
+          "path": ["bonus-wins", "update-total-turnover"]
+        },
+        "description": "Update total turnover using smart bonus win detection. API automatically finds eligible bonus wins using FIFO > Earliest expiry > Highest win amount sorting."
+      },
+      "response": []
+    },
+    {
+      "name": "2. Check TO Progress",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('TO progress retrieved successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('totalTurnover');",
+              "    pm.expect(jsonData).to.have.property('minRequiredTurnover');",
+              "    pm.expect(jsonData).to.have.property('remainingTurnover');",
+              "});",
+              "",
+              "pm.test('Progress calculation is consistent', function () {",
+              "    const jsonData = pm.response.json();",
+              "    const expectedRemaining = jsonData.minRequiredTurnover - jsonData.totalTurnover;",
+              "    pm.expect(jsonData.remainingTurnover).to.equal(Math.max(0, expectedRemaining));",
+              "});",
+              "",
+              "pm.test('Progress percentage is calculated', function () {",
+              "    const jsonData = pm.response.json();",
+              "    if (jsonData.minRequiredTurnover > 0) {",
+              "        const expectedProgress = (jsonData.totalTurnover / jsonData.minRequiredTurnover) * 100;",
+              "        pm.expect(expectedProgress).to.be.greaterThanOrEqual(0);",
+              "        pm.expect(expectedProgress).to.be.lessThanOrEqual(100);",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{testPlayerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"promotionId\": \"{{testPromotionId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bonus-wins/get-to-progress",
+          "host": ["{{baseUrl}}"],
+          "path": ["bonus-wins", "get-to-progress"]
+        },
+        "description": "Check current TO progress and verify calculations are correct"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Update Turnover to Meet Requirements",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Turnover updated to meet requirements', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('totalTurnover');",
+              "    pm.expect(jsonData).to.have.property('remainingTO');",
+              "});",
+              "",
+              "pm.test('Requirements should be met or nearly met', function () {",
+              "    const jsonData = pm.response.json();",
+              "    // After this large bet, remaining TO should be 0 or very small",
+              "    pm.expect(jsonData.remainingTO).to.be.lessThan(100);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{testPlayerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"betAmount\": 5000.00\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bonus-wins/update-total-turnover",
+          "host": ["{{baseUrl}}"],
+          "path": ["bonus-wins", "update-total-turnover"]
+        },
+        "description": "Update turnover with a large amount to meet TO requirements"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Verify TO Requirements Met",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('TO requirements are met', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('canClaim', true);",
+              "    pm.expect(jsonData).to.have.property('totalWinAmount');",
+              "});",
+              "",
+              "pm.test('Player is eligible to claim bonus wins', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.canClaim).to.be.true;",
+              "    pm.expect(jsonData.totalWinAmount).to.be.greaterThan(0);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{testPlayerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"promotionId\": \"{{testPromotionId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bonus-wins/check-to-requirement",
+          "host": ["{{baseUrl}}"],
+          "path": ["bonus-wins", "check-to-requirement"]
+        },
+        "description": "Verify that TO requirements are met and player can claim bonus wins"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Claim Bonus Wins",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Bonus wins claimed successfully', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('claimedAmount');",
+              "    pm.expect(jsonData.claimedAmount).to.be.greaterThan(0);",
+              "});",
+              "",
+              "pm.test('Claim response has correct structure', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', true);",
+              "    pm.expect(jsonData).to.have.property('claimedAmount');",
+              "    pm.expect(jsonData).to.have.property('totalWinAmount');",
+              "    pm.expect(jsonData).to.have.property('totalTurnover');",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"{{testPlayerId}}\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"promotionId\": \"{{testPromotionId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bonus-wins/claim-bonus-wins",
+          "host": ["{{baseUrl}}"],
+          "path": ["bonus-wins", "claim-bonus-wins"]
+        },
+        "description": "Claim the bonus wins after TO requirements are met"
+      },
+      "response": []
+    },
+    {
+      "name": "6. Test NO_ACTIVE_BONUS_WIN Error",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('NO_ACTIVE_BONUS_WIN error returned correctly', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('success', false);",
+              "    pm.expect(jsonData).to.have.property('code', 'SB3022');",
+              "    pm.expect(jsonData).to.have.property('message', 'No active bonus win found for turnover tracking');",
+              "});",
+              "",
+              "pm.test('Error response structure is correct', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('totalTurnover', 0);",
+              "    pm.expect(jsonData).to.have.property('remainingTO', 0);",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"playerId\": \"no_active_bonus_player\",\n  \"operatorId\": \"{{operatorId}}\",\n  \"siteName\": \"{{siteName}}\",\n  \"betAmount\": 100.00\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bonus-wins/update-total-turnover",
+          "host": ["{{baseUrl}}"],
+          "path": ["bonus-wins", "update-total-turnover"]
+        },
+        "description": "Test error handling when no eligible bonus wins exist for TO tracking"
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "{{baseUrl}}",
+      "type": "string"
+    }
+  ]
+}
