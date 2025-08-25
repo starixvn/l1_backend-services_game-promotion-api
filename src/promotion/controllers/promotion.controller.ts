@@ -26,8 +26,7 @@ import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.
 import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 import { PaginationResponse } from '../responses/pagination.response';
 import { ParseMongoIdPipe } from '../../core/pipes/parse-mongo-id.pipe';
-import { PromotionSummaryDto } from '../models/promotion-summary.dto';
-import { PromotionSummaryResponse } from '../responses/summary-promotion.response';
+import { PromotionPerformanceResponse } from '../responses/performance-promotion.response';
 
 const PROMOTION_ID_PARAM = {
   name: 'id',
@@ -213,36 +212,24 @@ export class PromotionController {
    * @param query - Summary parameters
    * @returns Promotion summary data
    */
-  @Get('summary')
-  @ApiOperation({ summary: 'Get promotion summary statistics' })
+  @Get('performance')
+  @ApiOperation({ summary: 'Get promotion performance statistics' })
   @ApiQuery({
     name: 'promotionId',
     required: true,
     description: 'Promotion ID',
     type: String,
   })
-  @ApiQuery({
-    name: 'operatorId',
-    required: true,
-    description: 'Operator ID',
-    type: String,
-  })
-  @ApiQuery({
-    name: 'siteName',
-    required: true,
-    description: 'Site name',
-    type: String,
-  })
   @ApiResponse({
     status: 200,
-    description: 'Returns promotion summary statistics',
-    type: PromotionSummaryResponse,
+    description: 'Returns promotion performance statistics',
+    type: PromotionPerformanceResponse,
   })
   @ApiResponse({ status: 404, description: 'Promotion not found' })
-  async getPromotionSummary(
-    @Query() query: PromotionSummaryDto,
-  ): Promise<PromotionSummaryResponse> {
-    return this.promotionService.getPromotionSummary(query);
+  async getPromotionPerformance(
+    @Query('promotionId', ParseMongoIdPipe) promotionId: string,
+  ): Promise<PromotionPerformanceResponse> {
+    return this.promotionService.getPromotionPerformance(promotionId);
   }
 
   /**

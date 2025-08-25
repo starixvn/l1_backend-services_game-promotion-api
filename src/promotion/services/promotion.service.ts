@@ -11,8 +11,7 @@ import {
   PromotionTicket,
   PromotionTicketDocument,
 } from '../../promotion-ticket/schemas/promotion-ticket.schema';
-import { PromotionSummaryDto } from '../models/promotion-summary.dto';
-import { PromotionSummaryResponse } from '../responses/summary-promotion.response';
+import { PromotionPerformanceResponse } from '../responses/performance-promotion.response';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
 import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
 
@@ -380,8 +379,7 @@ export class PromotionService {
    * @param summaryDto - Summary parameters
    * @returns Promotion summary data
    */
-  async getPromotionSummary(summaryDto: PromotionSummaryDto): Promise<PromotionSummaryResponse> {
-    const { operatorId, promotionId, siteName } = summaryDto;
+  async getPromotionPerformance(promotionId: string): Promise<PromotionPerformanceResponse> {
     const promotion = await this.promotionModel.findById(promotionId).lean();
 
     if (!promotion) {
@@ -393,8 +391,6 @@ export class PromotionService {
       {
         $match: {
           promotionId: new Types.ObjectId(promotionId),
-          operatorId,
-          siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
         },
       },
       {

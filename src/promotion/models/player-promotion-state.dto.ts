@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsMongoId } from 'class-validator';
 
 export class PlayerPromotionStateDto {
   @ApiProperty({
@@ -30,7 +30,7 @@ export class PlayerPromotionStateDto {
     description: 'Promotion ID',
     example: 'promotion101',
   })
-  @IsString()
+  @IsMongoId()
   @IsNotEmpty()
   promotionId: string;
 }

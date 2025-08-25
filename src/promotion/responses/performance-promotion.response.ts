@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class PromotionSummaryResponse {
+export class PromotionPerformanceResponse {
   @ApiProperty({ description: 'Status of the promotion', example: 'ACTIVE' })
   status: string;
 
