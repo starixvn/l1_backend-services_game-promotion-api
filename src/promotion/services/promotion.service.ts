@@ -13,7 +13,9 @@ import {
 } from '../../promotion-ticket/schemas/promotion-ticket.schema';
 import { PromotionPerformanceResponse } from '../responses/performance-promotion.response';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
-import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
+import { roundToTwoDecimals, calculatePercentage } from '../../core/utils';
+import { PromotionPerformanceDto } from '../models/promotion-performance.dto';
+import { PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 
 const EXPIRY_CHECK_SECONDS = 60;
 const MILLISECONDS_PER_SECOND = 1000;
@@ -360,55 +362,52 @@ export class PromotionService {
     return promotionsWithPlayers;
   }
 
-  private getPromotionStatus(startDate: Date, endDate: Date): PromotionStatus {
-    const now = new Date();
-
-    if (now < startDate) {
-      return PromotionStatus.NOT_STARTED;
-    }
-
-    if (now > endDate) {
-      return PromotionStatus.ENDED;
-    }
-
-    return PromotionStatus.RUNNING;
-  }
-
   /**
    * Get promotion summary statistics
    * @param summaryDto - Summary parameters
    * @returns Promotion summary data
    */
-  async getPromotionPerformance(promotionId: string): Promise<PromotionPerformanceResponse> {
+  async getPromotionPerformance(
+    promotionDto: PromotionPerformanceDto,
+  ): Promise<PromotionPerformanceResponse> {
+    const { promotionId, startDate, endDate } = promotionDto;
     const promotion = await this.promotionModel.findById(promotionId).lean();
 
     if (!promotion) {
-      throw new NotFoundException(PROMOTION_NOT_FOUND_DESCRIPTION);
+      throw new NotFoundException(PROMOTION_ERROR_CODES.PROMOTION_NOT_FOUND);
     }
 
-    const status = this.getPromotionStatus(promotion.startDate, promotion.endDate);
+    const effectiveStartDate = startDate || promotion.startDate;
+    const effectiveEndDate = endDate || promotion.endDate;
+
     const [result] = await this.playerPromotionModel.aggregate([
       {
         $match: {
           promotionId: new Types.ObjectId(promotionId),
+          createdAt: {
+            $gte: new Date(effectiveStartDate),
+            $lte: new Date(effectiveEndDate),
+          },
         },
       },
       {
         $group: {
           _id: null,
+          bonusIssued: { $sum: '$totalWinAmount' },
           bonusRedeemed: {
             $sum: {
-              $cond: [{ $eq: ['$bonusClaimed', true] }, '$baseTotalWinAmount', 0],
+              $cond: [{ $eq: ['$bonusClaimed', true] }, '$totalWinAmount', 0],
             },
           },
-          totalTurnover: { $sum: '$baseTotalTurnover' },
-          minRequiredTurnover: { $sum: '$baseMinRequiredTurnover' },
+          totalTurnover: { $sum: '$totalTurnover' },
+          minRequiredTurnover: { $sum: '$minRequiredTurnover' },
           uniquePlayers: { $addToSet: '$playerId' },
         },
       },
       {
         $project: {
           _id: 0,
+          bonusIssued: 1,
           bonusRedeemed: 1,
           totalTurnover: 1,
           minRequiredTurnover: 1,
@@ -416,12 +415,23 @@ export class PromotionService {
         },
       },
     ]);
+
+    const bonusIssued = result?.bonusIssued || 0;
+    const bonusRedeemed = result?.bonusRedeemed || 0;
+    const totalTurnover = result?.totalTurnover || 0;
+    const minRequiredTurnover = result?.minRequiredTurnover || 0;
+    const uniquePlayers = result?.uniquePlayers || 0;
+
     return {
-      status,
-      bonusRedeemed: result?.bonusRedeemed || 0,
-      totalTurnover: result?.totalTurnover || 0,
-      minRequiredTurnover: result?.minRequiredTurnover || 0,
-      uniquePlayers: result?.uniquePlayers || 0,
+      bonusIssued: roundToTwoDecimals(bonusIssued),
+      bonusRedeemed: roundToTwoDecimals(bonusRedeemed),
+      redemptionRate: calculatePercentage(bonusRedeemed, bonusIssued),
+      totalTurnover: roundToTwoDecimals(totalTurnover),
+      minRequiredTurnover: roundToTwoDecimals(minRequiredTurnover),
+      uniquePlayers,
+      avgBonusPerPlayer: roundToTwoDecimals(bonusIssued / uniquePlayers),
+      avgTurnoverPerPlayer: roundToTwoDecimals(totalTurnover / uniquePlayers),
+      dailyStats: [],
     };
   }
 }

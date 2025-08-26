@@ -228,8 +228,10 @@ export class PromotionController {
   @ApiResponse({ status: 404, description: 'Promotion not found' })
   async getPromotionPerformance(
     @Query('promotionId', ParseMongoIdPipe) promotionId: string,
+    @Query('startDate') startDate: Date,
+    @Query('endDate') endDate: Date,
   ): Promise<PromotionPerformanceResponse> {
-    return this.promotionService.getPromotionPerformance(promotionId);
+    return this.promotionService.getPromotionPerformance({ promotionId, startDate, endDate });
   }
 
   /**

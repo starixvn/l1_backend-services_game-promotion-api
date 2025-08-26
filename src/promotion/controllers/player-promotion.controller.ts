@@ -109,25 +109,18 @@ export class PlayerPromotionController {
    * @returns Player promotion status information
    */
   @Get('state')
-  @ApiOperation({ summary: 'Get player promotion state' })
+  @ApiOperation({ summary: 'Get player promotion state with optional filters' })
   @ApiResponse({
     status: 200,
-    description: 'Returns player promotion status information',
-    type: Responses.PlayerPromotionStateResponse,
+    description: 'Returns player promotion status information with pagination',
+    type: Responses.PlayersResponse,
   })
   @ApiResponse({ status: 400, description: 'Bad request - missing required parameters' })
   @ApiResponse({ status: 404, description: 'Player promotion or promotion not found' })
   async getPlayerPromotionState(
     @Query() query: PlayerPromotionStateDto,
-  ): Promise<Responses.PlayerPromotionStateResponse> {
-    const { playerId, operatorId, siteName, promotionId } = query;
-
-    return this.playerPromotionService.getPlayerPromotionState(
-      playerId,
-      operatorId,
-      siteName,
-      promotionId,
-    );
+  ): Promise<Responses.PlayersResponse> {
+    return this.playerPromotionService.getPlayerPromotionState(query);
   }
 
   @Post('redeem-promotion')

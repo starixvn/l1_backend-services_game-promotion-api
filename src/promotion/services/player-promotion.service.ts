@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { LoggerService } from '../../core/logger/logger.service';
 import { PlayerDto } from '../models/player.dto';
@@ -8,9 +8,9 @@ import * as Responses from '../responses';
 import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
 import { EligiblePromotion } from '../responses/eligible-promotion.response';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
-import { PlayerPromotionStateResponse } from '../responses/player-promotion.response';
-import { PROMOTION_STATUS } from '../../constants/player-promotion';
+import { PLAYER_PROMOTION_AGGREGATION, PROMOTION_STATUS } from '../../constants/player-promotion';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
+import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
 
 /**
  * Service for managing player promotions
@@ -491,43 +491,253 @@ export class PlayerPromotionService {
   }
 
   /**
-   * Get promotion status for a specific player and promotion
-   * @param playerId Player ID
-   * @param operatorId Operator ID
-   * @param siteName Site name
+   * Get promotion status for a specific promotion with pagination
    * @param promotionId Promotion ID
-   * @returns Player promotion status information
+   * @param player Optional player ID filter
+   * @param startDate Optional start date filter
+   * @param endDate Optional end date filter
+   * @param status Optional status filter
+   * @param pageIndex Page index (starts from 1)
+   * @param pageSize Number of items per page
+   * @returns List of player promotion status information
    */
   async getPlayerPromotionState(
-    playerId: string,
-    operatorId: string,
-    siteName: string,
-    promotionId: string,
-  ): Promise<PlayerPromotionStateResponse> {
-    const playerPromotion = await this.playerPromotionModel
-      .findOne({ playerId, operatorId, siteName, promotionId })
-      .lean()
-      .exec();
+    query: PlayerPromotionStateDto,
+  ): Promise<Responses.PlayersResponse> {
+    const { promotionId, player, startDate, endDate, status, pageIndex, pageSize } = query;
+    const matchStage = this.buildMatchStage(promotionId, player, startDate, endDate);
+    const pipeline = this.buildAggregationPipeline(matchStage, status, player);
 
-    if (!playerPromotion) {
-      throw new NotFoundException(PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND);
-    }
+    // Get total count for metadata
+    const totalCount = await this.getTotalCount(pipeline);
 
-    const remainingTO = Math.max(
-      playerPromotion.baseMinRequiredTurnover - playerPromotion.baseTotalTurnover,
-      0,
+    // Add sorting and pagination
+    pipeline.push(
+      { $sort: { createdAt: -1 } },
+      { $skip: (pageIndex - 1) * pageSize },
+      { $limit: pageSize },
     );
 
-    const promotionStatus =
-      remainingTO > 0 ? PROMOTION_STATUS.TO_IN_PROGRESS : PROMOTION_STATUS.READY_TO_CLAIM;
+    // Execute aggregation
+    const results = await this.playerPromotionModel.aggregate(pipeline);
+
+    // Map to response format
+    const items = results.map(doc => this.mapAggregationResultToResponse(doc));
 
     return {
-      remainingBonusItems: playerPromotion.remainingBonusItems,
-      totalWinAmount: playerPromotion.baseTotalWinAmount,
-      totalTurnover: playerPromotion.baseTotalTurnover,
-      minRequiredTurnover: playerPromotion.baseMinRequiredTurnover,
-      remainingTO,
-      promotionStatus,
+      items,
+      metadata: {
+        pageIndex,
+        total: totalCount,
+        pageSize,
+      },
+    };
+  }
+
+  /**
+   * Build match stage for aggregation pipeline
+   */
+  private buildMatchStage(
+    promotionId: string,
+    player?: string,
+    startDate?: Date,
+    endDate?: Date,
+  ): any {
+    const matchStage: any = { promotionId: new Types.ObjectId(promotionId) };
+
+    // Note: Player filtering is now handled after lookup in buildAggregationPipeline
+    // This allows us to search by both playerId and playerName
+
+    // Add date range filters
+    if (startDate || endDate) {
+      matchStage.createdAt = {};
+      if (startDate) {
+        matchStage.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        matchStage.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    return matchStage;
+  }
+
+  /**
+   * Build aggregation pipeline with calculated fields
+   */
+  private buildAggregationPipeline(matchStage: any, status?: string, playerSearch?: string): any[] {
+    const pipeline: any[] = [
+      { $match: matchStage },
+      // Lookup player information from user_silos collection
+      {
+        $lookup: {
+          from: 'user_silos',
+          localField: 'playerId',
+          foreignField: 'playerId',
+          as: 'playerInfo',
+        },
+      },
+
+      // Add playerName field with fallback to playerId
+      {
+        $addFields: {
+          playerName: {
+            $ifNull: [
+              { $arrayElemAt: ['$playerInfo.playerName', 0] },
+              '$playerId', // Fallback to playerId if no playerName found
+            ],
+          },
+        },
+      },
+
+      // Filter by playerName if search term provided
+      ...(playerSearch
+        ? [
+            {
+              $match: {
+                $or: [
+                  { playerName: { $regex: playerSearch, $options: 'i' } },
+                  { playerId: { $regex: playerSearch, $options: 'i' } },
+                ],
+              },
+            },
+          ]
+        : []),
+
+      {
+        $addFields: {
+          calculatedStatus: this.getStatusCalculation(),
+          turnoverProgress: this.getTurnoverProgressCalculation(),
+        },
+      },
+      { $addFields: { progress: this.getProgressField() } },
+    ];
+
+    // Add status filter if provided
+    if (status) {
+      pipeline.push({ $match: { calculatedStatus: status } });
+    }
+
+    return pipeline;
+  }
+
+  /**
+   * Get status calculation logic
+   */
+  private getStatusCalculation(): any {
+    return {
+      $switch: {
+        branches: [
+          {
+            // ACTIVE: within date range
+            case: {
+              $and: [
+                { $gte: [new Date(), `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.START_DATE}`] },
+                { $lte: [new Date(), `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.END_DATE}`] },
+                { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TOTAL_TURNOVER}`, 0] },
+              ],
+            },
+            then: PROMOTION_STATUS.ACTIVE,
+          },
+          {
+            // TURN_OVER_MET: turnover requirement met and not claimed
+            case: {
+              $and: [
+                {
+                  $gte: [
+                    `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TOTAL_TURNOVER}`,
+                    `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.MIN_REQUIRED_TURNOVER}`,
+                  ],
+                },
+                { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.BONUS_CLAIMED}`, false] },
+              ],
+            },
+            then: PROMOTION_STATUS.TURN_OVER_MET,
+          },
+          {
+            // BONUS_REDEEMED: already claimed
+            case: { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.BONUS_CLAIMED}`, true] },
+            then: PROMOTION_STATUS.BONUS_REDEEMED,
+          },
+          {
+            // OPTED_OUT: expired and not claimed
+            case: {
+              $and: [
+                { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.CLAIMED_AT}`, null] },
+                { $gt: [new Date(), `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.END_DATE}`] },
+              ],
+            },
+            then: PROMOTION_STATUS.OPTED_OUT,
+          },
+        ],
+        default: PROMOTION_STATUS.INELIGIBLE,
+      },
+    };
+  }
+
+  /**
+   * Get turnover progress calculation logic
+   */
+  private getTurnoverProgressCalculation(): any {
+    return {
+      $round: [
+        {
+          $cond: {
+            if: { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.MIN_REQUIRED_TURNOVER}`, 0] },
+            then: 0,
+            else: {
+              $divide: [
+                {
+                  $multiply: [
+                    `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TOTAL_TURNOVER}`,
+                    `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TURNOVER_MULTIPLIER}`,
+                  ],
+                },
+                `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.MIN_REQUIRED_TURNOVER}`,
+              ],
+            },
+          },
+        },
+        2,
+      ],
+    };
+  }
+
+  /**
+   * Get progress field calculation
+   */
+  private getProgressField(): any {
+    return {
+      current: {
+        $min: ['$turnoverProgress', `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TURNOVER_MULTIPLIER}`],
+      },
+      required: `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TURNOVER_MULTIPLIER}`,
+    };
+  }
+
+  /**
+   * Get total count for pagination metadata
+   */
+  private async getTotalCount(pipeline: any[]): Promise<number> {
+    const countPipeline = [...pipeline, { $count: 'total' }];
+    const countResult = await this.playerPromotionModel.aggregate(countPipeline);
+    return countResult.length > 0 ? countResult[0].total : 0;
+  }
+
+  /**
+   * Map aggregation result to response format
+   */
+  private mapAggregationResultToResponse(doc: any): any {
+    return {
+      id: doc.playerId,
+      username: doc.playerName || doc.playerId, // Use playerName from user_silos, fallback to playerId
+      status: doc.calculatedStatus,
+      dateJoined: doc.createdAt ? new Date(doc.createdAt).toISOString().split('T')[0] : '',
+      bonusReceived: doc.totalWinAmount,
+      turnoverContributed: doc.totalTurnover,
+      progress: doc.progress,
+      bonusRedeemed: doc.bonusClaimed ? doc.totalWinAmount : 0,
+      lastActivity: doc.updatedAt ? new Date(doc.updatedAt).toISOString().split('T')[0] : '',
     };
   }
 

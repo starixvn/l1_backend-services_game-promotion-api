@@ -9,39 +9,82 @@ export class PlayerPromotionResponse extends BaseApiResponse {
 
 export class PlayerPromotionStateResponse {
   @ApiProperty({
-    description: 'Number of remaining bonus items',
-    example: 5,
+    description: 'Player ID',
+    example: 'JohnDoe123',
   })
-  remainingBonusItems: number;
+  id: string;
 
   @ApiProperty({
-    description: 'Total win amount',
-    example: 1500.5,
+    description: 'Player username',
+    example: 'JohnDoe123',
   })
-  totalWinAmount: number;
+  username: string;
 
   @ApiProperty({
-    description: 'Total turnover amount',
-    example: 3000.75,
+    description: 'Player status',
+    example: 'Active',
+    enum: ['Active', 'Ineligible', 'Turnover Met', 'Bonus Redeemed', 'Expired'],
   })
-  totalTurnover: number;
+  status: string;
 
   @ApiProperty({
-    description: 'Minimum required turnover',
-    example: 5000.0,
+    description: 'Date when player joined the promotion',
+    example: '2024-01-15',
   })
-  minRequiredTurnover: number;
+  dateJoined: string;
 
   @ApiProperty({
-    description: 'Remaining turnover needed',
-    example: 1999.25,
+    description: 'Total bonus received',
+    example: 125.5,
   })
-  remainingTO: number;
+  bonusReceived: number;
 
   @ApiProperty({
-    description: 'Promotion status',
-    example: 'TO in Progress',
-    enum: ['TO in Progress', 'Ready to Claim', 'Completed', 'Expired'],
+    description: 'Total turnover contributed',
+    example: 890.25,
   })
-  promotionStatus: string;
+  turnoverContributed: number;
+
+  @ApiProperty({
+    description: 'Progress information',
+    example: { current: 1.5, required: 2.0 },
+  })
+  progress: {
+    current: number;
+    required: number;
+  };
+
+  @ApiProperty({
+    description: 'Total bonus redeemed',
+    example: 0.0,
+  })
+  bonusRedeemed: number;
+
+  @ApiProperty({
+    description: 'Last activity date',
+    example: '2024-01-25',
+  })
+  lastActivity: string;
+}
+
+export class PlayersResponse {
+  @ApiProperty({
+    description: 'List of players',
+    type: [PlayerPromotionStateResponse],
+  })
+  items: PlayerPromotionStateResponse[];
+
+  @ApiProperty({
+    description: 'Pagination metadata',
+    example: {
+      pageIndex: 1,
+      total: 100,
+      pageSize: 10,
+    },
+  })
+  metadata: {
+    pageIndex: number;
+    total: number;
+    pageSize: number;
+  };
 }
