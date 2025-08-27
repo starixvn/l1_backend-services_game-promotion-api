@@ -1,5 +1,6 @@
-import { IsString, IsNumber, IsNotEmpty } from 'class-validator';
+import { IsString, IsNumber, IsNotEmpty, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 
 export class UpdateTotalTurnoverDto {
   @ApiProperty({ description: 'Player identifier' })
@@ -24,8 +25,9 @@ export class UpdateTotalTurnoverDto {
 
   @ApiProperty({ description: 'Base bet amount to add to total turnover' })
   @IsNumber()
-  @IsNotEmpty()
-  baseTotalAmount: number;
+  @Transform(({ value }) => value ?? 0)
+  @IsOptional()
+  baseTotalAmount?: number;
 
   @ApiProperty({ description: 'Game ID' })
   @IsNumber()

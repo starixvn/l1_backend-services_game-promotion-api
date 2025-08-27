@@ -84,7 +84,6 @@ describe('PromotionTicketService', () => {
       baseTotalAmount: 25.0,
       baseBetWin: 15.0,
       exchangeRateId: 0,
-      currency: 'USD',
     };
 
     it('should successfully create a promotion ticket', async () => {
@@ -144,7 +143,6 @@ describe('PromotionTicketService', () => {
         baseTotalAmount: inputDto.baseTotalAmount,
         baseBetWin: inputDto.baseBetWin,
         exchangeRateId: inputDto.exchangeRateId,
-        currency: inputDto.currency,
       });
       expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
         inputDto.playerId,
@@ -230,7 +228,6 @@ describe('PromotionTicketService', () => {
         baseTotalAmount: 25.0,
         baseBetWin: 15.0,
         exchangeRateId: 0,
-        currency: 'USD',
       });
       expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
         'player123',

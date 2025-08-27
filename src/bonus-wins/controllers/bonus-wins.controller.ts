@@ -25,7 +25,7 @@ export class BonusWinsController {
       updateDto.siteName,
       updateDto.betAmount,
       updateDto.gameId,
-      updateDto.baseTotalAmount,
+      updateDto?.baseTotalAmount || 0,
     );
   }
 

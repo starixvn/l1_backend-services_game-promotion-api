@@ -32,17 +32,14 @@ export class PromotionTicket {
   @Prop({ required: true, type: Number })
   winAmount: number;
 
-  @Prop({ required: false, type: Number })
+  @Prop({ required: false, type: Number, default: 0 })
   baseTotalAmount: number;
 
-  @Prop({ required: false, type: Number })
+  @Prop({ required: false, type: Number, default: 0 })
   baseBetWin: number;
 
-  @Prop({ required: false, type: Number })
+  @Prop({ required: false, type: Number, default: 1 })
   exchangeRateId: number;
-
-  @Prop({ required: false, type: String })
-  currency: string;
 }
 
 export const PromotionTicketSchema = SchemaFactory.createForClass(PromotionTicket);
