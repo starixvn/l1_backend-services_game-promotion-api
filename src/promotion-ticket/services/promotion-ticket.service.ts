@@ -1,17 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { PromotionTicket, PromotionTicketDocument } from '../schemas/promotion-ticket.schema';
+import { BonusWinsService } from '../../bonus-wins/services/bonus-wins.service';
+import { PROMOTION_TICKET_ERROR_CODES } from '../../constants/error-codes';
+import { LoggerService } from '../../core/logger/logger.service';
 import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto';
-import { UpdatePromotionTicketDto } from '../models/update-promotion-ticket.dto';
 import { TotalWinDto } from '../models/total-win.dto';
+import { UpdatePromotionTicketDto } from '../models/update-promotion-ticket.dto';
 import {
   CreatePromotionTicketResponse,
   UpdatePromotionTicketResponse,
 } from '../responses/promotion-ticket.response';
-import { PROMOTION_TICKET_ERROR_CODES } from '../../constants/error-codes';
-import { LoggerService } from '../../core/logger/logger.service';
-import { BonusWinsService } from '../../bonus-wins/services/bonus-wins.service';
+import { PromotionTicket, PromotionTicketDocument } from '../schemas/promotion-ticket.schema';
 
 interface PlayerPromotionContext {
   playerId: string;
@@ -83,7 +83,7 @@ export class PromotionTicketService {
         {
           $set: {
             winAmount: updateTicketDto.winAmount,
-            baseBetWin: updateTicketDto?.baseBetWin || 0,
+            baseWinAmount: updateTicketDto?.baseBetWin || 0,
           },
         },
         {
@@ -125,7 +125,10 @@ export class PromotionTicketService {
       .lean()
       .exec();
     const totalWinAmount = tickets.reduce((sum, ticket) => sum + (ticket.winAmount || 0), 0);
-    const baseTotalWinAmount = tickets.reduce((sum, ticket) => sum + (ticket.baseBetWin || 0), 0);
+    const baseTotalWinAmount = tickets.reduce(
+      (sum, ticket) => sum + (ticket.baseWinAmount || 0),
+      0,
+    );
 
     return {
       totalWinAmount,
