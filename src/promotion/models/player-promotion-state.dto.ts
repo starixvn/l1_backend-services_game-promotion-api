@@ -6,6 +6,7 @@ import {
   IsString,
   IsDateString,
   IsNumber,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 export class PlayerPromotionStateDto {
@@ -53,6 +54,16 @@ export class PlayerPromotionStateDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiProperty({
+    description: 'Is base currency',
+    example: true,
+    default: false,
+  })
+  @IsBoolean()
+  @Type(() => Boolean)
+  @IsOptional()
+  isBaseCurrency?: boolean;
 
   @ApiProperty({
     description: 'Page index (starts from 1)',

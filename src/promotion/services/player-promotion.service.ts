@@ -504,7 +504,8 @@ export class PlayerPromotionService {
   async getPlayerPromotionState(
     query: PlayerPromotionStateDto,
   ): Promise<Responses.PlayersResponse> {
-    const { promotionId, player, startDate, endDate, status, pageIndex, pageSize } = query;
+    const { promotionId, player, startDate, endDate, status, pageIndex, pageSize, isBaseCurrency } =
+      query;
     const promotion = await this.getPromotionById(promotionId);
     if (!promotion) {
       throw new Error(PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code);
@@ -531,7 +532,7 @@ export class PlayerPromotionService {
     const results = await this.playerPromotionModel.aggregate(pipeline);
 
     // Map to response format
-    const items = results.map(doc => this.mapAggregationResultToResponse(doc));
+    const items = results.map(doc => this.mapAggregationResultToResponse(doc, isBaseCurrency));
 
     return {
       items,
@@ -716,7 +717,7 @@ export class PlayerPromotionService {
   /**
    * Map aggregation result to response format
    */
-  private mapAggregationResultToResponse(doc: any): any {
+  private mapAggregationResultToResponse(doc: any, isBaseCurrency = false): any {
     return {
       id: doc.playerId,
       username: doc.playerName,
@@ -724,10 +725,14 @@ export class PlayerPromotionService {
       siteName: doc.siteName,
       currency: doc.currency,
       dateJoined: doc.createdAt,
-      bonusReceived: doc.totalWinAmount,
-      turnoverContributed: doc.totalTurnover,
+      bonusReceived: isBaseCurrency ? doc?.baseTotalWinAmount || 0 : doc.totalWinAmount,
+      turnoverContributed: isBaseCurrency ? doc?.baseTotalTurnover || 0 : doc.totalTurnover,
       progress: doc.progress,
-      bonusRedeemed: doc.bonusClaimed ? doc.totalWinAmount : 0,
+      bonusClaimed: doc.bonusClaimed
+        ? isBaseCurrency
+          ? doc?.baseTotalWinAmount || 0
+          : doc.totalWinAmount
+        : 0,
       lastActivity: doc.updatedAt,
     };
   }

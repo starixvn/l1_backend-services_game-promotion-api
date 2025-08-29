@@ -70,7 +70,7 @@ export class PlayerPromotionStateResponse {
     description: 'Total bonus redeemed',
     example: 0.0,
   })
-  bonusRedeemed: number;
+  bonusClaimed: number;
 
   @ApiProperty({
     description: 'Last activity date',

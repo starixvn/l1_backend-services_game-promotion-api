@@ -370,12 +370,19 @@ export class PromotionService {
   async getPromotionPerformance(
     promotionDto: PromotionPerformanceDto,
   ): Promise<PromotionPerformanceResponse> {
-    const { promotionId } = promotionDto;
+    const { promotionId, isBaseCurrency } = promotionDto;
     const promotion = await this.promotionModel.findById(promotionId).lean();
 
     if (!promotion) {
       throw new NotFoundException(PROMOTION_ERROR_CODES.PROMOTION_NOT_FOUND);
     }
+
+    // Determine which fields to use based on isBaseCurrency flag
+    const totalWinAmountField = isBaseCurrency ? '$baseTotalWinAmount' : '$totalWinAmount';
+    const totalTurnoverField = isBaseCurrency ? '$baseTotalTurnover' : '$totalTurnover';
+    const minRequiredTurnoverField = isBaseCurrency
+      ? '$baseMinRequiredTurnover'
+      : '$minRequiredTurnover';
 
     const [result] = await this.playerPromotionModel.aggregate([
       {
@@ -386,14 +393,14 @@ export class PromotionService {
       {
         $group: {
           _id: null,
-          bonusIssued: { $sum: '$totalWinAmount' },
+          bonusIssued: { $sum: totalWinAmountField },
           bonusRedeemed: {
             $sum: {
-              $cond: [{ $eq: ['$bonusClaimed', true] }, '$totalWinAmount', 0],
+              $cond: [{ $eq: ['$bonusClaimed', true] }, totalWinAmountField, 0],
             },
           },
-          totalTurnover: { $sum: '$totalTurnover' },
-          minRequiredTurnover: { $sum: '$minRequiredTurnover' },
+          totalTurnover: { $sum: totalTurnoverField },
+          minRequiredTurnover: { $sum: minRequiredTurnoverField },
           uniquePlayers: { $addToSet: '$playerId' },
         },
       },
