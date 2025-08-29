@@ -370,24 +370,17 @@ export class PromotionService {
   async getPromotionPerformance(
     promotionDto: PromotionPerformanceDto,
   ): Promise<PromotionPerformanceResponse> {
-    const { promotionId, startDate, endDate } = promotionDto;
+    const { promotionId } = promotionDto;
     const promotion = await this.promotionModel.findById(promotionId).lean();
 
     if (!promotion) {
       throw new NotFoundException(PROMOTION_ERROR_CODES.PROMOTION_NOT_FOUND);
     }
 
-    const effectiveStartDate = startDate || promotion.startDate;
-    const effectiveEndDate = endDate || promotion.endDate;
-
     const [result] = await this.playerPromotionModel.aggregate([
       {
         $match: {
           promotionId: new Types.ObjectId(promotionId),
-          createdAt: {
-            $gte: new Date(effectiveStartDate),
-            $lte: new Date(effectiveEndDate),
-          },
         },
       },
       {

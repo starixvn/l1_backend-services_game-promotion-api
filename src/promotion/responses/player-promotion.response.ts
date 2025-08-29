@@ -28,6 +28,18 @@ export class PlayerPromotionStateResponse {
   status: string;
 
   @ApiProperty({
+    description: 'Site name',
+    example: 'Site 1',
+  })
+  siteName: string;
+
+  @ApiProperty({
+    description: 'Currency',
+    example: 'USD',
+  })
+  currency: string;
+
+  @ApiProperty({
     description: 'Date when player joined the promotion',
     example: '2024-01-15',
   })

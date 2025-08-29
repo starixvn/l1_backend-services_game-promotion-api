@@ -505,8 +505,17 @@ export class PlayerPromotionService {
     query: PlayerPromotionStateDto,
   ): Promise<Responses.PlayersResponse> {
     const { promotionId, player, startDate, endDate, status, pageIndex, pageSize } = query;
-    const matchStage = this.buildMatchStage(promotionId, player, startDate, endDate);
-    const pipeline = this.buildAggregationPipeline(matchStage, status, player);
+    const promotion = await this.getPromotionById(promotionId);
+    if (!promotion) {
+      throw new Error(PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code);
+    }
+    const matchStage = this.buildMatchStage(promotionId, startDate, endDate);
+    const pipeline = this.buildAggregationPipeline(
+      matchStage,
+      promotion.claimExpirationDate,
+      status,
+      player,
+    );
 
     // Get total count for metadata
     const totalCount = await this.getTotalCount(pipeline);
@@ -537,18 +546,8 @@ export class PlayerPromotionService {
   /**
    * Build match stage for aggregation pipeline
    */
-  private buildMatchStage(
-    promotionId: string,
-    player?: string,
-    startDate?: Date,
-    endDate?: Date,
-  ): any {
+  private buildMatchStage(promotionId: string, startDate?: Date, endDate?: Date): any {
     const matchStage: any = { promotionId: new Types.ObjectId(promotionId) };
-
-    // Note: Player filtering is now handled after lookup in buildAggregationPipeline
-    // This allows us to search by both playerId and playerName
-
-    // Add date range filters
     if (startDate || endDate) {
       matchStage.createdAt = {};
       if (startDate) {
@@ -565,7 +564,12 @@ export class PlayerPromotionService {
   /**
    * Build aggregation pipeline with calculated fields
    */
-  private buildAggregationPipeline(matchStage: any, status?: string, playerSearch?: string): any[] {
+  private buildAggregationPipeline(
+    matchStage: any,
+    claimExpirationDate: Date,
+    status?: string,
+    playerSearch?: string,
+  ): any[] {
     const pipeline: any[] = [
       { $match: matchStage },
       // Lookup player information from user_silos collection
@@ -582,15 +586,13 @@ export class PlayerPromotionService {
       {
         $addFields: {
           playerName: {
-            $ifNull: [
-              { $arrayElemAt: ['$playerInfo.playerName', 0] },
-              '$playerId', // Fallback to playerId if no playerName found
-            ],
+            $ifNull: [{ $arrayElemAt: ['$playerInfo.playerName', 0] }, '$playerId'],
+          },
+          currency: {
+            $ifNull: [{ $arrayElemAt: ['$playerInfo.currency', 0] }, '$currency'],
           },
         },
       },
-
-      // Filter by playerName if search term provided
       ...(playerSearch
         ? [
             {
@@ -606,7 +608,7 @@ export class PlayerPromotionService {
 
       {
         $addFields: {
-          calculatedStatus: this.getStatusCalculation(),
+          calculatedStatus: this.getStatusCalculation(claimExpirationDate),
           turnoverProgress: this.getTurnoverProgressCalculation(),
         },
       },
@@ -624,23 +626,11 @@ export class PlayerPromotionService {
   /**
    * Get status calculation logic
    */
-  private getStatusCalculation(): any {
+  private getStatusCalculation(claimExpirationDate: Date): any {
     return {
       $switch: {
         branches: [
           {
-            // ACTIVE: within date range
-            case: {
-              $and: [
-                { $gte: [new Date(), `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.START_DATE}`] },
-                { $lte: [new Date(), `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.END_DATE}`] },
-                { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TOTAL_TURNOVER}`, 0] },
-              ],
-            },
-            then: PROMOTION_STATUS.ACTIVE,
-          },
-          {
-            // TURN_OVER_MET: turnover requirement met and not claimed
             case: {
               $and: [
                 {
@@ -650,27 +640,26 @@ export class PlayerPromotionService {
                   ],
                 },
                 { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.BONUS_CLAIMED}`, false] },
+                { $gt: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.MIN_REQUIRED_TURNOVER}`, 0] },
               ],
             },
             then: PROMOTION_STATUS.TURN_OVER_MET,
           },
           {
-            // BONUS_REDEEMED: already claimed
             case: { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.BONUS_CLAIMED}`, true] },
-            then: PROMOTION_STATUS.BONUS_REDEEMED,
+            then: PROMOTION_STATUS.BONUS_CLAIMED,
           },
           {
-            // OPTED_OUT: expired and not claimed
             case: {
               $and: [
                 { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.CLAIMED_AT}`, null] },
-                { $gt: [new Date(), `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.END_DATE}`] },
+                { $gt: [new Date(), claimExpirationDate] },
               ],
             },
-            then: PROMOTION_STATUS.OPTED_OUT,
+            then: PROMOTION_STATUS.EXPIRED,
           },
         ],
-        default: PROMOTION_STATUS.INELIGIBLE,
+        default: PROMOTION_STATUS.ACTIVE,
       },
     };
   }
@@ -730,14 +719,16 @@ export class PlayerPromotionService {
   private mapAggregationResultToResponse(doc: any): any {
     return {
       id: doc.playerId,
-      username: doc.playerName || doc.playerId, // Use playerName from user_silos, fallback to playerId
+      username: doc.playerName,
       status: doc.calculatedStatus,
-      dateJoined: doc.createdAt ? new Date(doc.createdAt).toISOString().split('T')[0] : '',
+      siteName: doc.siteName,
+      currency: doc.currency,
+      dateJoined: doc.createdAt,
       bonusReceived: doc.totalWinAmount,
       turnoverContributed: doc.totalTurnover,
       progress: doc.progress,
       bonusRedeemed: doc.bonusClaimed ? doc.totalWinAmount : 0,
-      lastActivity: doc.updatedAt ? new Date(doc.updatedAt).toISOString().split('T')[0] : '',
+      lastActivity: doc.updatedAt,
     };
   }
 

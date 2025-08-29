@@ -2,8 +2,8 @@ export const PROMOTION_STATUS = {
   ACTIVE: 'Active',
   INELIGIBLE: 'Ineligible',
   TURN_OVER_MET: 'Turnover Met',
-  BONUS_REDEEMED: 'Bonus Redeemed',
-  OPTED_OUT: 'Opted Out',
+  BONUS_CLAIMED: 'Bonus Claimed',
+  EXPIRED: 'Expired',
 };
 
 export const PLAYER_PROMOTION_AGGREGATION = {
@@ -16,5 +16,6 @@ export const PLAYER_PROMOTION_AGGREGATION = {
     CLAIMED_AT: 'claimedAt',
     START_DATE: 'startDate',
     END_DATE: 'endDate',
+    EXPIRED_DATE: 'claimExpirationDate',
   },
 };
