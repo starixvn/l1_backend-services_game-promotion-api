@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PromotionTicketController } from './promotion-ticket.controller';
-import { PromotionTicketService } from '../services/promotion-ticket.service';
-import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto';
 import { PROMOTION_TICKET_ERROR_CODES } from '../../constants/error-codes';
+import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto';
 import { CreatePromotionTicketResponse } from '../responses/promotion-ticket.response';
+import { PromotionTicketService } from '../services/promotion-ticket.service';
+import { PromotionTicketController } from './promotion-ticket.controller';
 
 describe('PromotionTicketController', () => {
   let controller: PromotionTicketController;
@@ -41,9 +41,8 @@ describe('PromotionTicketController', () => {
       appType: 1,
       betAmount: 10.5,
       winAmount: 25.0,
-      baseTotalAmount: 25.0,
-      baseBetWin: 15.0,
-      exchangeRateId: 0,
+      baseBetAmount: 25.0,
+      baseWinAmount: 15.0,
     };
 
     it('should successfully create a promotion ticket and return success response', async () => {
@@ -115,9 +114,8 @@ describe('PromotionTicketController', () => {
         appType: 1,
         betAmount: 10.5,
         winAmount: 25.0,
-        baseTotalAmount: 25.0,
-        baseBetWin: 15.0,
-        exchangeRateId: 0,
+        baseBetAmount: 25.0,
+        baseWinAmount: 15.0,
       });
     });
   });

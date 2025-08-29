@@ -1,17 +1,17 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Model } from 'mongoose';
-import { PromotionTicketService } from './promotion-ticket.service';
-import { PromotionTicket, PromotionTicketDocument } from '../schemas/promotion-ticket.schema';
+import { BonusWinsService } from '../../bonus-wins/services/bonus-wins.service';
+import { PROMOTION_TICKET_ERROR_CODES } from '../../constants/error-codes';
+import { LoggerService } from '../../core/logger/logger.service';
 import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto';
 import { UpdatePromotionTicketDto } from '../models/update-promotion-ticket.dto';
-import { PROMOTION_TICKET_ERROR_CODES } from '../../constants/error-codes';
 import {
   CreatePromotionTicketResponse,
   UpdatePromotionTicketResponse,
 } from '../responses/promotion-ticket.response';
-import { LoggerService } from '../../core/logger/logger.service';
-import { BonusWinsService } from '../../bonus-wins/services/bonus-wins.service';
+import { PromotionTicket, PromotionTicketDocument } from '../schemas/promotion-ticket.schema';
+import { PromotionTicketService } from './promotion-ticket.service';
 
 describe('PromotionTicketService', () => {
   let service: PromotionTicketService;
@@ -81,9 +81,8 @@ describe('PromotionTicketService', () => {
       appType: 1,
       betAmount: 10.5,
       winAmount: 25.0,
-      baseTotalAmount: 25.0,
-      baseBetWin: 15.0,
-      exchangeRateId: 0,
+      baseBetAmount: 25.0,
+      baseWinAmount: 15.0,
     };
 
     it('should successfully create a promotion ticket', async () => {
@@ -140,9 +139,8 @@ describe('PromotionTicketService', () => {
         appType: inputDto.appType,
         betAmount: inputDto.betAmount,
         winAmount: inputDto.winAmount,
-        baseTotalAmount: inputDto.baseTotalAmount,
-        baseBetWin: inputDto.baseBetWin,
-        exchangeRateId: inputDto.exchangeRateId,
+        baseBetAmount: inputDto.baseBetAmount,
+        baseWinAmount: inputDto.baseWinAmount,
       });
       expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
         inputDto.playerId,
@@ -225,9 +223,8 @@ describe('PromotionTicketService', () => {
         appType: 1,
         betAmount: 10.5,
         winAmount: 25.0,
-        baseTotalAmount: 25.0,
-        baseBetWin: 15.0,
-        exchangeRateId: 0,
+        baseBetAmount: 25.0,
+        baseWinAmount: 15.0,
       });
       expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
         'player123',
@@ -371,7 +368,7 @@ describe('PromotionTicketService', () => {
       appType: 1,
       betAmount: 10.5,
       winAmount: 30.0,
-      baseBetWin: 15.0,
+      baseWinAmount: 15.0,
     };
 
     it('should successfully update a promotion ticket', async () => {
@@ -418,7 +415,7 @@ describe('PromotionTicketService', () => {
         {
           $set: {
             winAmount: updateTicketDto.winAmount,
-            baseBetWin: updateTicketDto.baseBetWin,
+            baseWinAmount: updateTicketDto.baseWinAmount,
           },
         },
         {
@@ -464,7 +461,7 @@ describe('PromotionTicketService', () => {
         {
           $set: {
             winAmount: updateTicketDto.winAmount,
-            baseBetWin: updateTicketDto.baseBetWin,
+            baseWinAmount: updateTicketDto.baseWinAmount,
           },
         },
         {
@@ -535,7 +532,7 @@ describe('PromotionTicketService', () => {
         {
           $set: {
             winAmount: updateTicketDto.winAmount,
-            baseBetWin: updateTicketDto.baseBetWin,
+            baseWinAmount: updateTicketDto.baseWinAmount,
           },
         },
         {
@@ -602,7 +599,7 @@ describe('PromotionTicketService', () => {
         {
           $set: {
             winAmount: updateTicketDto.winAmount,
-            baseBetWin: updateTicketDto.baseBetWin,
+            baseWinAmount: updateTicketDto.baseWinAmount,
           },
         },
         {
@@ -670,7 +667,7 @@ describe('PromotionTicketService', () => {
         {
           $set: {
             winAmount: 30.0,
-            baseBetWin: 15.0,
+            baseWinAmount: 15.0,
           },
         },
         {
@@ -726,7 +723,7 @@ describe('PromotionTicketService', () => {
         {
           $set: {
             winAmount: updateTicketDto.winAmount,
-            baseBetWin: updateTicketDto.baseBetWin,
+            baseWinAmount: updateTicketDto.baseWinAmount,
           },
         },
         {

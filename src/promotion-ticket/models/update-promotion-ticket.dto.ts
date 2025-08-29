@@ -1,6 +1,6 @@
-import { IsString, IsNumber, IsPositive, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
+import { IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
 
 export class UpdatePromotionTicketDto {
   @ApiProperty({ description: 'Player identifier' })
@@ -47,5 +47,5 @@ export class UpdatePromotionTicketDto {
   @IsNumber()
   @IsOptional()
   @Transform(({ value }) => value ?? 1)
-  baseBetWin?: number;
+  baseWinAmount?: number;
 }
