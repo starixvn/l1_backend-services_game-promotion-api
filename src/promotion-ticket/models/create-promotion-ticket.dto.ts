@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsPositive, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
 
 export class CreatePromotionTicketDto {
   @ApiProperty({ description: 'Player identifier' })
@@ -30,8 +31,9 @@ export class CreatePromotionTicketDto {
 
   @ApiProperty({ description: 'Base bet amount' })
   @IsNumber()
-  @IsPositive()
-  baseBetAmount: number;
+  @IsOptional()
+  @Transform(({ value }) => value ?? 0)
+  baseBetAmount?: number;
 
   @ApiProperty({ description: 'Application type' })
   @IsNumber()
@@ -49,5 +51,7 @@ export class CreatePromotionTicketDto {
 
   @ApiProperty({ description: 'Base win amount' })
   @IsNumber()
-  baseWinAmount: number;
+  @IsOptional()
+  @Transform(({ value }) => value ?? 0)
+  baseWinAmount?: number;
 }
