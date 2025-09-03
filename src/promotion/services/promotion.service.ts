@@ -202,6 +202,20 @@ export class PromotionService {
   }
 
   /**
+   * Get all promotions sorted by priority (running)
+   * @returns Array of running promotions sorted by priority rules
+   */
+  async getAllPromotionsRunning(): Promise<Promotion[]> {
+    const now = new Date();
+    return this.promotionModel
+      .find({ startDate: { $lte: now }, claimExpirationDate: { $gt: now } }, null, {
+        sort: { endDate: 1, _id: 1 },
+        lean: true,
+      })
+      .exec();
+  }
+
+  /**
    * Finds a promotion by ID
    * @param id - The promotion ID
    * @returns The found promotion or null

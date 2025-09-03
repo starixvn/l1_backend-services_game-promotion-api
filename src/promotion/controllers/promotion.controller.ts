@@ -179,6 +179,16 @@ export class PromotionController {
     return this.promotionService.getRunningPromotions(operatorId, gameId);
   }
 
+  /**
+   * Get all promotions sorted by priority (running)
+   * @returns Array of running promotions sorted by priority rules
+   */
+  @Get('all-promotions-running')
+  @ApiOperation({ summary: 'Get all promotions sorted by priority (running)' })
+  async getAllPromotionsRunning(): Promise<Promotion[]> {
+    return this.promotionService.getAllPromotionsRunning();
+  }
+
   @Get('check-code')
   @ApiOperation({ summary: 'Check if promotion code already exists' })
   @ApiQuery({
