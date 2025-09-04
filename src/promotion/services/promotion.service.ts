@@ -384,19 +384,12 @@ export class PromotionService {
   async getPromotionPerformance(
     promotionDto: PromotionPerformanceDto,
   ): Promise<PromotionPerformanceResponse> {
-    const { promotionId, isBaseCurrency } = promotionDto;
+    const { promotionId } = promotionDto;
     const promotion = await this.promotionModel.findById(promotionId).lean();
 
     if (!promotion) {
       throw new NotFoundException(PROMOTION_ERROR_CODES.PROMOTION_NOT_FOUND);
     }
-
-    // Determine which fields to use based on isBaseCurrency flag
-    const totalWinAmountField = isBaseCurrency ? '$baseTotalWinAmount' : '$totalWinAmount';
-    const totalTurnoverField = isBaseCurrency ? '$baseTotalTurnover' : '$totalTurnover';
-    const minRequiredTurnoverField = isBaseCurrency
-      ? '$baseMinRequiredTurnover'
-      : '$minRequiredTurnover';
 
     const [result] = await this.playerPromotionModel.aggregate([
       {
@@ -407,22 +400,22 @@ export class PromotionService {
       {
         $group: {
           _id: null,
-          bonusIssued: { $sum: totalWinAmountField },
-          bonusRedeemed: {
+          bonusWin: { $sum: '$baseTotalWinAmount' },
+          bonusWinClaimed: {
             $sum: {
-              $cond: [{ $eq: ['$bonusClaimed', true] }, totalWinAmountField, 0],
+              $cond: [{ $eq: ['$bonusClaimed', true] }, '$baseTotalWinAmount', 0],
             },
           },
-          totalTurnover: { $sum: totalTurnoverField },
-          minRequiredTurnover: { $sum: minRequiredTurnoverField },
+          totalTurnover: { $sum: '$baseTotalTurnover' },
+          minRequiredTurnover: { $sum: '$baseMinRequiredTurnover' },
           uniquePlayers: { $addToSet: '$playerId' },
         },
       },
       {
         $project: {
           _id: 0,
-          bonusIssued: 1,
-          bonusRedeemed: 1,
+          bonusWin: 1,
+          bonusWinClaimed: 1,
           totalTurnover: 1,
           minRequiredTurnover: 1,
           uniquePlayers: { $size: '$uniquePlayers' },
@@ -430,20 +423,20 @@ export class PromotionService {
       },
     ]);
 
-    const bonusIssued = result?.bonusIssued || 0;
-    const bonusRedeemed = result?.bonusRedeemed || 0;
+    const bonusWin = result?.bonusWin || 0;
+    const bonusClaimed = result?.bonusWinClaimed || 0;
     const totalTurnover = result?.totalTurnover || 0;
     const minRequiredTurnover = result?.minRequiredTurnover || 0;
     const uniquePlayers = result?.uniquePlayers || 0;
 
     return {
-      bonusIssued: roundToTwoDecimals(bonusIssued),
-      bonusRedeemed: roundToTwoDecimals(bonusRedeemed),
-      redemptionRate: calculatePercentage(bonusRedeemed, bonusIssued),
+      bonusWin: roundToTwoDecimals(bonusWin),
+      bonusClaimed: roundToTwoDecimals(bonusClaimed),
+      redemptionRate: calculatePercentage(bonusClaimed, bonusWin),
       totalTurnover: roundToTwoDecimals(totalTurnover),
       minRequiredTurnover: roundToTwoDecimals(minRequiredTurnover),
       uniquePlayers,
-      avgBonusPerPlayer: roundToTwoDecimals(bonusIssued / uniquePlayers),
+      avgBonusPerPlayer: roundToTwoDecimals(bonusWin / uniquePlayers),
       avgTurnoverPerPlayer: roundToTwoDecimals(totalTurnover / uniquePlayers),
       dailyStats: [],
     };

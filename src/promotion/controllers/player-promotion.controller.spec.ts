@@ -386,8 +386,11 @@ describe('PlayerPromotionController', () => {
       siteName: 'Site 1',
       currency: 'USD',
       dateJoined: '2025-01-15',
-      bonusReceived: 125.5,
-      turnoverContributed: 890.25,
+      bonusWin: 125.5,
+      baseBonusWin: 0,
+      baseTurnover: 0,
+      baseBonusClaimed: 0,
+      turnover: 890.25,
       progress: {
         current: 1.5,
         required: 2.0,

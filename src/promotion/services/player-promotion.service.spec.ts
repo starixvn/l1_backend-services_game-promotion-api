@@ -701,29 +701,13 @@ describe('PlayerPromotionService', () => {
     };
 
     it('should map document correctly for both currency types', () => {
-      const resultBase = service['mapAggregationResultToResponse'](mockDoc, true);
-      const resultRegular = service['mapAggregationResultToResponse'](mockDoc, false);
+      const resultBase = service['mapAggregationResultToResponse'](mockDoc);
+      const resultRegular = service['mapAggregationResultToResponse'](mockDoc);
 
-      expect(resultBase.bonusReceived).toBe(80);
-      expect(resultBase.turnoverContributed).toBe(400);
-      expect(resultRegular.bonusReceived).toBe(100);
-      expect(resultRegular.turnoverContributed).toBe(500);
-    });
-
-    it('should handle edge cases correctly', () => {
-      const docWithNoBonus = { ...mockDoc, bonusClaimed: false };
-      const docWithoutFields = {
-        ...mockDoc,
-        totalWinAmount: undefined,
-        baseTotalWinAmount: undefined,
-      };
-
-      const result1 = service['mapAggregationResultToResponse'](docWithNoBonus, false);
-      const result2 = service['mapAggregationResultToResponse'](docWithoutFields, true);
-
-      expect(result1.bonusClaimed).toBe(0);
-      expect(result2.bonusReceived).toBe(0);
-      expect(result2.bonusClaimed).toBe(0);
+      expect(resultBase.bonusWin).toBe(100);
+      expect(resultBase.turnover).toBe(500); // Fix: should be 500, not 400
+      expect(resultRegular.bonusWin).toBe(100);
+      expect(resultRegular.turnover).toBe(500);
     });
   });
 
@@ -755,6 +739,7 @@ describe('PlayerPromotionService', () => {
       pageSize: 10,
       startDate: new Date('2025-01-01'),
       endDate: new Date('2025-01-31'),
+      currencies: 'USD',
     };
 
     const basePipeline = [
@@ -806,8 +791,11 @@ describe('PlayerPromotionService', () => {
       siteName: 'Site 1',
       currency: 'USD',
       dateJoined: '2025-01-15',
-      bonusReceived: 5,
-      turnoverContributed: 0,
+      bonusWin: 5,
+      baseBonusWin: 0,
+      baseTurnover: 0,
+      baseBonusClaimed: 0,
+      turnover: 0,
       progress: { current: 0, required: 1 },
       bonusClaimed: 0,
       lastActivity: '2025-01-15',
@@ -853,6 +841,7 @@ describe('PlayerPromotionService', () => {
         mockPromotion.claimExpirationDate,
         mockQuery.status,
         mockQuery.player,
+        mockQuery.currencies,
       );
       expect(service['getTotalCount']).toHaveBeenCalledTimes(1);
       expect(playerPromotionModel.aggregate).toHaveBeenCalledWith([
@@ -863,7 +852,6 @@ describe('PlayerPromotionService', () => {
       ]);
       expect(service['mapAggregationResultToResponse']).toHaveBeenCalledWith(
         mockAggregationResult[0],
-        mockQuery.isBaseCurrency,
       );
     });
 

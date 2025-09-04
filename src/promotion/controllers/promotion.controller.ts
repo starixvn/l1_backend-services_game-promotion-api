@@ -238,9 +238,8 @@ export class PromotionController {
   @ApiResponse({ status: 404, description: 'Promotion not found' })
   async getPromotionPerformance(
     @Query('promotionId', ParseMongoIdPipe) promotionId: string,
-    @Query('isBaseCurrency') isBaseCurrency: boolean,
   ): Promise<PromotionPerformanceResponse> {
-    return this.promotionService.getPromotionPerformance({ promotionId, isBaseCurrency });
+    return this.promotionService.getPromotionPerformance({ promotionId });
   }
 
   /**

@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsNotEmpty, IsMongoId, IsDateString, IsOptional, IsBoolean } from 'class-validator';
+import { IsNotEmpty, IsMongoId, IsDateString, IsOptional } from 'class-validator';
 
 export class PromotionPerformanceDto {
   @ApiProperty({ description: 'Promotion ID', example: '689b00dbd459c639a74ef4eb' })
@@ -25,15 +24,4 @@ export class PromotionPerformanceDto {
   @IsDateString()
   @IsOptional()
   endDate?: Date;
-
-  @ApiProperty({
-    description: 'Flag to use base currency values instead of regular values',
-    example: false,
-    required: false,
-    default: false,
-  })
-  @IsBoolean()
-  @Type(() => Boolean)
-  @IsOptional()
-  isBaseCurrency?: boolean;
 }

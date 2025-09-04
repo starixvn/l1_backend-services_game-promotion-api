@@ -16,10 +16,10 @@ export class DailyPromotionStats {
 
 export class PromotionPerformanceResponse {
   @ApiProperty({ description: 'Total bonus issued', example: 10000.5 })
-  bonusIssued: number;
+  bonusWin: number;
 
   @ApiProperty({ description: 'Total bonus redeemed', example: 7500.25 })
-  bonusRedeemed: number;
+  bonusClaimed: number;
 
   @ApiProperty({ description: 'Overall redemption rate', example: 75 })
   redemptionRate: number;

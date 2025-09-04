@@ -11,6 +11,7 @@ import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-prom
 import { PLAYER_PROMOTION_AGGREGATION, PROMOTION_STATUS } from '../../constants/player-promotion';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
+import { PlayerPromotionStateResponse } from '../responses';
 
 /**
  * Service for managing player promotions
@@ -504,7 +505,7 @@ export class PlayerPromotionService {
   async getPlayerPromotionState(
     query: PlayerPromotionStateDto,
   ): Promise<Responses.PlayersResponse> {
-    const { promotionId, player, startDate, endDate, status, pageIndex, pageSize, isBaseCurrency } =
+    const { promotionId, player, startDate, endDate, status, pageIndex, pageSize, currencies } =
       query;
     const promotion = await this.getPromotionById(promotionId);
     if (!promotion) {
@@ -516,6 +517,7 @@ export class PlayerPromotionService {
       promotion.claimExpirationDate,
       status,
       player,
+      currencies,
     );
 
     // Get total count for metadata
@@ -532,7 +534,7 @@ export class PlayerPromotionService {
     const results = await this.playerPromotionModel.aggregate(pipeline);
 
     // Map to response format
-    const items = results.map(doc => this.mapAggregationResultToResponse(doc, isBaseCurrency));
+    const items = results.map(doc => this.mapAggregationResultToResponse(doc));
 
     return {
       items,
@@ -566,7 +568,9 @@ export class PlayerPromotionService {
     claimExpirationDate: Date,
     status?: string,
     playerSearch?: string,
+    currencies?: string,
   ): any[] {
+    const currenciesArray = currencies?.split(',');
     const pipeline: any[] = [
       { $match: matchStage },
       // Lookup player information from user_silos collection
@@ -602,7 +606,15 @@ export class PlayerPromotionService {
             },
           ]
         : []),
-
+      ...(currencies
+        ? [
+            {
+              $match: {
+                currency: { $in: currenciesArray },
+              },
+            },
+          ]
+        : []),
       {
         $addFields: {
           calculatedStatus: this.getStatusCalculation(claimExpirationDate),
@@ -713,7 +725,7 @@ export class PlayerPromotionService {
   /**
    * Map aggregation result to response format
    */
-  private mapAggregationResultToResponse(doc: any, isBaseCurrency = false): any {
+  private mapAggregationResultToResponse(doc: any): PlayerPromotionStateResponse {
     return {
       id: doc.playerId,
       username: doc.playerName,
@@ -721,14 +733,13 @@ export class PlayerPromotionService {
       siteName: doc.siteName,
       currency: doc.currency,
       dateJoined: doc.createdAt,
-      bonusReceived: isBaseCurrency ? doc?.baseTotalWinAmount || 0 : doc.totalWinAmount,
-      turnoverContributed: isBaseCurrency ? doc?.baseTotalTurnover || 0 : doc.totalTurnover,
+      bonusWin: doc.totalWinAmount,
+      baseBonusWin: doc.baseTotalWinAmount || 0,
+      turnover: doc.totalTurnover,
+      baseTurnover: doc.baseTotalTurnover || 0,
       progress: doc.progress,
-      bonusClaimed: doc.bonusClaimed
-        ? isBaseCurrency
-          ? doc?.baseTotalWinAmount || 0
-          : doc.totalWinAmount
-        : 0,
+      bonusClaimed: doc.bonusClaimed ? doc.totalWinAmount : 0,
+      baseBonusClaimed: doc.bonusClaimed ? doc.baseTotalWinAmount || 0 : 0,
       lastActivity: doc.updatedAt,
     };
   }

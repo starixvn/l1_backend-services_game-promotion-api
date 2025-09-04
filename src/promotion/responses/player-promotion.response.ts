@@ -46,16 +46,26 @@ export class PlayerPromotionStateResponse {
   dateJoined: string;
 
   @ApiProperty({
-    description: 'Total bonus received',
+    description: 'Total bonus win',
     example: 125.5,
   })
-  bonusReceived: number;
+  bonusWin: number;
+  @ApiProperty({
+    description: 'Base total bonus win',
+    example: 125.5,
+  })
+  baseBonusWin: number;
 
   @ApiProperty({
     description: 'Total turnover contributed',
     example: 890.25,
   })
-  turnoverContributed: number;
+  turnover: number;
+  @ApiProperty({
+    description: 'Base total turnover contributed',
+    example: 890.25,
+  })
+  baseTurnover: number;
 
   @ApiProperty({
     description: 'Progress information',
@@ -71,6 +81,11 @@ export class PlayerPromotionStateResponse {
     example: 0.0,
   })
   bonusClaimed: number;
+  @ApiProperty({
+    description: 'Total bonus redeemed',
+    example: 0.0,
+  })
+  baseBonusClaimed: number;
 
   @ApiProperty({
     description: 'Last activity date',
