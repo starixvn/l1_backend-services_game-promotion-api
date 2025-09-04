@@ -549,16 +549,12 @@ export class PlayerPromotionService {
    */
   private buildMatchStage(promotionId: string, startDate?: Date, endDate?: Date): any {
     const matchStage: any = { promotionId: new Types.ObjectId(promotionId) };
-    if (startDate || endDate) {
-      matchStage.createdAt = {};
-      if (startDate) {
-        matchStage.createdAt.$gte = new Date(startDate);
-      }
-      if (endDate) {
-        matchStage.createdAt.$lte = new Date(endDate);
-      }
+    if (startDate && endDate) {
+      matchStage.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
     }
-
     return matchStage;
   }
 
@@ -587,10 +583,10 @@ export class PlayerPromotionService {
       {
         $addFields: {
           playerName: {
-            $ifNull: [{ $arrayElemAt: ['$playerInfo.playerName', 0] }, '$playerId'],
+            $ifNull: [{ $arrayElemAt: ['$playerInfo.playerName', 0] }, ''],
           },
           currency: {
-            $ifNull: [{ $arrayElemAt: ['$playerInfo.currency', 0] }, '$currency'],
+            $ifNull: [{ $arrayElemAt: ['$playerInfo.currency', 0] }, ''],
           },
         },
       },

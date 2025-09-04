@@ -5,10 +5,15 @@ import { DeductBonusItemDto } from '../models/deduct-bonus-item.dto';
 import { PlayerDto } from '../models/player.dto';
 import { RedeemPromotionDto } from '../models/redeem-promotion.dto';
 import { RollbackBonusItemDto } from '../models/rollback-bonus-item.dto';
+import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
 import { AssignmentResponse } from '../responses/assignment-response';
 import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
 import { EligiblePromotionsResponse } from '../responses/eligible-promotion.response';
 import { PlayerPromotionResponse } from '../responses/player-promotion.response';
+import {
+  PlayersResponse,
+  PlayerPromotionStateResponse,
+} from '../responses/player-promotion.response';
 import { PlayerPromotionService } from '../services/player-promotion.service';
 import { PlayerPromotionController } from './player-promotion.controller';
 
@@ -24,6 +29,7 @@ describe('PlayerPromotionController', () => {
       deductBonusItem: jest.fn(),
       rollbackBonusItemDeduction: jest.fn(),
       redeemPromotion: jest.fn(),
+      getPlayerPromotionState: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -361,6 +367,87 @@ describe('PlayerPromotionController', () => {
         success: false,
         ...PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE,
       });
+    });
+  });
+
+  describe('getPlayerPromotionState', () => {
+    const mockQuery: PlayerPromotionStateDto = {
+      promotionId: '68ac2079db851bea05471c5a',
+      pageIndex: 1,
+      pageSize: 10,
+      startDate: new Date('2025-01-01'),
+      endDate: new Date('2025-01-31'),
+    };
+
+    const mockPlayerStateResponse: PlayerPromotionStateResponse = {
+      id: 'player123',
+      username: 'player123',
+      status: 'Active',
+      siteName: 'Site 1',
+      currency: 'USD',
+      dateJoined: '2025-01-15',
+      bonusReceived: 125.5,
+      turnoverContributed: 890.25,
+      progress: {
+        current: 1.5,
+        required: 2.0,
+      },
+      bonusClaimed: 0.0,
+      lastActivity: '2025-01-25',
+    };
+
+    const mockPlayersResponse: PlayersResponse = {
+      items: [mockPlayerStateResponse],
+      metadata: {
+        pageIndex: 1,
+        total: 1,
+        pageSize: 10,
+      },
+    };
+
+    it('should successfully return player promotion state', async () => {
+      // Arrange
+      mockPlayerPromotionService.getPlayerPromotionState.mockResolvedValue(mockPlayersResponse);
+
+      // Act
+      const actualResult = await controller.getPlayerPromotionState(mockQuery);
+
+      // Assert
+      expect(mockPlayerPromotionService.getPlayerPromotionState).toHaveBeenCalledWith(mockQuery);
+      expect(actualResult).toEqual(mockPlayersResponse);
+    });
+
+    it('should return empty results when no data found', async () => {
+      // Arrange
+      const emptyResponse: PlayersResponse = {
+        items: [],
+        metadata: {
+          pageIndex: 1,
+          total: 0,
+          pageSize: 10,
+        },
+      };
+      mockPlayerPromotionService.getPlayerPromotionState.mockResolvedValue(emptyResponse);
+
+      // Act
+      const actualResult = await controller.getPlayerPromotionState(mockQuery);
+
+      // Assert
+      expect(mockPlayerPromotionService.getPlayerPromotionState).toHaveBeenCalledWith(mockQuery);
+      expect(actualResult).toEqual(emptyResponse);
+      expect(actualResult.items).toHaveLength(0);
+    });
+
+    it('should handle error when promotion not found', async () => {
+      // Arrange
+      const error = new Error('Player promotion not found');
+      mockPlayerPromotionService.getPlayerPromotionState.mockRejectedValue(error);
+
+      // Act & Assert
+      await expect(controller.getPlayerPromotionState(mockQuery)).rejects.toThrow(
+        'Player promotion not found',
+      );
+      expect(mockPlayerPromotionService.getPlayerPromotionState).toHaveBeenCalledWith(mockQuery);
     });
   });
 });
