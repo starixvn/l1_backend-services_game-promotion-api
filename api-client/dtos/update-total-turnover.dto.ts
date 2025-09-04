@@ -3,5 +3,5 @@ export interface UpdateTotalTurnoverDto {
   operatorId: string;
   siteName: string;
   betAmount: number;
-  baseTotalAmount: number;
+  baseBetAmount: number;
 }

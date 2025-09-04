@@ -27,7 +27,7 @@ export class UpdateTotalTurnoverDto {
   @IsNumber()
   @Transform(({ value }) => value ?? 0)
   @IsOptional()
-  baseTotalAmount?: number;
+  baseBetAmount?: number;
 
   @ApiProperty({ description: 'Game ID' })
   @IsNumber()

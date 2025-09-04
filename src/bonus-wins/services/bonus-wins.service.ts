@@ -106,7 +106,7 @@ export class BonusWinsService {
     siteName: string,
     betAmount: number,
     gameId: number,
-    baseTotalAmount: number,
+    baseBetAmount: number,
   ): Promise<GetTOProgressResponse> {
     try {
       const activeBonusWin = await this.playerPromotionService.findExistingPromotion(
@@ -130,7 +130,7 @@ export class BonusWinsService {
 
       const result = await this.playerPromotionModel.findOneAndUpdate(
         { _id: activeBonusWin._id },
-        { $inc: { totalTurnover: betAmount, baseTotalTurnover: baseTotalAmount } },
+        { $inc: { totalTurnover: betAmount, baseTotalTurnover: baseBetAmount } },
         { new: true, lean: true },
       );
 
