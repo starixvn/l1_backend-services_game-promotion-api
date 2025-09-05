@@ -189,12 +189,14 @@ export class PromotionController {
   @ApiQuery({
     name: 'gameId',
     required: false,
-    description: 'Filter by game ID (optional - if provided, filter by gameId, otherwise get all)',
+    description:
+      'Filter running promotions by game ID (optional - if provided, filter by gameId, otherwise get all)',
     type: String,
   })
   @ApiResponse({
     status: 200,
-    description: 'Returns running promotions sorted by priority (earliest end date first)',
+    description:
+      'Returns running promotions sorted by priority by gameId (earliest end date first)',
     type: [Promotion],
   })
   async getAllPromotionsRunning(@Query('gameId') gameId?: string): Promise<Promotion[]> {
