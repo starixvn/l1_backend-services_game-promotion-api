@@ -538,6 +538,65 @@ describe('PromotionService', () => {
     });
   });
 
+  describe('getAllPromotionsRunning', () => {
+    it('should query for all running promotions when no gameId is provided', async () => {
+      // Arrange
+      const testNow = new Date('2023-01-15T12:00:00Z');
+      jest.spyOn(global.Date, 'now').mockImplementation(() => testNow.getTime());
+
+      const mockExec = jest.fn().mockResolvedValue([]);
+      const mockFind = jest.fn().mockReturnValue({
+        exec: mockExec,
+      });
+      model.find = mockFind;
+
+      // Act
+      await service.getAllPromotionsRunning();
+
+      // Assert
+      expect(mockFind).toHaveBeenCalledWith(
+        {
+          startDate: { $lte: expect.any(Date) },
+          claimExpirationDate: { $gt: expect.any(Date) },
+        },
+        null,
+        {
+          sort: { endDate: 1, _id: 1 },
+          lean: true,
+        },
+      );
+    });
+
+    it('should query for running promotions with gameId filter', async () => {
+      // Arrange
+      const testNow = new Date('2023-01-15T12:00:00Z');
+      jest.spyOn(global.Date, 'now').mockImplementation(() => testNow.getTime());
+
+      const mockExec = jest.fn().mockResolvedValue([]);
+      const mockFind = jest.fn().mockReturnValue({
+        exec: mockExec,
+      });
+      model.find = mockFind;
+
+      // Act
+      await service.getAllPromotionsRunning('1001');
+
+      // Assert
+      expect(mockFind).toHaveBeenCalledWith(
+        {
+          startDate: { $lte: expect.any(Date) },
+          claimExpirationDate: { $gt: expect.any(Date) },
+          gameIds: { $in: [1001] },
+        },
+        null,
+        {
+          sort: { endDate: 1, _id: 1 },
+          lean: true,
+        },
+      );
+    });
+  });
+
   describe('findOne', () => {
     it('should return a promotion by id', async () => {
       // Arrange

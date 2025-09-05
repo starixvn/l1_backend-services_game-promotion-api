@@ -203,12 +203,22 @@ export class PromotionService {
 
   /**
    * Get all promotions sorted by priority (running)
+   * @param gameId - Game ID to filter by (optional - if provided, filter by gameId, otherwise get all)
    * @returns Array of running promotions sorted by priority rules
    */
-  async getAllPromotionsRunning(): Promise<Promotion[]> {
+  async getAllPromotionsRunning(gameId?: string): Promise<Promotion[]> {
     const now = new Date();
+    const query: any = {
+      startDate: { $lte: now },
+      claimExpirationDate: { $gt: now },
+    };
+
+    if (gameId) {
+      query.gameIds = { $in: [parseInt(gameId)] };
+    }
+
     return this.promotionModel
-      .find({ startDate: { $lte: now }, claimExpirationDate: { $gt: now } }, null, {
+      .find(query, null, {
         sort: { endDate: 1, _id: 1 },
         lean: true,
       })

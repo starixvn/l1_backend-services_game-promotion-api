@@ -181,12 +181,24 @@ export class PromotionController {
 
   /**
    * Get all promotions sorted by priority (running)
+   * @param gameId - Game ID to filter by (optional - if provided, filter by gameId, otherwise get all)
    * @returns Array of running promotions sorted by priority rules
    */
   @Get('all-promotions-running')
   @ApiOperation({ summary: 'Get all promotions sorted by priority (running)' })
-  async getAllPromotionsRunning(): Promise<Promotion[]> {
-    return this.promotionService.getAllPromotionsRunning();
+  @ApiQuery({
+    name: 'gameId',
+    required: false,
+    description: 'Filter by game ID (optional - if provided, filter by gameId, otherwise get all)',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns running promotions sorted by priority (earliest end date first)',
+    type: [Promotion],
+  })
+  async getAllPromotionsRunning(@Query('gameId') gameId?: string): Promise<Promotion[]> {
+    return this.promotionService.getAllPromotionsRunning(gameId);
   }
 
   @Get('check-code')
