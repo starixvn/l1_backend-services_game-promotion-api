@@ -663,23 +663,64 @@ describe('PlayerPromotionService', () => {
     });
   });
 
-  describe('getTotalCount', () => {
-    it('should return total count correctly', async () => {
+  describe('getTotalCountAndAmounts', () => {
+    it('should return total count and base amounts correctly', async () => {
       const pipeline = [{ $match: { promotionId: 'test' } }];
-      playerPromotionModel.aggregate
-        .mockResolvedValueOnce([{ total: 5 }])
-        .mockResolvedValueOnce([]);
+      const mockResult = {
+        totalCount: 5,
+        baseTotalWinAmount: 1,
+        baseTotalTurnover: 2,
+        baseBonusClaimed: 3,
+      };
+      playerPromotionModel.aggregate.mockResolvedValueOnce([mockResult]);
 
-      const result1 = await service['getTotalCount'](pipeline);
-      const result2 = await service['getTotalCount']([]);
+      const result = await service['getTotalCountAndAmounts'](pipeline);
 
-      expect(result1).toBe(5);
-      expect(result2).toBe(0);
+      expect(result).toEqual({
+        totalCount: 5,
+        baseTotalWinAmount: 1,
+        baseTotalTurnover: 2,
+        baseTotalBonusClaimed: 3,
+      });
       expect(playerPromotionModel.aggregate).toHaveBeenCalledWith([
         ...pipeline,
-        { $count: 'total' },
+        {
+          $group: {
+            _id: null,
+            totalCount: { $sum: 1 },
+            baseTotalWinAmount: { $sum: '$baseTotalWinAmount' },
+            baseTotalTurnover: { $sum: '$baseTotalTurnover' },
+            baseBonusClaimed: {
+              $sum: {
+                $cond: [{ $eq: ['$bonusClaimed', true] }, '$baseTotalWinAmount', 0],
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            totalCount: 1,
+            baseTotalWinAmount: 1,
+            baseTotalTurnover: 1,
+            baseBonusClaimed: 1,
+          },
+        },
       ]);
-      expect(playerPromotionModel.aggregate).toHaveBeenCalledWith([{ $count: 'total' }]);
+    });
+
+    it('should return zero values when no results found', async () => {
+      const pipeline = [{ $match: { promotionId: 'test' } }];
+      playerPromotionModel.aggregate.mockResolvedValueOnce([]);
+
+      const result = await service['getTotalCountAndAmounts'](pipeline);
+
+      expect(result).toEqual({
+        totalCount: 0,
+        baseTotalWinAmount: 0,
+        baseTotalTurnover: 0,
+        baseTotalBonusClaimed: 0,
+      });
     });
   });
 
@@ -792,9 +833,9 @@ describe('PlayerPromotionService', () => {
       currency: 'USD',
       dateJoined: '2025-01-15',
       bonusWin: 5,
-      baseBonusWin: 0,
-      baseTurnover: 0,
-      baseBonusClaimed: 0,
+      baseBonusWin: 11,
+      baseTurnover: 12,
+      baseBonusClaimed: 13,
       turnover: 0,
       progress: { current: 0, required: 1 },
       bonusClaimed: 0,
@@ -805,7 +846,10 @@ describe('PlayerPromotionService', () => {
       items: [mockPlayerStateResponse],
       metadata: {
         pageIndex: 1,
-        total: 1,
+        totalCount: 1,
+        baseTotalWinAmount: 1,
+        baseTotalTurnover: 2,
+        baseTotalBonusClaimed: 3,
         pageSize: 10,
       },
     };
@@ -817,7 +861,12 @@ describe('PlayerPromotionService', () => {
         .spyOn(service as any, 'buildMatchStage')
         .mockReturnValue({ promotionId: '68ac2079db851bea05471c5a' });
       jest.spyOn(service as any, 'buildAggregationPipeline').mockReturnValue([...basePipeline]);
-      jest.spyOn(service as any, 'getTotalCount').mockResolvedValue(1);
+      jest.spyOn(service as any, 'getTotalCountAndAmounts').mockResolvedValue({
+        totalCount: 1,
+        baseTotalBonusClaimed: 3,
+        baseTotalTurnover: 2,
+        baseTotalWinAmount: 1,
+      });
       jest
         .spyOn(service as any, 'mapAggregationResultToResponse')
         .mockReturnValue(mockPlayerStateResponse);
@@ -843,7 +892,7 @@ describe('PlayerPromotionService', () => {
         mockQuery.player,
         mockQuery.currencies,
       );
-      expect(service['getTotalCount']).toHaveBeenCalledTimes(1);
+      expect(service['getTotalCountAndAmounts']).toHaveBeenCalledTimes(1);
       expect(playerPromotionModel.aggregate).toHaveBeenCalledWith([
         ...basePipeline,
         { $sort: { createdAt: -1 } },
@@ -872,7 +921,12 @@ describe('PlayerPromotionService', () => {
         pageIndex: 3,
         pageSize: 15,
       };
-      jest.spyOn(service as any, 'getTotalCount').mockResolvedValue(45);
+      jest.spyOn(service as any, 'getTotalCountAndAmounts').mockResolvedValue({
+        totalCount: 45,
+        baseTotalBonusClaimed: 1,
+        baseTotalTurnover: 2,
+        baseTotalWinAmount: 3,
+      });
 
       // Act
       const result = await service.getPlayerPromotionState(paginatedQuery);
@@ -880,7 +934,7 @@ describe('PlayerPromotionService', () => {
       // Assert
       expect(result.metadata.pageIndex).toBe(3);
       expect(result.metadata.pageSize).toBe(15);
-      expect(result.metadata.total).toBe(45);
+      expect(result.metadata.totalCount).toBe(45);
       expect(playerPromotionModel.aggregate).toHaveBeenCalledWith([
         ...basePipeline,
         { $sort: { createdAt: -1 } },
@@ -892,14 +946,19 @@ describe('PlayerPromotionService', () => {
     it('should handle empty results', async () => {
       // Arrange
       playerPromotionModel.aggregate.mockResolvedValue([]);
-      jest.spyOn(service as any, 'getTotalCount').mockResolvedValue(0);
+      jest.spyOn(service as any, 'getTotalCountAndAmounts').mockResolvedValue({
+        totalCount: 0,
+        baseTotalBonusClaimed: 0,
+        baseTotalTurnover: 0,
+        baseTotalWinAmount: 0,
+      });
 
       // Act
       const result = await service.getPlayerPromotionState(mockQuery);
 
       // Assert
       expect(result.items).toHaveLength(0);
-      expect(result.metadata.total).toBe(0);
+      expect(result.metadata.totalCount).toBe(0);
     });
 
     it('should handle multiple results', async () => {
@@ -909,7 +968,12 @@ describe('PlayerPromotionService', () => {
         { ...mockAggregationResult[0], _id: 'player2' },
       ];
       playerPromotionModel.aggregate.mockResolvedValue(multipleResults);
-      jest.spyOn(service as any, 'getTotalCount').mockResolvedValue(2);
+      jest.spyOn(service as any, 'getTotalCountAndAmounts').mockResolvedValue({
+        totalCount: 2,
+        baseTotalBonusClaimed: 1,
+        baseTotalTurnover: 2,
+        baseTotalWinAmount: 3,
+      });
       jest
         .spyOn(service as any, 'mapAggregationResultToResponse')
         .mockReturnValueOnce({ ...mockPlayerStateResponse, id: 'player1' })
@@ -920,7 +984,7 @@ describe('PlayerPromotionService', () => {
 
       // Assert
       expect(result.items).toHaveLength(2);
-      expect(result.metadata.total).toBe(2);
+      expect(result.metadata.totalCount).toBe(2);
     });
 
     it('should handle aggregation errors', async () => {
@@ -937,7 +1001,7 @@ describe('PlayerPromotionService', () => {
     it('should handle getTotalCount errors', async () => {
       // Arrange
       const mockError = new Error('Count failed');
-      jest.spyOn(service as any, 'getTotalCount').mockRejectedValue(mockError);
+      jest.spyOn(service as any, 'getTotalCountAndAmounts').mockRejectedValue(mockError);
 
       // Act & Assert
       await expect(service.getPlayerPromotionState(mockQuery)).rejects.toThrow('Count failed');

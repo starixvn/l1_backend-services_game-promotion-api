@@ -403,7 +403,10 @@ describe('PlayerPromotionController', () => {
       items: [mockPlayerStateResponse],
       metadata: {
         pageIndex: 1,
-        total: 1,
+        totalCount: 1,
+        baseTotalWinAmount: 0,
+        baseTotalTurnover: 0,
+        baseTotalBonusClaimed: 0,
         pageSize: 10,
       },
     };
@@ -426,7 +429,10 @@ describe('PlayerPromotionController', () => {
         items: [],
         metadata: {
           pageIndex: 1,
-          total: 0,
+          totalCount: 0,
+          baseTotalWinAmount: 0,
+          baseTotalTurnover: 0,
+          baseTotalBonusClaimed: 0,
           pageSize: 10,
         },
       };

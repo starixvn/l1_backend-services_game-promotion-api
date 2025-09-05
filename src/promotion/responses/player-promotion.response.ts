@@ -105,13 +105,19 @@ export class PlayersResponse {
     description: 'Pagination metadata',
     example: {
       pageIndex: 1,
-      total: 100,
+      totalCount: 100,
+      baseTotalWinAmount: 10000.5,
+      baseTotalTurnover: 50000.25,
+      baseTotalBonusClaimed: 7500.0,
       pageSize: 10,
     },
   })
   metadata: {
     pageIndex: number;
-    total: number;
+    totalCount: number;
+    baseTotalWinAmount: number;
+    baseTotalTurnover: number;
+    baseTotalBonusClaimed: number;
     pageSize: number;
   };
 }

@@ -520,8 +520,8 @@ export class PlayerPromotionService {
       currencies,
     );
 
-    // Get total count for metadata
-    const totalCount = await this.getTotalCount(pipeline);
+    // Get total count and base amounts for metadata
+    const totals = await this.getTotalCountAndAmounts(pipeline);
 
     // Add sorting and pagination
     pipeline.push(
@@ -540,7 +540,10 @@ export class PlayerPromotionService {
       items,
       metadata: {
         pageIndex,
-        total: totalCount,
+        totalCount: totals.totalCount,
+        baseTotalWinAmount: totals.baseTotalWinAmount,
+        baseTotalTurnover: totals.baseTotalTurnover,
+        baseTotalBonusClaimed: totals.baseTotalBonusClaimed,
         pageSize,
       },
     };
@@ -714,12 +717,48 @@ export class PlayerPromotionService {
   }
 
   /**
-   * Get total count for pagination metadata
+   * Get total count and base amounts for pagination metadata
    */
-  private async getTotalCount(pipeline: any[]): Promise<number> {
-    const countPipeline = [...pipeline, { $count: 'total' }];
-    const countResult = await this.playerPromotionModel.aggregate(countPipeline);
-    return countResult.length > 0 ? countResult[0].total : 0;
+  private async getTotalCountAndAmounts(pipeline: any[]): Promise<{
+    totalCount: number;
+    baseTotalWinAmount: number;
+    baseTotalTurnover: number;
+    baseTotalBonusClaimed: number;
+  }> {
+    const countPipeline = [
+      ...pipeline,
+      {
+        $group: {
+          _id: null,
+          totalCount: { $sum: 1 },
+          baseTotalWinAmount: { $sum: '$baseTotalWinAmount' },
+          baseTotalTurnover: { $sum: '$baseTotalTurnover' },
+          baseBonusClaimed: {
+            $sum: {
+              $cond: [{ $eq: ['$bonusClaimed', true] }, '$baseTotalWinAmount', 0],
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          totalCount: 1,
+          baseTotalWinAmount: 1,
+          baseTotalTurnover: 1,
+          baseBonusClaimed: 1,
+        },
+      },
+    ];
+
+    const result = await this.playerPromotionModel.aggregate(countPipeline);
+    const data = result[0] || {};
+    return {
+      totalCount: data.totalCount || 0,
+      baseTotalWinAmount: data.baseTotalWinAmount || 0,
+      baseTotalTurnover: data.baseTotalTurnover || 0,
+      baseTotalBonusClaimed: data.baseBonusClaimed || 0,
+    };
   }
 
   /**
