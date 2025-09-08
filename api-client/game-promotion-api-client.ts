@@ -227,6 +227,13 @@ export class GamePromotionApiClient {
     return response.data;
   }
 
+  async getAllPromotionsRunning(gameId?: string): Promise<PromotionResponse[]> {
+    const response: AxiosResponse<PromotionResponse[]> = await this.httpClient.get(
+      `/promotions/all-promotions-running?gameId=${gameId}`,
+    );
+    return response.data;
+  }
+
   // ===== PROMOTION TICKET METHODS =====
 
   /**
