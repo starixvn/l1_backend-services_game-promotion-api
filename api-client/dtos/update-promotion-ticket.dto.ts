@@ -8,5 +8,5 @@ export interface UpdatePromotionTicketDto {
   appType: number;
   betAmount: number;
   winAmount: number;
-  baseBetWin: number;
+  baseWinAmount: number;
 }
