@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
+import { Model, Types, PipelineStage } from 'mongoose';
 import { LoggerService } from '../../core/logger/logger.service';
 import { PlayerDto } from '../models/player.dto';
 import * as Responses from '../responses';
@@ -12,6 +12,56 @@ import { PLAYER_PROMOTION_AGGREGATION, PROMOTION_STATUS } from '../../constants/
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
 import { PlayerPromotionStateResponse } from '../responses';
+
+// Types for MongoDB aggregation
+interface MatchStage {
+  promotionId: Types.ObjectId;
+  createdAt?: {
+    $gte: Date;
+    $lte: Date;
+  };
+}
+
+interface AggregationResult {
+  totalCount: number;
+  baseTotalWinAmount: number;
+  baseTotalTurnover: number;
+  baseTotalBonusClaimed: number;
+}
+
+interface AggregationDocument {
+  playerId: string;
+  playerName: string;
+  currency: string;
+  calculatedStatus: string;
+  turnoverProgress: number;
+  progress: {
+    current: number;
+    required: number;
+  };
+  siteName: string;
+  createdAt: Date;
+  updatedAt: Date;
+  totalWinAmount: number;
+  baseTotalWinAmount: number;
+  totalTurnover: number;
+  baseTotalTurnover: number;
+  bonusClaimed: boolean;
+}
+
+interface SwitchExpression {
+  $switch: {
+    branches: Array<{
+      case: Record<string, unknown>;
+      then: string;
+    }>;
+    default: string;
+  };
+}
+
+interface RoundExpression {
+  $round: [Record<string, unknown>, number];
+}
 
 /**
  * Service for managing player promotions
@@ -552,8 +602,8 @@ export class PlayerPromotionService {
   /**
    * Build match stage for aggregation pipeline
    */
-  private buildMatchStage(promotionId: string, startDate?: Date, endDate?: Date): any {
-    const matchStage: any = { promotionId: new Types.ObjectId(promotionId) };
+  private buildMatchStage(promotionId: string, startDate?: Date, endDate?: Date): MatchStage {
+    const matchStage: MatchStage = { promotionId: new Types.ObjectId(promotionId) };
     if (startDate && endDate) {
       matchStage.createdAt = {
         $gte: new Date(startDate),
@@ -567,14 +617,14 @@ export class PlayerPromotionService {
    * Build aggregation pipeline with calculated fields
    */
   private buildAggregationPipeline(
-    matchStage: any,
+    matchStage: MatchStage,
     claimExpirationDate: Date,
     status?: string,
     playerSearch?: string,
     currencies?: string,
-  ): any[] {
+  ): PipelineStage[] {
     const currenciesArray = currencies?.split(',');
-    const pipeline: any[] = [
+    const pipeline: PipelineStage[] = [
       { $match: matchStage },
       // Lookup player information from user_silos collection
       {
@@ -638,7 +688,7 @@ export class PlayerPromotionService {
   /**
    * Get status calculation logic
    */
-  private getStatusCalculation(claimExpirationDate: Date): any {
+  private getStatusCalculation(claimExpirationDate: Date): SwitchExpression {
     return {
       $switch: {
         branches: [
@@ -679,7 +729,7 @@ export class PlayerPromotionService {
   /**
    * Get turnover progress calculation logic
    */
-  private getTurnoverProgressCalculation(): any {
+  private getTurnoverProgressCalculation(): RoundExpression {
     return {
       $round: [
         {
@@ -707,7 +757,7 @@ export class PlayerPromotionService {
   /**
    * Get progress field calculation
    */
-  private getProgressField(): any {
+  private getProgressField(): { current: { $min: string[] }; required: string } {
     return {
       current: {
         $min: ['$turnoverProgress', `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TURNOVER_MULTIPLIER}`],
@@ -719,13 +769,8 @@ export class PlayerPromotionService {
   /**
    * Get total count and base amounts for pagination metadata
    */
-  private async getTotalCountAndAmounts(pipeline: any[]): Promise<{
-    totalCount: number;
-    baseTotalWinAmount: number;
-    baseTotalTurnover: number;
-    baseTotalBonusClaimed: number;
-  }> {
-    const countPipeline = [
+  private async getTotalCountAndAmounts(pipeline: PipelineStage[]): Promise<AggregationResult> {
+    const countPipeline: PipelineStage[] = [
       ...pipeline,
       {
         $group: {
@@ -764,14 +809,14 @@ export class PlayerPromotionService {
   /**
    * Map aggregation result to response format
    */
-  private mapAggregationResultToResponse(doc: any): PlayerPromotionStateResponse {
+  private mapAggregationResultToResponse(doc: AggregationDocument): PlayerPromotionStateResponse {
     return {
       id: doc.playerId,
       username: doc.playerName,
       status: doc.calculatedStatus,
       siteName: doc.siteName,
       currency: doc.currency,
-      dateJoined: doc.createdAt,
+      dateJoined: doc.createdAt.toISOString(),
       bonusWin: doc.totalWinAmount,
       baseBonusWin: doc.baseTotalWinAmount || 0,
       turnover: doc.totalTurnover,
@@ -779,7 +824,7 @@ export class PlayerPromotionService {
       progress: doc.progress,
       bonusClaimed: doc.bonusClaimed ? doc.totalWinAmount : 0,
       baseBonusClaimed: doc.bonusClaimed ? doc.baseTotalWinAmount || 0 : 0,
-      lastActivity: doc.updatedAt,
+      lastActivity: doc.updatedAt.toISOString(),
     };
   }
 

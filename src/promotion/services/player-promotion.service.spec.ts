@@ -578,7 +578,7 @@ describe('PlayerPromotionService', () => {
   });
 
   describe('buildAggregationPipeline', () => {
-    const mockMatchStage = { promotionId: '68ac2079db851bea05471c5a' };
+    const mockMatchStage = { promotionId: new Types.ObjectId('68ac2079db851bea05471c5a') };
     const mockClaimExpirationDate = new Date('2025-12-31');
 
     it('should build basic pipeline without optional parameters', () => {
@@ -586,10 +586,10 @@ describe('PlayerPromotionService', () => {
 
       expect(result).toHaveLength(5);
       expect(result[0]).toEqual({ $match: mockMatchStage });
-      expect(result[1].$lookup).toBeDefined();
-      expect(result[2].$addFields.playerName).toBeDefined();
-      expect(result[3].$addFields.calculatedStatus).toBeDefined();
-      expect(result[4].$addFields.progress).toBeDefined();
+      expect((result[1] as any).$lookup).toBeDefined();
+      expect((result[2] as any).$addFields.playerName).toBeDefined();
+      expect((result[3] as any).$addFields.calculatedStatus).toBeDefined();
+      expect((result[4] as any).$addFields.progress).toBeDefined();
     });
 
     it('should include player search filter when provided', () => {
@@ -600,9 +600,9 @@ describe('PlayerPromotionService', () => {
         'john',
       );
 
-      const playerSearchStage = result.find(stage => stage.$match?.$or);
+      const playerSearchStage = result.find(stage => (stage as any).$match?.$or);
       expect(playerSearchStage).toBeDefined();
-      expect(playerSearchStage.$match.$or).toHaveLength(2);
+      expect((playerSearchStage as any).$match.$or).toHaveLength(2);
     });
 
     it('should include status filter when provided', () => {
@@ -612,7 +612,9 @@ describe('PlayerPromotionService', () => {
         'Active',
       );
 
-      const statusFilterStage = result.find(stage => stage.$match?.calculatedStatus === 'Active');
+      const statusFilterStage = result.find(
+        stage => (stage as any).$match?.calculatedStatus === 'Active',
+      );
       expect(statusFilterStage).toBeDefined();
     });
 
@@ -625,8 +627,8 @@ describe('PlayerPromotionService', () => {
       );
 
       expect(result).toHaveLength(7);
-      expect(result[3].$match.$or).toBeDefined();
-      expect(result[6].$match.calculatedStatus).toBe('Active');
+      expect((result[3] as any).$match.$or).toBeDefined();
+      expect((result[6] as any).$match.calculatedStatus).toBe('Active');
     });
 
     it('should handle falsy values correctly', () => {
@@ -731,14 +733,15 @@ describe('PlayerPromotionService', () => {
       calculatedStatus: 'Active',
       siteName: 'Site 1',
       currency: 'USD',
-      createdAt: '2025-01-15',
+      createdAt: new Date('2025-01-15'),
       totalWinAmount: 100,
       baseTotalWinAmount: 80,
       totalTurnover: 500,
       baseTotalTurnover: 400,
+      turnoverProgress: 0.8,
       progress: { current: 0.8, required: 1.0 },
       bonusClaimed: true,
-      updatedAt: '2025-01-20',
+      updatedAt: new Date('2025-01-20'),
     };
 
     it('should map document correctly for both currency types', () => {
@@ -784,7 +787,7 @@ describe('PlayerPromotionService', () => {
     };
 
     const basePipeline = [
-      { $match: { promotionId: '68ac2079db851bea05471c5a' } },
+      { $match: { promotionId: new Types.ObjectId('68ac2079db851bea05471c5a') } },
       {
         $lookup: {
           from: 'user_silos',
@@ -859,7 +862,7 @@ describe('PlayerPromotionService', () => {
       jest.spyOn(service as any, 'getPromotionById').mockResolvedValue(mockPromotion);
       jest
         .spyOn(service as any, 'buildMatchStage')
-        .mockReturnValue({ promotionId: '68ac2079db851bea05471c5a' });
+        .mockReturnValue({ promotionId: new Types.ObjectId('68ac2079db851bea05471c5a') });
       jest.spyOn(service as any, 'buildAggregationPipeline').mockReturnValue([...basePipeline]);
       jest.spyOn(service as any, 'getTotalCountAndAmounts').mockResolvedValue({
         totalCount: 1,
@@ -886,7 +889,7 @@ describe('PlayerPromotionService', () => {
         mockQuery.endDate,
       );
       expect(service['buildAggregationPipeline']).toHaveBeenCalledWith(
-        { promotionId: '68ac2079db851bea05471c5a' },
+        { promotionId: new Types.ObjectId('68ac2079db851bea05471c5a') },
         mockPromotion.claimExpirationDate,
         mockQuery.status,
         mockQuery.player,
