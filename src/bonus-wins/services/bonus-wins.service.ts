@@ -48,7 +48,6 @@ export class BonusWinsService {
   ): Promise<UpdateTotalWinResponse> {
     try {
       const roundedWinAmount = Math.round(winAmount * 100) / 100;
-      const roundedBaseTotalWinAmount = Math.round(baseTotalWinAmount * 100) / 100;
       const result = await this.playerPromotionModel.findOneAndUpdate(
         {
           playerId,
@@ -57,7 +56,7 @@ export class BonusWinsService {
           promotionId,
         },
         {
-          $set: { totalWinAmount: roundedWinAmount, baseTotalWinAmount: roundedBaseTotalWinAmount },
+          $set: { totalWinAmount: roundedWinAmount, baseTotalWinAmount },
         },
         {
           new: true,
