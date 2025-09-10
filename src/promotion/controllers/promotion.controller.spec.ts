@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpStatus, BadRequestException } from '@nestjs/common';
+import { HttpStatus, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PromotionController } from './promotion.controller';
 import { PromotionService } from '../services/promotion.service';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionStatus, PromotionFilterDto } from '../models/promotion-filter.dto';
+import { PromotionPerformanceResponse } from '../responses/performance-promotion.response';
 
 // Mock data
 const mockDate = new Date();
@@ -56,6 +57,32 @@ const mockRunningPromotions = [
   },
 ];
 
+// Mock for promotion performance response
+const mockPromotionPerformance: PromotionPerformanceResponse = {
+  bonusWin: 10000.5,
+  bonusClaimed: 7500.25,
+  redemptionRate: 75,
+  totalTurnover: 50000,
+  minRequiredTurnover: 25000,
+  uniquePlayers: 150,
+  avgBonusPerPlayer: 66.67,
+  avgTurnoverPerPlayer: 333.33,
+  dailyStats: [
+    {
+      date: '2025-01-01',
+      bonusIssued: 1000.5,
+      bonusRedeemed: 750.25,
+      redemptionRate: 75,
+    },
+    {
+      date: '2025-01-02',
+      bonusIssued: 1500.0,
+      bonusRedeemed: 1200.0,
+      redemptionRate: 80,
+    },
+  ],
+};
+
 describe('PromotionController', () => {
   let controller: PromotionController;
   let service: PromotionService;
@@ -74,6 +101,7 @@ describe('PromotionController', () => {
             remove: jest.fn(),
             getRunningPromotions: jest.fn(),
             doesCodeExist: jest.fn(),
+            getPromotionPerformance: jest.fn(),
           },
         },
       ],
@@ -241,6 +269,53 @@ describe('PromotionController', () => {
       await expect(controller.checkCodeExists(undefined as any)).rejects.toThrow(
         BadRequestException,
       );
+    });
+  });
+
+  describe('getPromotionPerformance', () => {
+    it('should return promotion performance statistics', async () => {
+      const promotionId = 'a-promotion-id';
+      jest
+        .spyOn(service, 'getPromotionPerformance')
+        .mockResolvedValueOnce(mockPromotionPerformance);
+      const result = await controller.getPromotionPerformance(promotionId);
+      expect(result).toEqual(mockPromotionPerformance);
+      expect(service.getPromotionPerformance).toHaveBeenCalledWith({ promotionId });
+      expect(service.getPromotionPerformance).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException when promotion is not found', async () => {
+      const promotionId = 'non-existent-promotion-id';
+      const notFoundError = new NotFoundException('Promotion not found');
+      jest.spyOn(service, 'getPromotionPerformance').mockRejectedValueOnce(notFoundError);
+
+      await expect(controller.getPromotionPerformance(promotionId)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(service.getPromotionPerformance).toHaveBeenCalledWith({ promotionId });
+    });
+
+    it('should handle service errors properly', async () => {
+      const promotionId = 'a-promotion-id';
+      const serviceError = new Error('Database connection failed');
+      jest.spyOn(service, 'getPromotionPerformance').mockRejectedValueOnce(serviceError);
+
+      await expect(controller.getPromotionPerformance(promotionId)).rejects.toThrow(
+        'Database connection failed',
+      );
+      expect(service.getPromotionPerformance).toHaveBeenCalledWith({ promotionId });
+    });
+
+    it('should pass the correct promotionId parameter to service', async () => {
+      const promotionId = 'specific-promotion-id';
+      jest
+        .spyOn(service, 'getPromotionPerformance')
+        .mockResolvedValueOnce(mockPromotionPerformance);
+
+      await controller.getPromotionPerformance(promotionId);
+
+      expect(service.getPromotionPerformance).toHaveBeenCalledWith({ promotionId });
+      expect(service.getPromotionPerformance).toHaveBeenCalledTimes(1);
     });
   });
 });

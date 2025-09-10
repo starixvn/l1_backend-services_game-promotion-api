@@ -32,6 +32,31 @@ describe('BonusWinsController', () => {
   });
 
   describe('updateTotalTurnover', () => {
+    it('should update base total turnover with 0', async () => {
+      const dto = {
+        playerId: 'player1',
+        operatorId: 'op1',
+        siteName: 'site1',
+        betAmount: 100.0,
+        gameId: 1001,
+      };
+      const response = {
+        success: true,
+        totalTurnover: 500.0,
+        remainingTO: 200.0,
+      };
+      service.updateTotalTurnover.mockResolvedValue(response);
+      await expect(controller.updateTotalTurnover(dto)).resolves.toEqual(response);
+      expect(service.updateTotalTurnover).toHaveBeenCalledWith(
+        dto.playerId,
+        dto.operatorId,
+        dto.siteName,
+        dto.betAmount,
+        dto.gameId,
+        0,
+      );
+    });
+
     it('should update total turnover successfully', async () => {
       const dto = {
         playerId: 'player1',

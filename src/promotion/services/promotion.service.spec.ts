@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { PromotionService } from './promotion.service';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { PromotionTicket } from '../../promotion-ticket/schemas/promotion-ticket.schema';
@@ -10,6 +10,7 @@ import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionStatus } from '../models/promotion-filter.dto';
 import { NotFoundException } from '@nestjs/common';
 import { LoggerService } from '../../core/logger/logger.service';
+import { PromotionPerformanceDto } from '../models/promotion-performance.dto';
 
 // Mock data
 const mockDate = new Date();
@@ -35,7 +36,7 @@ interface MockPromotionType {
 }
 
 const mockPromotion: MockPromotionType = {
-  _id: 'a-promotion-id',
+  _id: '507f1f77bcf86cd799439011',
   name: 'Test Promotion',
   code: 'test-promotion',
   operatorId: 'op123',
@@ -62,6 +63,19 @@ const mockPromotionArray: MockPromotionType[] = [
     operatorId: 'op456',
   },
 ];
+
+// Mock data for promotion performance aggregation result
+const mockAggregationResult = {
+  bonusWin: 10000.5,
+  bonusWinClaimed: 7500.25,
+  totalTurnover: 50000,
+  minRequiredTurnover: 25000,
+  uniquePlayers: 150,
+};
+
+const mockPromotionPerformanceDto: PromotionPerformanceDto = {
+  promotionId: '507f1f77bcf86cd799439011',
+};
 
 // Define a better mock interface for Mongoose model
 interface MockModel<T = any> extends Partial<Model<T>> {
@@ -108,6 +122,7 @@ const createMockModel = <T>(): MockModel<T> => {
 describe('PromotionService', () => {
   let service: PromotionService;
   let model: MockModel<PromotionDocument>;
+  let playerPromotionModel: MockModel;
 
   beforeEach(async () => {
     const mockModel = createMockModel<PromotionDocument>();
@@ -167,6 +182,7 @@ describe('PromotionService', () => {
 
     service = module.get<PromotionService>(PromotionService);
     model = module.get(getModelToken(Promotion.name));
+    playerPromotionModel = module.get(getModelToken(PlayerPromotion.name));
   });
 
   afterEach(() => {
@@ -725,6 +741,119 @@ describe('PromotionService', () => {
       const result = await service.doesCodeExist(code);
       expect(result).toBe(false);
       expect(model.exists).toHaveBeenCalledWith({ code: code.toUpperCase() });
+    });
+  });
+
+  describe('getPromotionPerformance', () => {
+    it('should return promotion performance statistics successfully', async () => {
+      // Mock promotion exists
+      model.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue(mockPromotion),
+      });
+
+      // Mock aggregation result
+      playerPromotionModel.aggregate.mockResolvedValueOnce([mockAggregationResult]);
+
+      const result = await service.getPromotionPerformance(mockPromotionPerformanceDto);
+
+      expect(result).toEqual({
+        bonusWin: 10000.5,
+        bonusClaimed: 7500.25,
+        redemptionRate: 75,
+        totalTurnover: 50000,
+        minRequiredTurnover: 25000,
+        uniquePlayers: 150,
+        avgBonusPerPlayer: 66.67,
+        avgTurnoverPerPlayer: 333.33,
+        dailyStats: [],
+      });
+
+      expect(model.findById).toHaveBeenCalledWith(mockPromotionPerformanceDto.promotionId);
+      expect(playerPromotionModel.aggregate).toHaveBeenCalledWith([
+        {
+          $match: {
+            promotionId: new Types.ObjectId(mockPromotionPerformanceDto.promotionId),
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            bonusWin: { $sum: '$baseTotalWinAmount' },
+            bonusWinClaimed: {
+              $sum: {
+                $cond: [{ $eq: ['$bonusClaimed', true] }, '$baseTotalWinAmount', 0],
+              },
+            },
+            totalTurnover: { $sum: '$baseTotalTurnover' },
+            minRequiredTurnover: { $sum: '$baseMinRequiredTurnover' },
+            uniquePlayers: { $addToSet: '$playerId' },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            bonusWin: 1,
+            bonusWinClaimed: 1,
+            totalTurnover: 1,
+            minRequiredTurnover: 1,
+            uniquePlayers: { $size: '$uniquePlayers' },
+          },
+        },
+      ]);
+    });
+
+    it('should throw NotFoundException when promotion is not found', async () => {
+      // Mock promotion not found
+      model.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.getPromotionPerformance(mockPromotionPerformanceDto)).rejects.toThrow(
+        NotFoundException,
+      );
+
+      expect(model.findById).toHaveBeenCalledWith(mockPromotionPerformanceDto.promotionId);
+      expect(playerPromotionModel.aggregate).not.toHaveBeenCalled();
+    });
+    it('should calculate redemption rate correctly when bonusWin is 0', async () => {
+      // Mock promotion exists
+      model.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue(mockPromotion),
+      });
+
+      // Mock aggregation result with zero bonusWin
+      const zeroBonusResult = {
+        ...mockAggregationResult,
+        bonusWin: 0,
+        bonusWinClaimed: 100,
+      };
+      playerPromotionModel.aggregate.mockResolvedValueOnce([zeroBonusResult]);
+
+      const result = await service.getPromotionPerformance(mockPromotionPerformanceDto);
+
+      expect(result.redemptionRate).toBe(0);
+    });
+
+    it('should handle division by zero for average calculations', async () => {
+      // Mock promotion exists
+      model.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue(mockPromotion),
+      });
+
+      // Mock aggregation result with zero unique players
+      const zeroPlayersResult = {
+        bonusWin: 0,
+        bonusWinClaimed: 0,
+        totalTurnover: 0,
+        minRequiredTurnover: 0,
+        uniquePlayers: 0,
+      };
+      playerPromotionModel.aggregate.mockResolvedValueOnce([zeroPlayersResult]);
+
+      const result = await service.getPromotionPerformance(mockPromotionPerformanceDto);
+
+      expect(result.avgBonusPerPlayer).toBe(0);
+      expect(result.avgTurnoverPerPlayer).toBe(0);
     });
   });
 });
