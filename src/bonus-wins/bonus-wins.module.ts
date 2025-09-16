@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import {
   PlayerPromotion,
@@ -9,6 +9,7 @@ import { BonusWinsController } from './controllers/bonus-wins.controller';
 import { BonusWinsService } from './services/bonus-wins.service';
 import { CoreModule } from '../core/core.module';
 import { PromotionModule } from '../promotion/promotion.module';
+import { PromotionTicketModule } from '../promotion-ticket/promotion-ticket.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { PromotionModule } from '../promotion/promotion.module';
     ]),
     CoreModule,
     PromotionModule,
+    forwardRef(() => PromotionTicketModule),
   ],
   controllers: [BonusWinsController],
   providers: [BonusWinsService],

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CompletePromotionDto } from 'src/promotion/models/complete-promotion.dto';
@@ -14,6 +14,7 @@ import {
 } from '../../promotion/schemas/player-promotion.schema';
 import { Promotion, PromotionDocument } from '../../promotion/schemas/promotion.schema';
 import { PlayerPromotionService } from '../../promotion/services/player-promotion.service';
+import { PromotionTicketService } from '../../promotion-ticket/services/promotion-ticket.service';
 
 /**
  * Service for managing bonus wins and turnover tracking
@@ -27,6 +28,8 @@ export class BonusWinsService {
     private readonly promotionModel: Model<PromotionDocument>,
     private readonly loggerService: LoggerService,
     private readonly playerPromotionService: PlayerPromotionService,
+    @Inject(forwardRef(() => PromotionTicketService))
+    private readonly promotionTicketService: PromotionTicketService,
   ) {}
 
   /**
@@ -383,7 +386,15 @@ export class BonusWinsService {
         };
       }
 
-      if (!toRequirementResult.canClaim) {
+      const isClaimable = await this.isClaimable(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        toRequirementResult.totalTurnover,
+      );
+
+      if (!toRequirementResult.canClaim || !isClaimable) {
         return {
           claimedAmount: 0,
           totalTurnover: 0,
@@ -439,6 +450,31 @@ export class BonusWinsService {
       totalWinAmount: 0,
       errorCode: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.code,
     };
+  }
+
+  private async isClaimable(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+    totalTurnover: number,
+  ): Promise<boolean> {
+    const promotion = await this.promotionModel.findById(promotionId).lean().exec();
+    if (!promotion) {
+      return false;
+    }
+    const actualWinAmount = await this.promotionTicketService.calculateTotalWin({
+      playerId,
+      operatorId,
+      siteName,
+      promotionId,
+    });
+    const minRequiredTurnover = actualWinAmount.totalWinAmount * promotion.minTurnoverMultiplier;
+    return this.canClaimBonusWins(
+      totalTurnover,
+      minRequiredTurnover,
+      actualWinAmount.totalWinAmount,
+    );
   }
 
   /**

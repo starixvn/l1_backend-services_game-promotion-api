@@ -1,7 +1,6 @@
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Model } from 'mongoose';
-import { BonusWinsService } from '../../bonus-wins/services/bonus-wins.service';
 import { PROMOTION_TICKET_ERROR_CODES } from '../../constants/error-codes';
 import { LoggerService } from '../../core/logger/logger.service';
 import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto';
@@ -12,6 +11,7 @@ import {
 } from '../responses/promotion-ticket.response';
 import { PromotionTicket, PromotionTicketDocument } from '../schemas/promotion-ticket.schema';
 import { PromotionTicketService } from './promotion-ticket.service';
+import { BonusWinsService } from '../../bonus-wins/services/bonus-wins.service';
 
 describe('PromotionTicketService', () => {
   let service: PromotionTicketService;
@@ -40,10 +40,16 @@ describe('PromotionTicketService', () => {
       flush: jest.fn(),
     } as unknown as jest.Mocked<LoggerService>;
 
-    // Create mock for BonusWinsService
+    // Create comprehensive mock for BonusWinsService
     mockBonusWinsService = {
       updateTotalWinAmount: jest.fn(),
       calculateTORequirement: jest.fn(),
+      updateTotalTurnover: jest.fn(),
+      getTOProgress: jest.fn(),
+      claimBonusWins: jest.fn(),
+      findByPromotion: jest.fn(),
+      completePromotion: jest.fn(),
+      calculateTotalWin: jest.fn(),
     } as unknown as jest.Mocked<BonusWinsService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -59,13 +65,23 @@ describe('PromotionTicketService', () => {
         },
         {
           provide: BonusWinsService,
-          useValue: mockBonusWinsService,
+          useFactory: () => ({
+            updateTotalWinAmount: jest.fn(),
+            calculateTORequirement: jest.fn(),
+            updateTotalTurnover: jest.fn(),
+            getTOProgress: jest.fn(),
+            claimBonusWins: jest.fn(),
+            findByPromotion: jest.fn(),
+            completePromotion: jest.fn(),
+            calculateTotalWin: jest.fn(),
+          }),
         },
       ],
     }).compile();
 
     service = module.get<PromotionTicketService>(PromotionTicketService);
     mockPromotionTicketModel = module.get(getModelToken(PromotionTicket.name));
+    mockBonusWinsService = module.get(BonusWinsService);
 
     jest.clearAllMocks();
   });

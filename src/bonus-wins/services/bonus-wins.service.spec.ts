@@ -9,13 +9,20 @@ import {
 } from '../../promotion/schemas/player-promotion.schema';
 import { Promotion, PromotionDocument } from '../../promotion/schemas/promotion.schema';
 import { PlayerPromotionService } from '../../promotion/services/player-promotion.service';
+import { PromotionTicketService } from '../../promotion-ticket/services/promotion-ticket.service';
+import {
+  PromotionTicket,
+  PromotionTicketDocument,
+} from '../../promotion-ticket/schemas/promotion-ticket.schema';
 import { BonusWinsService } from './bonus-wins.service';
 
 describe('BonusWinsService', () => {
   let service: BonusWinsService;
   let playerPromotionModel: jest.Mocked<Model<PlayerPromotionDocument>>;
   let promotionModel: jest.Mocked<Model<PromotionDocument>>;
+  let promotionTicketModel: jest.Mocked<Model<PromotionTicketDocument>>;
   let playerPromotionService: jest.Mocked<PlayerPromotionService>;
+  let promotionTicketService: jest.Mocked<PromotionTicketService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -36,6 +43,12 @@ describe('BonusWinsService', () => {
           },
         },
         {
+          provide: getModelToken(PromotionTicket.name),
+          useValue: {
+            find: jest.fn(),
+          },
+        },
+        {
           provide: LoggerService,
           useValue: {
             error: jest.fn(),
@@ -48,13 +61,21 @@ describe('BonusWinsService', () => {
             findExistingPromotion: jest.fn(),
           },
         },
+        {
+          provide: PromotionTicketService,
+          useValue: {
+            calculateTotalWin: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<BonusWinsService>(BonusWinsService);
     playerPromotionModel = module.get(getModelToken(PlayerPromotion.name));
     promotionModel = module.get(getModelToken(Promotion.name));
+    promotionTicketModel = module.get(getModelToken(PromotionTicket.name));
     playerPromotionService = module.get(PlayerPromotionService);
+    promotionTicketService = module.get(PromotionTicketService);
   });
 
   describe('getTOProgress', () => {
@@ -83,6 +104,15 @@ describe('BonusWinsService', () => {
             .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
+      promotionTicketModel.find.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ minTurnoverMultiplier: 2 }),
+        }),
+      } as any);
+      promotionTicketService.calculateTotalWin.mockResolvedValue({
+        totalWinAmount: 25,
+        baseTotalWinAmount: 100,
+      });
 
       const result: GetTOProgressResponse = await service.getTOProgress(
         'player1',
