@@ -98,9 +98,7 @@ export class PlayerPromotionService {
     };
 
     try {
-      const incompletePromotions = await this.playerPromotionModel.find(query).exec();
-
-      return incompletePromotions;
+      return await this.playerPromotionModel.find(query).exec();
     } catch (error) {
       this.loggerService.captureException(
         `Error querying incomplete promotions: ${error.message}`,

@@ -134,12 +134,10 @@ export class PlayerPromotionController {
   async queryPlayersIncompletePromotions(
     @Body() queryDto: Models.QueryIncompletePromotionsDto,
   ): Promise<PlayerPromotionDocument[]> {
-    const incompletePromotions =
-      await this.playerPromotionService.findIncompletePromotionsByPlayerList(
-        queryDto.playerPromotionPairs,
-      );
     // Map to response format
-    return incompletePromotions;
+    return await this.playerPromotionService.findIncompletePromotionsByPlayerList(
+      queryDto.playerPromotionPairs,
+    );
   }
 
   @Post('redeem-promotion')
