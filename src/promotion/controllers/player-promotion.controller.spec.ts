@@ -397,6 +397,8 @@ describe('PlayerPromotionController', () => {
       },
       bonusClaimed: 0.0,
       lastActivity: '2025-01-25',
+      initialBonusItem: 20,
+      remainingBonusItems: 10,
     };
 
     const mockPlayersResponse: PlayersResponse = {

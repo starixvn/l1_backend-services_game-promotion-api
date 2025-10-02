@@ -47,6 +47,8 @@ interface AggregationDocument {
   totalTurnover: number;
   baseTotalTurnover: number;
   bonusClaimed: boolean;
+  remainingBonusItems: number;
+  initialBonusItem: number;
 }
 
 interface SwitchExpression {
@@ -825,6 +827,8 @@ export class PlayerPromotionService {
       bonusClaimed: doc.bonusClaimed ? doc.totalWinAmount : 0,
       baseBonusClaimed: doc.bonusClaimed ? doc.baseTotalWinAmount || 0 : 0,
       lastActivity: doc.updatedAt.toISOString(),
+      remainingBonusItems: doc.remainingBonusItems,
+      initialBonusItem: doc.initialBonusItem,
     };
   }
 

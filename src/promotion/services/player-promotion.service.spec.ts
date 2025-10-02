@@ -741,6 +741,8 @@ describe('PlayerPromotionService', () => {
       turnoverProgress: 0.8,
       progress: { current: 0.8, required: 1.0 },
       bonusClaimed: true,
+      remainingBonusItems: 10,
+      initialBonusItem: 20,
       updatedAt: new Date('2025-01-20'),
     };
 
@@ -843,6 +845,8 @@ describe('PlayerPromotionService', () => {
       progress: { current: 0, required: 1 },
       bonusClaimed: 0,
       lastActivity: '2025-01-15',
+      initialBonusItem: 20,
+      remainingBonusItems: 10,
     };
 
     const mockPlayersResponse: PlayersResponse = {

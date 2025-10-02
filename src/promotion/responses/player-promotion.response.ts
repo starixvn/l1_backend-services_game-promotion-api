@@ -92,6 +92,17 @@ export class PlayerPromotionStateResponse {
     example: '2024-01-25',
   })
   lastActivity: string;
+
+  @ApiProperty({
+    description: 'Initial bonus item',
+    example: 100,
+  })
+  initialBonusItem: number;
+  @ApiProperty({
+    description: 'Remaining bonus items',
+    example: 100,
+  })
+  remainingBonusItems: number;
 }
 
 export class PlayersResponse {
