@@ -183,12 +183,10 @@ export class GamePromotionApiClient {
   /**
    * Query incomplete promotions by player and promotion ID pairs
    */
-  async queryPlayersIncompletePromotions(
-    queryDto: QueryIncompletePromotionsDto,
-  ): Promise<PlayerPromotionResponse[]> {
-    const response: AxiosResponse<PlayerPromotionResponse[]> = await this.httpClient.get(
+  async queryPlayersIncompletePromotions(queryDto: QueryIncompletePromotionsDto): Promise<any[]> {
+    const response: AxiosResponse<any[]> = await this.httpClient.post(
       '/player-promotions/query-players-incomplete-promotions',
-      { params: queryDto },
+      queryDto,
     );
     return response.data;
   }

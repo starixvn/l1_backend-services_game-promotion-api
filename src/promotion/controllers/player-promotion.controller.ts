@@ -5,7 +5,6 @@ import * as Models from '../models';
 import * as Responses from '../responses';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
-import { PlayerPromotionDocument } from '../schemas/player-promotion.schema';
 
 @ApiTags('player-promotions')
 @Controller('player-promotions')
@@ -124,17 +123,16 @@ export class PlayerPromotionController {
     return this.playerPromotionService.getPlayerPromotionState(query);
   }
 
-  @Get('query-players-incomplete-promotions')
+  @Post('query-players-incomplete-promotions')
   @ApiOperation({ summary: 'Query incomplete promotions by player and promotion ID pairs' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'List of incomplete player promotions',
-    type: [Responses.PlayerPromotionResponse],
+    type: [Object],
   })
   async queryPlayersIncompletePromotions(
     @Body() queryDto: Models.QueryIncompletePromotionsDto,
-  ): Promise<PlayerPromotionDocument[]> {
-    // Map to response format
+  ): Promise<any[]> {
     return this.playerPromotionService.findIncompletePromotionsByPlayerList(
       queryDto.playerPromotionPairs,
     );
