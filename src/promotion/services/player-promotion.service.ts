@@ -85,7 +85,7 @@ export class PlayerPromotionService {
    */
   async findIncompletePromotionsByPlayerList(
     playerPromotionPairs: Array<{ playerId: string; promotionId: string }>,
-  ): Promise<PlayerPromotionDocument[]> {
+  ): Promise<any[]> {
     // Build $or condition for matching player-promotion pairs
     const orConditions = playerPromotionPairs.map(pair => ({
       playerId: pair.playerId,
@@ -98,7 +98,32 @@ export class PlayerPromotionService {
     };
 
     try {
-      return await this.playerPromotionModel.find(query).exec();
+      const incompletePromotions = await this.playerPromotionModel.find(query).exec();
+
+      return incompletePromotions.map(promotion => ({
+        playerId: promotion.playerId,
+        operatorId: promotion.operatorId,
+        siteName: promotion.siteName,
+        promotionId: promotion.promotionId.toString(),
+        currencyGroup: promotion.currencyGroup,
+        remainingBonusItems: promotion.remainingBonusItems,
+        initialBonusItem: promotion.initialBonusItem,
+        betLevel: promotion.betLevel,
+        startDate: promotion.startDate,
+        endDate: promotion.endDate,
+        lastUsedDate: promotion.lastUsedDate,
+        isGiftCode: promotion.isGiftCode,
+        totalTurnover: promotion.totalTurnover,
+        totalWinAmount: promotion.totalWinAmount,
+        minRequiredTurnover: promotion.minRequiredTurnover,
+        turnoverMultiplier: promotion.turnoverMultiplier,
+        bonusClaimed: promotion.bonusClaimed,
+        claimedAt: promotion.claimedAt,
+        isCompleted: promotion.isCompleted,
+        coinValue: promotion.coinValue,
+        baseTotalWinAmount: promotion.baseTotalWinAmount,
+        baseTotalTurnover: promotion.baseTotalTurnover,
+      }));
     } catch (error) {
       this.loggerService.captureException(
         `Error querying incomplete promotions: ${error.message}`,
