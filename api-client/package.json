@@ -1,6 +1,6 @@
 {
   "name": "@sc/game-promotion-api-client",
-  "version": "1.0.2",
+  "version": "1.0.3-beta.0",
   "description": "Node.js API client for Game Promotion API supporting player-promotion and promotion-ticket routes",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
