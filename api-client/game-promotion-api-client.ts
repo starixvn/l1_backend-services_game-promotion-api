@@ -9,6 +9,7 @@ import {
   DeductBonusItemDto,
   GetTOProgressDto,
   PlayerDto,
+  QueryIncompletePromotionsDto,
   RedeemPromotionDto,
   RollbackBonusItemDto,
   UpdatePromotionTicketDto,
@@ -175,6 +176,19 @@ export class GamePromotionApiClient {
     const response: AxiosResponse<AssignmentResponse> = await this.httpClient.post(
       '/player-promotions/assign',
       assignDto,
+    );
+    return response.data;
+  }
+
+  /**
+   * Query incomplete promotions by player and promotion ID pairs
+   */
+  async queryIncompletePromotions(
+    queryDto: QueryIncompletePromotionsDto,
+  ): Promise<PlayerPromotionResponse[]> {
+    const response: AxiosResponse<PlayerPromotionResponse[]> = await this.httpClient.get(
+      '/player-promotions/query-players-incomplete-promotions',
+      { params: queryDto },
     );
     return response.data;
   }

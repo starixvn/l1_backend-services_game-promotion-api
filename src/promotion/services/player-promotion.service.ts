@@ -79,6 +79,38 @@ export class PlayerPromotionService {
   ) {}
 
   /**
+   * Query player promotions by list of player and promotion IDs where isCompleted = false
+   * @param playerPromotionPairs Array of {playerId, promotionId} pairs
+   * @returns Array of incomplete player promotions
+   */
+  async findIncompletePromotionsByPlayerList(
+    playerPromotionPairs: Array<{ playerId: string; promotionId: string }>,
+  ): Promise<PlayerPromotionDocument[]> {
+    // Build $or condition for matching player-promotion pairs
+    const orConditions = playerPromotionPairs.map(pair => ({
+      playerId: pair.playerId,
+      promotionId: new Types.ObjectId(pair.promotionId),
+    }));
+
+    const query = {
+      $or: orConditions,
+      isCompleted: false,
+    };
+
+    try {
+      const incompletePromotions = await this.playerPromotionModel.find(query).exec();
+
+      return incompletePromotions;
+    } catch (error) {
+      this.loggerService.captureException(
+        `Error querying incomplete promotions: ${error.message}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Get current promotion for a player or create one if available
    * @param playerDto Player information
    * @returns Current player promotion or null if none available

@@ -8,6 +8,7 @@ export * from './deduct-bonus-item.dto';
 export * from './get-to-progress.dto';
 export * from './player.dto';
 export * from './promotion-filter.dto';
+export * from './query-incomplete-promotions.dto';
 export * from './redeem-promotion.dto';
 export * from './rollback-bonus-item.dto';
 export * from './update-promotion.dto';
