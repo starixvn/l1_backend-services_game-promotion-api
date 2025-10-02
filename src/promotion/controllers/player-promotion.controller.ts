@@ -135,7 +135,7 @@ export class PlayerPromotionController {
     @Body() queryDto: Models.QueryIncompletePromotionsDto,
   ): Promise<PlayerPromotionDocument[]> {
     // Map to response format
-    return await this.playerPromotionService.findIncompletePromotionsByPlayerList(
+    return this.playerPromotionService.findIncompletePromotionsByPlayerList(
       queryDto.playerPromotionPairs,
     );
   }
