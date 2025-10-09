@@ -6,12 +6,14 @@ import { PlayerDto } from '../models/player.dto';
 import { RedeemPromotionDto } from '../models/redeem-promotion.dto';
 import { RollbackBonusItemDto } from '../models/rollback-bonus-item.dto';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
+import { PlayerPromotionStateExportDto } from '../models/player-promotion-state-export.dto';
 import { AssignmentResponse } from '../responses/assignment-response';
 import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
 import { EligiblePromotionsResponse } from '../responses/eligible-promotion.response';
 import { PlayerPromotionResponse } from '../responses/player-promotion.response';
 import {
   PlayersResponse,
+  PlayersExportResponse,
   PlayerPromotionStateResponse,
 } from '../responses/player-promotion.response';
 import { PlayerPromotionService } from '../services/player-promotion.service';
@@ -30,6 +32,7 @@ describe('PlayerPromotionController', () => {
       rollbackBonusItemDeduction: jest.fn(),
       redeemPromotion: jest.fn(),
       getPlayerPromotionState: jest.fn(),
+      getPlayerPromotionStateExport: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -459,6 +462,72 @@ describe('PlayerPromotionController', () => {
         'Player promotion not found',
       );
       expect(mockPlayerPromotionService.getPlayerPromotionState).toHaveBeenCalledWith(mockQuery);
+    });
+  });
+
+  describe('getPlayerPromotionStateExport', () => {
+    const mockExportQuery: PlayerPromotionStateExportDto = {
+      promotionId: '68ac2079db851bea05471c5a',
+      startDate: new Date('2025-01-01'),
+      endDate: new Date('2025-01-31'),
+      player: 'player123',
+      status: 'Active',
+      currencies: 'USD,EUR',
+    };
+
+    const mockPlayerStateResponse: PlayerPromotionStateResponse = {
+      id: 'player123',
+      username: 'player123',
+      status: 'Active',
+      siteName: 'Site 1',
+      currency: 'USD',
+      dateJoined: '2025-01-15',
+      bonusWin: 125.5,
+      baseBonusWin: 125.5,
+      baseTurnover: 890.25,
+      baseBonusClaimed: 0,
+      turnover: 890.25,
+      progress: {
+        current: 1.5,
+        required: 2.0,
+      },
+      bonusClaimed: 0.0,
+      lastActivity: '2025-01-25',
+      initialBonusItem: 20,
+      remainingBonusItems: 10,
+    };
+
+    const mockPlayersExportResponse: PlayersExportResponse = {
+      items: [mockPlayerStateResponse],
+    };
+
+    it('should successfully export player promotion state without pagination', async () => {
+      // Arrange
+      mockPlayerPromotionService.getPlayerPromotionStateExport.mockResolvedValue(
+        mockPlayersExportResponse,
+      );
+
+      // Act
+      const actualResult = await controller.getPlayerPromotionStateExport(mockExportQuery);
+
+      // Assert
+      expect(mockPlayerPromotionService.getPlayerPromotionStateExport).toHaveBeenCalledWith(
+        mockExportQuery,
+      );
+      expect(actualResult).toEqual(mockPlayersExportResponse);
+      expect(actualResult.items).toHaveLength(1);
+      expect(actualResult.items[0]).toEqual(mockPlayerStateResponse);
+    });
+
+    it('should handle error when service throws', async () => {
+      // Arrange
+      const error = new Error('Service error');
+      mockPlayerPromotionService.getPlayerPromotionStateExport.mockRejectedValue(error);
+
+      // Act & Assert
+      await expect(controller.getPlayerPromotionStateExport(mockExportQuery)).rejects.toThrow(
+        'Service error',
+      );
     });
   });
 });

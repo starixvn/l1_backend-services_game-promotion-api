@@ -5,6 +5,7 @@ import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-prom
 import { Promotion } from '../schemas/promotion.schema';
 import { PlayerDto } from '../models';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
+import { PlayerPromotionStateExportDto } from '../models/player-promotion-state-export.dto';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { DeductBonusItemResponse } from '../responses/deduct-bonus-item.response';
 import {
@@ -1012,6 +1013,73 @@ describe('PlayerPromotionService', () => {
 
       // Act & Assert
       await expect(service.getPlayerPromotionState(mockQuery)).rejects.toThrow('Count failed');
+    });
+  });
+
+  describe('getPlayerPromotionStateExport', () => {
+    const mockExportQuery: PlayerPromotionStateExportDto = {
+      promotionId: '68ac2079db851bea05471c5a',
+    };
+
+    it('should successfully export player promotion state without pagination', async () => {
+      // Arrange
+      const mockPromotion = {
+        _id: '68ac2079db851bea05471c5a',
+        name: 'Test Promotion',
+        claimExpirationDate: new Date('2025-12-31'),
+      };
+      const mockPlayerStateResponse = {
+        id: 'player123',
+        username: 'Test Player',
+        status: 'Active',
+        siteName: 'Site 1',
+        currency: 'USD',
+        dateJoined: '2025-01-15',
+        bonusWin: 5,
+        baseBonusWin: 11,
+        baseTurnover: 12,
+        baseBonusClaimed: 13,
+        turnover: 0,
+        progress: { current: 0, required: 1 },
+        bonusClaimed: 0,
+        lastActivity: '2025-01-15',
+        initialBonusItem: 20,
+        remainingBonusItems: 10,
+      };
+      const mockAggregationResult = [mockPlayerStateResponse];
+
+      jest.spyOn(service as any, 'getPromotionById').mockResolvedValue(mockPromotion);
+      jest.spyOn(service as any, 'buildMatchStage').mockReturnValue({
+        promotionId: new Types.ObjectId('68ac2079db851bea05471c5a'),
+      });
+      jest.spyOn(service as any, 'buildAggregationPipeline').mockReturnValue([]);
+      jest.spyOn(service as any, 'getTotalCountAndAmounts').mockResolvedValue({
+        totalCount: 1,
+        baseTotalBonusClaimed: 1,
+        baseTotalTurnover: 2,
+        baseTotalWinAmount: 3,
+      });
+      jest
+        .spyOn(service as any, 'mapAggregationResultToResponse')
+        .mockReturnValue(mockPlayerStateResponse);
+      playerPromotionModel.aggregate.mockResolvedValue(mockAggregationResult);
+
+      // Act
+      const result = await service.getPlayerPromotionStateExport(mockExportQuery);
+
+      // Assert
+      expect(result.items).toHaveLength(1);
+      expect(playerPromotionModel.aggregate).toHaveBeenCalledWith([{ $sort: { createdAt: -1 } }]);
+    });
+
+    it('should throw error when promotion not found', async () => {
+      // Arrange
+      jest.spyOn(service as any, 'getPromotionById').mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(service.getPlayerPromotionStateExport(mockExportQuery)).rejects.toThrow(
+        PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
+      );
     });
   });
 });

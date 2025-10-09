@@ -7,6 +7,8 @@ export * from './create-promotion.dto';
 export * from './deduct-bonus-item.dto';
 export * from './get-to-progress.dto';
 export * from './player.dto';
+export * from './player-promotion-state.dto';
+export * from './player-promotion-state-export.dto';
 export * from './promotion-filter.dto';
 export * from './query-incomplete-promotions.dto';
 export * from './redeem-promotion.dto';

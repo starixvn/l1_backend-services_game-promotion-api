@@ -132,3 +132,11 @@ export class PlayersResponse {
     pageSize: number;
   };
 }
+
+export class PlayersExportResponse {
+  @ApiProperty({
+    description: 'List of players (all data without pagination)',
+    type: [PlayerPromotionStateResponse],
+  })
+  items: PlayerPromotionStateResponse[];
+}

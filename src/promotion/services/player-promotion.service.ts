@@ -12,6 +12,7 @@ import { PLAYER_PROMOTION_AGGREGATION, PROMOTION_STATUS } from '../../constants/
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
 import { PlayerPromotionStateResponse } from '../responses';
+import { PlayerPromotionStateExportDto } from '../models/player-promotion-state-export.dto';
 
 // Types for MongoDB aggregation
 interface MatchStage {
@@ -657,6 +658,41 @@ export class PlayerPromotionService {
   }
 
   /**
+   * Get promotion status for a specific promotion without pagination (export all data)
+   * @param query Export query parameters
+   * @returns List of all player promotion status information
+   */
+  async getPlayerPromotionStateExport(
+    query: PlayerPromotionStateExportDto,
+  ): Promise<Responses.PlayersExportResponse> {
+    const { promotionId, player, startDate, endDate, status, currencies } = query;
+    const promotion = await this.getPromotionById(promotionId);
+    if (!promotion) {
+      throw new Error(PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code);
+    }
+    const matchStage = this.buildMatchStage(promotionId, startDate, endDate);
+    const pipeline = this.buildAggregationPipeline(
+      matchStage,
+      promotion.claimExpirationDate,
+      status,
+      player,
+      currencies,
+    );
+    // Add sorting only (no pagination)
+    pipeline.push({ $sort: { createdAt: -1 } });
+
+    // Execute aggregation
+    const results = await this.playerPromotionModel.aggregate(pipeline);
+
+    // Map to response format
+    const items = results.map(doc => this.mapAggregationResultToResponse(doc));
+
+    return {
+      items,
+    };
+  }
+
+  /**
    * Build match stage for aggregation pipeline
    */
   private buildMatchStage(promotionId: string, startDate?: Date, endDate?: Date): MatchStage {
@@ -760,6 +796,7 @@ export class PlayerPromotionService {
                 },
                 { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.BONUS_CLAIMED}`, false] },
                 { $gt: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.MIN_REQUIRED_TURNOVER}`, 0] },
+                { $lte: [new Date(), claimExpirationDate] },
               ],
             },
             then: PROMOTION_STATUS.TURN_OVER_MET,
@@ -771,7 +808,7 @@ export class PlayerPromotionService {
           {
             case: {
               $and: [
-                { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.CLAIMED_AT}`, null] },
+                { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.BONUS_CLAIMED}`, false] },
                 { $gt: [new Date(), claimExpirationDate] },
               ],
             },

@@ -1,11 +1,14 @@
-import { Controller, Post, Body, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpStatus, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PromotionTicketService } from '../services/promotion-ticket.service';
 import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto';
 import { UpdatePromotionTicketDto } from '../models/update-promotion-ticket.dto';
+import { GetPromotionTicketsDto } from '../models/get-promotion-tickets.dto';
 import {
   CreatePromotionTicketResponse,
   UpdatePromotionTicketResponse,
+  GetPromotionTicketsPlayerResponse,
+  PromotionTicketsPlayerResponse,
 } from '../responses/promotion-ticket.response';
 import { TotalWinDto } from '../models/total-win.dto';
 
@@ -38,6 +41,32 @@ export class PromotionTicketController {
     @Body() updateTicketDto: UpdatePromotionTicketDto,
   ): Promise<UpdatePromotionTicketResponse> {
     return this.promotionTicketService.updateTicket(updateTicketDto);
+  }
+
+  @Get('get-promotion-tickets')
+  @ApiOperation({ summary: 'Get promotion tickets by promotionId and playerId with pagination' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Promotion tickets retrieved successfully',
+    type: GetPromotionTicketsPlayerResponse,
+  })
+  async getPromotionTickets(
+    @Query() query: GetPromotionTicketsDto,
+  ): Promise<GetPromotionTicketsPlayerResponse> {
+    return this.promotionTicketService.getPromotionTickets(query);
+  }
+
+  @Get('export-promotion-tickets')
+  @ApiOperation({ summary: 'Export promotion tickets by promotionId and playerId with pagination' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Promotion tickets exported successfully',
+    type: PromotionTicketsPlayerResponse,
+  })
+  async exportPromotionTickets(
+    @Query() query: GetPromotionTicketsDto,
+  ): Promise<PromotionTicketsPlayerResponse> {
+    return this.promotionTicketService.exportPromotionTickets(query);
   }
 
   @Post('total-win')

@@ -10,8 +10,11 @@ import { UpdatePromotionTicketDto } from '../models/update-promotion-ticket.dto'
 import {
   CreatePromotionTicketResponse,
   UpdatePromotionTicketResponse,
+  GetPromotionTicketsPlayerResponse,
+  PromotionTicketsPlayerResponse,
 } from '../responses/promotion-ticket.response';
 import { PromotionTicket, PromotionTicketDocument } from '../schemas/promotion-ticket.schema';
+import { GetPromotionTicketsDto } from '../models/get-promotion-tickets.dto';
 
 interface PlayerPromotionContext {
   playerId: string;
@@ -115,6 +118,145 @@ export class PromotionTicketService {
   }
 
   /**
+   * Get promotion tickets by promotionId and playerId with pagination
+   * @param promotionId Promotion identifier
+   * @param playerId Player identifier
+   * @param ticketId Ticket identifier
+   * @param pageIndex Page index (0-based)
+   * @param pageSize Number of items per page
+   * @returns Paginated list of promotion tickets
+   */
+  async getPromotionTickets(
+    params: GetPromotionTicketsDto,
+  ): Promise<GetPromotionTicketsPlayerResponse> {
+    const { promotionId, playerId, roundId, startDate, endDate, pageIndex, pageSize } = params;
+
+    try {
+      const query: any = {
+        promotionId,
+        playerId,
+        createdAt: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate),
+        },
+      };
+      if (roundId) {
+        query.$expr = {
+          $regexMatch: {
+            input: { $toString: '$gameRoundId' },
+            regex: roundId,
+            options: 'i',
+          },
+        };
+      }
+
+      // Get all records to calculate totals and count (without pagination)
+      const allTickets = await this.promotionTicketModel.find(query).lean().exec();
+
+      const { totalCount, totalBetAmount, totalWinAmount, totalBaseBetAmount, totalBaseWinAmount } =
+        this.calculateTicketTotals(allTickets);
+
+      const totalPages = Math.ceil(totalCount / pageSize);
+      const skip = (pageIndex - 1) * pageSize;
+
+      // Get paginated tickets
+      const tickets = await this.promotionTicketModel
+        .find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(pageSize)
+        .lean()
+        .exec();
+
+      return {
+        tickets,
+        totalPages,
+        pageSize,
+        metaData: {
+          totalCount,
+          totalBaseBetAmount,
+          totalBaseWinAmount,
+          totalWinAmount,
+          totalBetAmount,
+        },
+      };
+    } catch (error) {
+      this.loggerService.captureException(error, {
+        method: 'getPromotionTickets',
+        service: 'PromotionTicketService',
+        promotionId,
+        playerId,
+        pageIndex,
+        pageSize,
+      });
+
+      return {
+        tickets: [],
+        totalPages: 0,
+        pageSize: 0,
+        metaData: {
+          totalCount: 0,
+          totalBaseBetAmount: 0,
+          totalBaseWinAmount: 0,
+          totalWinAmount: 0,
+          totalBetAmount: 0,
+        },
+      };
+    }
+  }
+
+  /**
+   * Get promotion tickets by promotionId and playerId with pagination
+   * @param promotionId Promotion identifier
+   * @param playerId Player identifier
+   * @param ticketId Ticket identifier
+   * @returns List of promotion tickets
+   */
+  async exportPromotionTickets(
+    params: GetPromotionTicketsDto,
+  ): Promise<PromotionTicketsPlayerResponse> {
+    const { promotionId, playerId, roundId, startDate, endDate } = params;
+    try {
+      const query: any = {
+        promotionId,
+        playerId,
+        createdAt: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate),
+        },
+      };
+
+      if (roundId) {
+        query.$expr = {
+          $regexMatch: {
+            input: { $toString: '$gameRoundId' },
+            regex: roundId,
+            options: 'i',
+          },
+        };
+      }
+
+      const tickets = await this.promotionTicketModel
+        .find(query)
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+      return {
+        tickets,
+      };
+    } catch (error) {
+      this.loggerService.captureException(error, {
+        method: 'exportPromotionTickets',
+        service: 'PromotionTicketService',
+        params,
+      });
+    }
+    return {
+      tickets: [],
+    };
+  }
+
+  /**
    * Get total win amount for a player by promotionId, playerId, operatorId, siteName
    * @param totalWinDto Total win calculation data
    * @returns Total win amount (number)
@@ -204,5 +346,46 @@ export class PromotionTicketService {
       gameId: updateTicketDto.gameId,
       gameRoundId: updateTicketDto.gameRoundId,
     };
+  }
+
+  /**
+   * Calculate totals from an array of tickets
+   * @param tickets Array of promotion tickets
+   * @returns Object containing total count and amounts
+   */
+  private calculateTicketTotals(tickets: any[]): {
+    totalCount: number;
+    totalBetAmount: number;
+    totalWinAmount: number;
+    totalBaseBetAmount: number;
+    totalBaseWinAmount: number;
+  } {
+    if (!tickets || tickets.length === 0) {
+      return {
+        totalCount: 0,
+        totalBetAmount: 0,
+        totalWinAmount: 0,
+        totalBaseBetAmount: 0,
+        totalBaseWinAmount: 0,
+      };
+    }
+
+    return tickets.reduce(
+      (acc, ticket) => {
+        acc.totalCount++;
+        acc.totalBetAmount += ticket.betAmount || 0;
+        acc.totalWinAmount += ticket.winAmount || 0;
+        acc.totalBaseBetAmount += ticket.baseBetAmount || 0;
+        acc.totalBaseWinAmount += ticket.baseWinAmount || 0;
+        return acc;
+      },
+      {
+        totalCount: 0,
+        totalBetAmount: 0,
+        totalWinAmount: 0,
+        totalBaseBetAmount: 0,
+        totalBaseWinAmount: 0,
+      },
+    );
   }
 }

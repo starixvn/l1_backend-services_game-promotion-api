@@ -126,6 +126,9 @@ export const PROMOTION_TICKET_ERROR_CODES = {
   UPDATE_FAILED: {
     code: 'PT3303',
   },
+  FETCH_FAILED: {
+    code: 'PT3304',
+  },
 } as const;
 
 // Type definitions for better TypeScript support

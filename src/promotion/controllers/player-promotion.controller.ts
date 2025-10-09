@@ -5,6 +5,7 @@ import * as Models from '../models';
 import * as Responses from '../responses';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
+import { PlayerPromotionStateExportDto } from '../models/player-promotion-state-export.dto';
 
 @ApiTags('player-promotions')
 @Controller('player-promotions')
@@ -121,6 +122,26 @@ export class PlayerPromotionController {
     @Query() query: PlayerPromotionStateDto,
   ): Promise<Responses.PlayersResponse> {
     return this.playerPromotionService.getPlayerPromotionState(query);
+  }
+
+  /**
+   * Export player promotion status (all data without pagination)
+   * @param query - Player promotion status export query parameters
+   * @returns All player promotion status information
+   */
+  @Get('state/export')
+  @ApiOperation({ summary: 'Export player promotion state without pagination' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns all player promotion status information without pagination',
+    type: Responses.PlayersExportResponse,
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - missing required parameters' })
+  @ApiResponse({ status: 404, description: 'Player promotion or promotion not found' })
+  async getPlayerPromotionStateExport(
+    @Query() query: PlayerPromotionStateExportDto,
+  ): Promise<Responses.PlayersExportResponse> {
+    return this.playerPromotionService.getPlayerPromotionStateExport(query);
   }
 
   @Post('query-players-incomplete-promotions')
