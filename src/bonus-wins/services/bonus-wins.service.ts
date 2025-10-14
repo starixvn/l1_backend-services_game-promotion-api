@@ -394,13 +394,23 @@ export class BonusWinsService {
         toRequirementResult.totalTurnover,
       );
 
-      if (!toRequirementResult.canClaim || !isClaimable) {
+      if (!toRequirementResult.canClaim) {
         return {
           claimedAmount: 0,
           totalTurnover: 0,
           minRequiredTurnover: 0,
           totalWinAmount: 0,
-          errorCode: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.code,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_TO_REQUIREMENT_NOT_MET.code,
+        };
+      }
+
+      if (!isClaimable) {
+        return {
+          claimedAmount: 0,
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          totalWinAmount: 0,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_VERIFICATION_FAILED.code,
         };
       }
 
@@ -433,6 +443,14 @@ export class BonusWinsService {
           totalWinAmount,
         };
       }
+
+      return {
+        claimedAmount: 0,
+        totalTurnover: 0,
+        minRequiredTurnover: 0,
+        totalWinAmount: 0,
+        errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_UPDATE_FAILED.code,
+      };
     } catch (error) {
       this.loggerService.error('Error in claimBonusWins', error.stack, {
         playerId,
@@ -441,15 +459,15 @@ export class BonusWinsService {
         promotionId,
         error: error.message,
       });
-    }
 
-    return {
-      claimedAmount: 0,
-      totalTurnover: 0,
-      minRequiredTurnover: 0,
-      totalWinAmount: 0,
-      errorCode: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_FAILED.code,
-    };
+      return {
+        claimedAmount: 0,
+        totalTurnover: 0,
+        minRequiredTurnover: 0,
+        totalWinAmount: 0,
+        errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_UNEXPECTED_ERROR.code,
+      };
+    }
   }
 
   private async isClaimable(
@@ -460,9 +478,11 @@ export class BonusWinsService {
     totalTurnover: number,
   ): Promise<boolean> {
     const promotion = await this.promotionModel.findById(promotionId).lean().exec();
+
     if (!promotion) {
       return false;
     }
+
     const actualWinAmount = await this.promotionTicketService.calculateTotalWin({
       playerId,
       operatorId,
@@ -470,6 +490,7 @@ export class BonusWinsService {
       promotionId,
     });
     const minRequiredTurnover = actualWinAmount.totalWinAmount * promotion.minTurnoverMultiplier;
+
     return this.canClaimBonusWins(
       totalTurnover,
       minRequiredTurnover,

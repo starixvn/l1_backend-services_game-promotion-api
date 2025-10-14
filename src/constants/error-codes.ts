@@ -87,6 +87,25 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
   CLAIMING_EXPIRED: {
     code: 'SB3023',
   },
+  // Claim Bonus Wins - Specific Error Codes (SB3024-SB3029)
+  CLAIM_TO_REQUIREMENT_NOT_MET: {
+    code: 'SB3024',
+  },
+  CLAIM_VERIFICATION_FAILED: {
+    code: 'SB3025',
+  },
+  CLAIM_UPDATE_FAILED: {
+    code: 'SB3026',
+  },
+  CLAIM_PROMOTION_NOT_FOUND: {
+    code: 'SB3027',
+  },
+  CLAIM_ACTUAL_WIN_MISMATCH: {
+    code: 'SB3028',
+  },
+  CLAIM_UNEXPECTED_ERROR: {
+    code: 'SB3029',
+  },
 } as const;
 
 // Promotion Error Codes (PR31XX) - Ready for future use
