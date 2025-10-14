@@ -489,6 +489,7 @@ export class BonusWinsService {
       siteName,
       promotionId,
     });
+
     const minRequiredTurnover = actualWinAmount.totalWinAmount * promotion.minTurnoverMultiplier;
 
     return this.canClaimBonusWins(
@@ -510,8 +511,23 @@ export class BonusWinsService {
     minRequiredTurnover: number,
     totalWinAmount: number,
   ): boolean {
-    // When minRequiredTurnover = 0, players cannot claim (security measure)
-    return minRequiredTurnover > 0 && totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
+    const canClaim =
+      minRequiredTurnover > 0 && totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
+
+    if (!canClaim) {
+      this.loggerService.warn('canClaimBonusWins check failed', {
+        totalTurnover,
+        minRequiredTurnover,
+        totalWinAmount,
+        reasons: {
+          minRequiredTurnoverInvalid: minRequiredTurnover <= 0,
+          turnoverNotMet: totalTurnover < minRequiredTurnover,
+          noWinAmount: totalWinAmount <= 0,
+        },
+      });
+    }
+
+    return canClaim;
   }
 
   /**

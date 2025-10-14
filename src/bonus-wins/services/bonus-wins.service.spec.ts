@@ -53,6 +53,7 @@ describe('BonusWinsService', () => {
           useValue: {
             error: jest.fn(),
             log: jest.fn(),
+            warn: jest.fn(),
           },
         },
         {
