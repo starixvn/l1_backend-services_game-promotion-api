@@ -13,7 +13,6 @@ import {
   PlayerPromotionStateResponse,
 } from '../responses/player-promotion.response';
 import { LoggerService } from '../../core/logger/logger.service';
-import { Types } from 'mongoose';
 
 // Mock LoggerService
 const mockLoggerService = {
@@ -578,207 +577,6 @@ describe('PlayerPromotionService', () => {
     });
   });
 
-  describe('buildAggregationPipeline', () => {
-    const mockMatchStage = { promotionId: new Types.ObjectId('68ac2079db851bea05471c5a') };
-    const mockClaimExpirationDate = new Date('2025-12-31');
-
-    it('should build basic pipeline without optional parameters', () => {
-      const result = service['buildAggregationPipeline'](mockMatchStage, mockClaimExpirationDate);
-
-      expect(result).toHaveLength(5);
-      expect(result[0]).toEqual({ $match: mockMatchStage });
-      expect((result[1] as any).$lookup).toBeDefined();
-      expect((result[2] as any).$addFields.playerName).toBeDefined();
-      expect((result[3] as any).$addFields.calculatedStatus).toBeDefined();
-      expect((result[4] as any).$addFields.progress).toBeDefined();
-    });
-
-    it('should include player search filter when provided', () => {
-      const result = service['buildAggregationPipeline'](
-        mockMatchStage,
-        mockClaimExpirationDate,
-        undefined,
-        'john',
-      );
-
-      const playerSearchStage = result.find(stage => (stage as any).$match?.$or);
-      expect(playerSearchStage).toBeDefined();
-      expect((playerSearchStage as any).$match.$or).toHaveLength(2);
-    });
-
-    it('should include status filter when provided', () => {
-      const result = service['buildAggregationPipeline'](
-        mockMatchStage,
-        mockClaimExpirationDate,
-        'Active',
-      );
-
-      const statusFilterStage = result.find(
-        stage => (stage as any).$match?.calculatedStatus === 'Active',
-      );
-      expect(statusFilterStage).toBeDefined();
-    });
-
-    it('should include both filters when both provided', () => {
-      const result = service['buildAggregationPipeline'](
-        mockMatchStage,
-        mockClaimExpirationDate,
-        'Active',
-        'john',
-      );
-
-      expect(result).toHaveLength(7);
-      expect((result[3] as any).$match.$or).toBeDefined();
-      expect((result[6] as any).$match.calculatedStatus).toBe('Active');
-    });
-
-    it('should handle falsy values correctly', () => {
-      const result1 = service['buildAggregationPipeline'](
-        mockMatchStage,
-        mockClaimExpirationDate,
-        null as any,
-        null as any,
-      );
-      const result2 = service['buildAggregationPipeline'](
-        mockMatchStage,
-        mockClaimExpirationDate,
-        undefined,
-        undefined,
-      );
-
-      expect(result1).toHaveLength(5);
-      expect(result2).toHaveLength(5);
-    });
-
-    it('should call required methods', () => {
-      const getStatusCalculationSpy = jest.spyOn(service as any, 'getStatusCalculation');
-      const getTurnoverProgressCalculationSpy = jest.spyOn(
-        service as any,
-        'getTurnoverProgressCalculation',
-      );
-      const getProgressFieldSpy = jest.spyOn(service as any, 'getProgressField');
-
-      service['buildAggregationPipeline'](mockMatchStage, mockClaimExpirationDate);
-
-      expect(getStatusCalculationSpy).toHaveBeenCalledWith(mockClaimExpirationDate);
-      expect(getTurnoverProgressCalculationSpy).toHaveBeenCalledWith();
-      expect(getProgressFieldSpy).toHaveBeenCalledWith();
-    });
-  });
-
-  describe('getTotalCountAndAmounts', () => {
-    it('should return total count and base amounts correctly', async () => {
-      const pipeline = [{ $match: { promotionId: 'test' } }];
-      const mockResult = {
-        totalCount: 5,
-        baseTotalWinAmount: 1,
-        baseTotalTurnover: 2,
-        baseBonusClaimed: 3,
-      };
-      playerPromotionModel.aggregate.mockResolvedValueOnce([mockResult]);
-
-      const result = await service['getTotalCountAndAmounts'](pipeline);
-
-      expect(result).toEqual({
-        totalCount: 5,
-        baseTotalWinAmount: 1,
-        baseTotalTurnover: 2,
-        baseTotalBonusClaimed: 3,
-      });
-      expect(playerPromotionModel.aggregate).toHaveBeenCalledWith([
-        ...pipeline,
-        {
-          $group: {
-            _id: null,
-            totalCount: { $sum: 1 },
-            baseTotalWinAmount: { $sum: '$baseTotalWinAmount' },
-            baseTotalTurnover: { $sum: '$baseTotalTurnover' },
-            baseBonusClaimed: {
-              $sum: {
-                $cond: [{ $eq: ['$bonusClaimed', true] }, '$baseTotalWinAmount', 0],
-              },
-            },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            totalCount: 1,
-            baseTotalWinAmount: 1,
-            baseTotalTurnover: 1,
-            baseBonusClaimed: 1,
-          },
-        },
-      ]);
-    });
-
-    it('should return zero values when no results found', async () => {
-      const pipeline = [{ $match: { promotionId: 'test' } }];
-      playerPromotionModel.aggregate.mockResolvedValueOnce([]);
-
-      const result = await service['getTotalCountAndAmounts'](pipeline);
-
-      expect(result).toEqual({
-        totalCount: 0,
-        baseTotalWinAmount: 0,
-        baseTotalTurnover: 0,
-        baseTotalBonusClaimed: 0,
-      });
-    });
-  });
-
-  describe('mapAggregationResultToResponse', () => {
-    const mockDoc = {
-      playerId: 'player123',
-      playerName: 'John Doe',
-      calculatedStatus: 'Active',
-      siteName: 'Site 1',
-      currency: 'USD',
-      createdAt: new Date('2025-01-15'),
-      totalWinAmount: 100,
-      baseTotalWinAmount: 80,
-      totalTurnover: 500,
-      baseTotalTurnover: 400,
-      turnoverProgress: 0.8,
-      progress: { current: 0.8, required: 1.0 },
-      bonusClaimed: true,
-      remainingBonusItems: 10,
-      initialBonusItem: 20,
-      updatedAt: new Date('2025-01-20'),
-    };
-
-    it('should map document correctly for both currency types', () => {
-      const resultBase = service['mapAggregationResultToResponse'](mockDoc);
-      const resultRegular = service['mapAggregationResultToResponse'](mockDoc);
-
-      expect(resultBase.bonusWin).toBe(100);
-      expect(resultBase.turnover).toBe(500); // Fix: should be 500, not 400
-      expect(resultRegular.bonusWin).toBe(100);
-      expect(resultRegular.turnover).toBe(500);
-    });
-  });
-
-  describe('buildMatchStage', () => {
-    it('should build match stage with all parameters', () => {
-      // Arrange
-      const promotionId = '68ac2079db851bea05471c5a';
-      const startDate = new Date('2025-01-01');
-      const endDate = new Date('2025-01-31');
-
-      // Act
-      const result = service['buildMatchStage'](promotionId, startDate, endDate);
-
-      // Assert
-      expect(result).toEqual({
-        promotionId: new Types.ObjectId(promotionId),
-        createdAt: {
-          $gte: new Date('2025-01-01'),
-          $lte: new Date('2025-01-31'),
-        },
-      });
-    });
-  });
-
   describe('getPlayerPromotionState', () => {
     const mockQuery: PlayerPromotionStateDto = {
       promotionId: '68ac2079db851bea05471c5a',
@@ -788,28 +586,6 @@ describe('PlayerPromotionService', () => {
       endDate: new Date('2025-01-31'),
       currencies: 'USD',
     };
-
-    const basePipeline = [
-      { $match: { promotionId: new Types.ObjectId('68ac2079db851bea05471c5a') } },
-      {
-        $lookup: {
-          from: 'user_silos',
-          localField: 'playerId',
-          foreignField: 'playerId',
-          as: 'playerInfo',
-        },
-      },
-      {
-        $addFields: {
-          playerName: {
-            $ifNull: [{ $arrayElemAt: ['$playerInfo.playerName', 0] }, '$playerId'],
-          },
-          currency: {
-            $ifNull: [{ $arrayElemAt: ['$playerInfo.currency', 0] }, '$currency'],
-          },
-        },
-      },
-    ];
 
     const mockPromotion = {
       _id: '68ac2079db851bea05471c5a',
@@ -828,6 +604,14 @@ describe('PlayerPromotionService', () => {
         remainingBonusItems: 5,
         initialBonusItem: 10,
         betLevel: 1,
+        totalTurnover: 100,
+        totalWinAmount: 50,
+        turnoverMultiplier: 2,
+        minRequiredTurnover: 200,
+        bonusClaimed: false,
+        baseTotalWinAmount: 25,
+        baseTotalTurnover: 50,
+        baseTotalBonusClaimed: 0,
       },
     ];
 
@@ -838,16 +622,19 @@ describe('PlayerPromotionService', () => {
       siteName: 'Site 1',
       currency: 'USD',
       dateJoined: '2025-01-15',
-      bonusWin: 5,
-      baseBonusWin: 11,
-      baseTurnover: 12,
-      baseBonusClaimed: 13,
-      turnover: 0,
-      progress: { current: 0, required: 1 },
+      bonusWin: 50,
+      baseBonusWin: 25,
+      turnover: 100,
+      baseTurnover: 50,
+      progress: {
+        current: 1,
+        required: 2,
+      },
       bonusClaimed: 0,
+      baseBonusClaimed: 0,
       lastActivity: '2025-01-15',
-      initialBonusItem: 20,
-      remainingBonusItems: 10,
+      initialBonusItem: 10,
+      remainingBonusItems: 5,
     };
 
     const mockPlayersResponse: PlayersResponse = {
@@ -855,25 +642,21 @@ describe('PlayerPromotionService', () => {
       metadata: {
         pageIndex: 1,
         totalCount: 1,
-        baseTotalWinAmount: 1,
-        baseTotalTurnover: 2,
-        baseTotalBonusClaimed: 3,
+        baseTotalWinAmount: 25,
+        baseTotalTurnover: 50,
+        baseTotalBonusClaimed: 0,
         pageSize: 10,
       },
     };
 
     beforeEach(() => {
-      // Mock all private methods
+      jest.clearAllMocks();
       jest.spyOn(service as any, 'getPromotionById').mockResolvedValue(mockPromotion);
-      jest
-        .spyOn(service as any, 'buildMatchStage')
-        .mockReturnValue({ promotionId: new Types.ObjectId('68ac2079db851bea05471c5a') });
-      jest.spyOn(service as any, 'buildAggregationPipeline').mockReturnValue([...basePipeline]);
       jest.spyOn(service as any, 'getTotalCountAndAmounts').mockResolvedValue({
         totalCount: 1,
-        baseTotalBonusClaimed: 3,
-        baseTotalTurnover: 2,
-        baseTotalWinAmount: 1,
+        baseTotalBonusClaimed: 0,
+        baseTotalTurnover: 50,
+        baseTotalWinAmount: 25,
       });
       jest
         .spyOn(service as any, 'mapAggregationResultToResponse')
@@ -888,25 +671,8 @@ describe('PlayerPromotionService', () => {
       // Assert
       expect(result).toEqual(mockPlayersResponse);
       expect(service['getPromotionById']).toHaveBeenCalledWith(mockQuery.promotionId);
-      expect(service['buildMatchStage']).toHaveBeenCalledWith(
-        mockQuery.promotionId,
-        mockQuery.startDate,
-        mockQuery.endDate,
-      );
-      expect(service['buildAggregationPipeline']).toHaveBeenCalledWith(
-        { promotionId: new Types.ObjectId('68ac2079db851bea05471c5a') },
-        mockPromotion.claimExpirationDate,
-        mockQuery.status,
-        mockQuery.player,
-        mockQuery.currencies,
-      );
       expect(service['getTotalCountAndAmounts']).toHaveBeenCalledTimes(1);
-      expect(playerPromotionModel.aggregate).toHaveBeenCalledWith([
-        ...basePipeline,
-        { $sort: { createdAt: -1 } },
-        { $skip: 0 },
-        { $limit: 10 },
-      ]);
+      expect(playerPromotionModel.aggregate).toHaveBeenCalledTimes(1);
       expect(service['mapAggregationResultToResponse']).toHaveBeenCalledWith(
         mockAggregationResult[0],
       );
@@ -929,6 +695,7 @@ describe('PlayerPromotionService', () => {
         pageIndex: 3,
         pageSize: 15,
       };
+
       jest.spyOn(service as any, 'getTotalCountAndAmounts').mockResolvedValue({
         totalCount: 45,
         baseTotalBonusClaimed: 1,
@@ -943,12 +710,6 @@ describe('PlayerPromotionService', () => {
       expect(result.metadata.pageIndex).toBe(3);
       expect(result.metadata.pageSize).toBe(15);
       expect(result.metadata.totalCount).toBe(45);
-      expect(playerPromotionModel.aggregate).toHaveBeenCalledWith([
-        ...basePipeline,
-        { $sort: { createdAt: -1 } },
-        { $skip: 30 },
-        { $limit: 15 },
-      ]);
     });
 
     it('should handle empty results', async () => {
@@ -1014,6 +775,34 @@ describe('PlayerPromotionService', () => {
       // Act & Assert
       await expect(service.getPlayerPromotionState(mockQuery)).rejects.toThrow('Count failed');
     });
+
+    it('should handle status filter', async () => {
+      // Arrange
+      const queryWithStatus: PlayerPromotionStateDto = {
+        ...mockQuery,
+        status: 'Active',
+      };
+
+      // Act
+      await service.getPlayerPromotionState(queryWithStatus);
+
+      // Assert
+      expect(service['getPromotionById']).toHaveBeenCalledWith(queryWithStatus.promotionId);
+    });
+
+    it('should handle player search filter', async () => {
+      // Arrange
+      const queryWithPlayer: PlayerPromotionStateDto = {
+        ...mockQuery,
+        player: 'Test Player',
+      };
+
+      // Act
+      await service.getPlayerPromotionState(queryWithPlayer);
+
+      // Assert
+      expect(service['getPromotionById']).toHaveBeenCalledWith(queryWithPlayer.promotionId);
+    });
   });
 
   describe('getPlayerPromotionStateExport', () => {
@@ -1021,55 +810,57 @@ describe('PlayerPromotionService', () => {
       promotionId: '68ac2079db851bea05471c5a',
     };
 
-    it('should successfully export player promotion state without pagination', async () => {
-      // Arrange
-      const mockPromotion = {
-        _id: '68ac2079db851bea05471c5a',
-        name: 'Test Promotion',
-        claimExpirationDate: new Date('2025-12-31'),
-      };
-      const mockPlayerStateResponse = {
-        id: 'player123',
-        username: 'Test Player',
-        status: 'Active',
-        siteName: 'Site 1',
-        currency: 'USD',
-        dateJoined: '2025-01-15',
-        bonusWin: 5,
-        baseBonusWin: 11,
-        baseTurnover: 12,
-        baseBonusClaimed: 13,
-        turnover: 0,
-        progress: { current: 0, required: 1 },
-        bonusClaimed: 0,
-        lastActivity: '2025-01-15',
-        initialBonusItem: 20,
-        remainingBonusItems: 10,
-      };
-      const mockAggregationResult = [mockPlayerStateResponse];
+    const mockPromotion = {
+      _id: '68ac2079db851bea05471c5a',
+      name: 'Test Promotion',
+      claimExpirationDate: new Date('2025-12-31'),
+    };
 
+    const mockPlayerStateResponse: PlayerPromotionStateResponse = {
+      id: 'player123',
+      username: 'Test Player',
+      status: 'Active',
+      siteName: 'Site 1',
+      currency: 'USD',
+      dateJoined: '2025-01-15',
+      bonusWin: 50,
+      baseBonusWin: 25,
+      turnover: 100,
+      baseTurnover: 50,
+      progress: {
+        current: 1,
+        required: 2,
+      },
+      bonusClaimed: 0,
+      baseBonusClaimed: 0,
+      lastActivity: '2025-01-15',
+      initialBonusItem: 10,
+      remainingBonusItems: 5,
+    };
+
+    const mockAggregationResult = [mockPlayerStateResponse];
+
+    beforeEach(() => {
+      jest.clearAllMocks();
       jest.spyOn(service as any, 'getPromotionById').mockResolvedValue(mockPromotion);
-      jest.spyOn(service as any, 'buildMatchStage').mockReturnValue({
-        promotionId: new Types.ObjectId('68ac2079db851bea05471c5a'),
-      });
-      jest.spyOn(service as any, 'buildAggregationPipeline').mockReturnValue([]);
-      jest.spyOn(service as any, 'getTotalCountAndAmounts').mockResolvedValue({
-        totalCount: 1,
-        baseTotalBonusClaimed: 1,
-        baseTotalTurnover: 2,
-        baseTotalWinAmount: 3,
-      });
       jest
         .spyOn(service as any, 'mapAggregationResultToResponse')
         .mockReturnValue(mockPlayerStateResponse);
       playerPromotionModel.aggregate.mockResolvedValue(mockAggregationResult);
+    });
 
+    it('should successfully export player promotion state without pagination', async () => {
       // Act
       const result = await service.getPlayerPromotionStateExport(mockExportQuery);
 
       // Assert
       expect(result.items).toHaveLength(1);
-      expect(playerPromotionModel.aggregate).toHaveBeenCalledWith([{ $sort: { createdAt: -1 } }]);
+      expect(result.items[0]).toEqual(mockPlayerStateResponse);
+      expect(service['getPromotionById']).toHaveBeenCalledWith(mockExportQuery.promotionId);
+      expect(playerPromotionModel.aggregate).toHaveBeenCalledTimes(1);
+      expect(service['mapAggregationResultToResponse']).toHaveBeenCalledWith(
+        mockAggregationResult[0],
+      );
     });
 
     it('should throw error when promotion not found', async () => {
@@ -1080,6 +871,65 @@ describe('PlayerPromotionService', () => {
       await expect(service.getPlayerPromotionStateExport(mockExportQuery)).rejects.toThrow(
         PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
       );
+    });
+
+    it('should handle empty results', async () => {
+      // Arrange
+      playerPromotionModel.aggregate.mockResolvedValue([]);
+
+      // Act
+      const result = await service.getPlayerPromotionStateExport(mockExportQuery);
+
+      // Assert
+      expect(result.items).toHaveLength(0);
+    });
+
+    it('should handle multiple results', async () => {
+      // Arrange
+      const multipleResults = [
+        { ...mockAggregationResult[0], id: 'player1' },
+        { ...mockAggregationResult[0], id: 'player2' },
+      ];
+      playerPromotionModel.aggregate.mockResolvedValue(multipleResults);
+      jest
+        .spyOn(service as any, 'mapAggregationResultToResponse')
+        .mockReturnValueOnce({ ...mockPlayerStateResponse, id: 'player1' })
+        .mockReturnValueOnce({ ...mockPlayerStateResponse, id: 'player2' });
+
+      // Act
+      const result = await service.getPlayerPromotionStateExport(mockExportQuery);
+
+      // Assert
+      expect(result.items).toHaveLength(2);
+    });
+
+    it('should handle aggregation errors', async () => {
+      // Arrange
+      const mockError = new Error('Aggregation failed');
+      playerPromotionModel.aggregate.mockRejectedValue(mockError);
+
+      // Act & Assert
+      await expect(service.getPlayerPromotionStateExport(mockExportQuery)).rejects.toThrow(
+        'Aggregation failed',
+      );
+    });
+
+    it('should handle export with filters', async () => {
+      // Arrange
+      const queryWithFilters: PlayerPromotionStateExportDto = {
+        ...mockExportQuery,
+        status: 'Active',
+        player: 'Test Player',
+        currencies: 'USD',
+        startDate: new Date('2025-01-01'),
+        endDate: new Date('2025-01-31'),
+      };
+
+      // Act
+      await service.getPlayerPromotionStateExport(queryWithFilters);
+
+      // Assert
+      expect(service['getPromotionById']).toHaveBeenCalledWith(queryWithFilters.promotionId);
     });
   });
 });

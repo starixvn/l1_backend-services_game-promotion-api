@@ -8,20 +8,11 @@ import * as Responses from '../responses';
 import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
 import { EligiblePromotion } from '../responses/eligible-promotion.response';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
-import { PLAYER_PROMOTION_AGGREGATION, PROMOTION_STATUS } from '../../constants/player-promotion';
+import { PROMOTION_STATUS } from '../../constants/player-promotion';
 import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
 import { PlayerPromotionStateResponse } from '../responses';
 import { PlayerPromotionStateExportDto } from '../models/player-promotion-state-export.dto';
-
-// Types for MongoDB aggregation
-interface MatchStage {
-  promotionId: Types.ObjectId;
-  createdAt?: {
-    $gte: Date;
-    $lte: Date;
-  };
-}
 
 interface AggregationResult {
   totalCount: number;
@@ -35,11 +26,12 @@ interface AggregationDocument {
   playerName: string;
   currency: string;
   calculatedStatus: string;
-  turnoverProgress: number;
   progress: {
     current: number;
     required: number;
   };
+  minRequiredTurnover: number;
+  turnoverMultiplier: number;
   siteName: string;
   createdAt: Date;
   updatedAt: Date;
@@ -51,21 +43,6 @@ interface AggregationDocument {
   remainingBonusItems: number;
   initialBonusItem: number;
 }
-
-interface SwitchExpression {
-  $switch: {
-    branches: Array<{
-      case: Record<string, unknown>;
-      then: string;
-    }>;
-    default: string;
-  };
-}
-
-interface RoundExpression {
-  $round: [Record<string, unknown>, number];
-}
-
 /**
  * Service for managing player promotions
  */
@@ -619,24 +596,22 @@ export class PlayerPromotionService {
     if (!promotion) {
       throw new Error(PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code);
     }
-    const matchStage = this.buildMatchStage(promotionId, startDate, endDate);
-    const pipeline = this.buildAggregationPipeline(
-      matchStage,
-      promotion.claimExpirationDate,
+
+    // Build pipeline without pagination for totals calculation
+    const pipeline = this.buildCompleteAggregationPipeline({
+      promotionId,
+      claimExpirationDate: promotion.claimExpirationDate,
+      startDate,
+      endDate,
       status,
-      player,
+      playerSearch: player,
       currencies,
-    );
+      pageIndex,
+      pageSize,
+    });
 
     // Get total count and base amounts for metadata
     const totals = await this.getTotalCountAndAmounts(pipeline);
-
-    // Add sorting and pagination
-    pipeline.push(
-      { $sort: { createdAt: -1 } },
-      { $skip: (pageIndex - 1) * pageSize },
-      { $limit: pageSize },
-    );
 
     // Execute aggregation
     const results = await this.playerPromotionModel.aggregate(pipeline);
@@ -670,16 +645,17 @@ export class PlayerPromotionService {
     if (!promotion) {
       throw new Error(PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code);
     }
-    const matchStage = this.buildMatchStage(promotionId, startDate, endDate);
-    const pipeline = this.buildAggregationPipeline(
-      matchStage,
-      promotion.claimExpirationDate,
+
+    // Build complete pipeline with sorting only (no pagination)
+    const pipeline = this.buildCompleteAggregationPipeline({
+      promotionId,
+      claimExpirationDate: promotion.claimExpirationDate,
+      startDate,
+      endDate,
       status,
-      player,
+      playerSearch: player,
       currencies,
-    );
-    // Add sorting only (no pagination)
-    pipeline.push({ $sort: { createdAt: -1 } });
+    });
 
     // Execute aggregation
     const results = await this.playerPromotionModel.aggregate(pipeline);
@@ -693,33 +669,45 @@ export class PlayerPromotionService {
   }
 
   /**
-   * Build match stage for aggregation pipeline
+   * Build complete aggregation pipeline with all stages
    */
-  private buildMatchStage(promotionId: string, startDate?: Date, endDate?: Date): MatchStage {
-    const matchStage: MatchStage = { promotionId: new Types.ObjectId(promotionId) };
-    if (startDate && endDate) {
-      matchStage.createdAt = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      };
-    }
-    return matchStage;
-  }
-
-  /**
-   * Build aggregation pipeline with calculated fields
-   */
-  private buildAggregationPipeline(
-    matchStage: MatchStage,
-    claimExpirationDate: Date,
-    status?: string,
-    playerSearch?: string,
-    currencies?: string,
-  ): PipelineStage[] {
+  private buildCompleteAggregationPipeline(options: {
+    promotionId: string;
+    claimExpirationDate: Date;
+    startDate?: Date;
+    endDate?: Date;
+    status?: string;
+    playerSearch?: string;
+    currencies?: string;
+    pageIndex?: number;
+    pageSize?: number;
+  }): PipelineStage[] {
+    const {
+      promotionId,
+      claimExpirationDate,
+      startDate,
+      endDate,
+      status,
+      playerSearch,
+      currencies,
+      pageIndex,
+      pageSize,
+    } = options;
     const currenciesArray = currencies?.split(',');
+
     const pipeline: PipelineStage[] = [
-      { $match: matchStage },
-      // Lookup player information from user_silos collection
+      {
+        $match: {
+          promotionId: new Types.ObjectId(promotionId),
+          ...(startDate &&
+            endDate && {
+              createdAt: {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+              },
+            }),
+        },
+      },
       {
         $lookup: {
           from: 'user_silos',
@@ -728,8 +716,6 @@ export class PlayerPromotionService {
           as: 'playerInfo',
         },
       },
-
-      // Add playerName field with fallback to playerId
       {
         $addFields: {
           playerName: {
@@ -763,101 +749,44 @@ export class PlayerPromotionService {
         : []),
       {
         $addFields: {
-          calculatedStatus: this.getStatusCalculation(claimExpirationDate),
-          turnoverProgress: this.getTurnoverProgressCalculation(),
+          calculatedStatus: {
+            $cond: [
+              '$bonusClaimed',
+              PROMOTION_STATUS.BONUS_CLAIMED,
+              {
+                $cond: [
+                  { $gt: [new Date(), claimExpirationDate] },
+                  PROMOTION_STATUS.EXPIRED,
+                  {
+                    $cond: [
+                      {
+                        $and: [
+                          { $gte: ['$totalTurnover', '$minRequiredTurnover'] },
+                          { $gt: ['$minRequiredTurnover', 0] },
+                        ],
+                      },
+                      PROMOTION_STATUS.TURN_OVER_MET,
+                      PROMOTION_STATUS.ACTIVE,
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
         },
       },
-      { $addFields: { progress: this.getProgressField() } },
+      { $sort: { createdAt: -1 } },
     ];
 
-    // Add status filter if provided
     if (status) {
       pipeline.push({ $match: { calculatedStatus: status } });
     }
 
+    if (pageIndex && pageSize) {
+      pipeline.push({ $skip: (pageIndex - 1) * pageSize }, { $limit: pageSize });
+    }
+
     return pipeline;
-  }
-
-  /**
-   * Get status calculation logic
-   */
-  private getStatusCalculation(claimExpirationDate: Date): SwitchExpression {
-    return {
-      $switch: {
-        branches: [
-          {
-            case: {
-              $and: [
-                {
-                  $gte: [
-                    `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TOTAL_TURNOVER}`,
-                    `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.MIN_REQUIRED_TURNOVER}`,
-                  ],
-                },
-                { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.BONUS_CLAIMED}`, false] },
-                { $gt: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.MIN_REQUIRED_TURNOVER}`, 0] },
-                { $lte: [new Date(), claimExpirationDate] },
-              ],
-            },
-            then: PROMOTION_STATUS.TURN_OVER_MET,
-          },
-          {
-            case: { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.BONUS_CLAIMED}`, true] },
-            then: PROMOTION_STATUS.BONUS_CLAIMED,
-          },
-          {
-            case: {
-              $and: [
-                { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.BONUS_CLAIMED}`, false] },
-                { $gt: [new Date(), claimExpirationDate] },
-              ],
-            },
-            then: PROMOTION_STATUS.EXPIRED,
-          },
-        ],
-        default: PROMOTION_STATUS.ACTIVE,
-      },
-    };
-  }
-
-  /**
-   * Get turnover progress calculation logic
-   */
-  private getTurnoverProgressCalculation(): RoundExpression {
-    return {
-      $round: [
-        {
-          $cond: {
-            if: { $eq: [`$${PLAYER_PROMOTION_AGGREGATION.FIELDS.MIN_REQUIRED_TURNOVER}`, 0] },
-            then: 0,
-            else: {
-              $divide: [
-                {
-                  $multiply: [
-                    `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TOTAL_TURNOVER}`,
-                    `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TURNOVER_MULTIPLIER}`,
-                  ],
-                },
-                `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.MIN_REQUIRED_TURNOVER}`,
-              ],
-            },
-          },
-        },
-        2,
-      ],
-    };
-  }
-
-  /**
-   * Get progress field calculation
-   */
-  private getProgressField(): { current: { $min: string[] }; required: string } {
-    return {
-      current: {
-        $min: ['$turnoverProgress', `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TURNOVER_MULTIPLIER}`],
-      },
-      required: `$${PLAYER_PROMOTION_AGGREGATION.FIELDS.TURNOVER_MULTIPLIER}`,
-    };
   }
 
   /**
@@ -915,7 +844,10 @@ export class PlayerPromotionService {
       baseBonusWin: doc.baseTotalWinAmount || 0,
       turnover: doc.totalTurnover,
       baseTurnover: doc.baseTotalTurnover || 0,
-      progress: doc.progress,
+      progress: {
+        current: Math.min(doc.totalTurnover / doc.totalWinAmount, doc.turnoverMultiplier),
+        required: doc.turnoverMultiplier,
+      },
       bonusClaimed: doc.bonusClaimed ? doc.totalWinAmount : 0,
       baseBonusClaimed: doc.bonusClaimed ? doc.baseTotalWinAmount || 0 : 0,
       lastActivity: doc.updatedAt.toISOString(),
