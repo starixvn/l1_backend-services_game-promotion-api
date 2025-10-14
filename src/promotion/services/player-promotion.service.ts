@@ -597,8 +597,7 @@ export class PlayerPromotionService {
       throw new Error(PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code);
     }
 
-    // Build pipeline without pagination for totals calculation
-    const pipeline = this.buildCompleteAggregationPipeline({
+    const commonParams = {
       promotionId,
       claimExpirationDate: promotion.claimExpirationDate,
       startDate,
@@ -606,17 +605,15 @@ export class PlayerPromotionService {
       status,
       playerSearch: player,
       currencies,
+    };
+    const countTotalPipeline = this.buildCompleteAggregationPipeline(commonParams);
+    const totals = await this.getTotalCountAndAmounts(countTotalPipeline);
+    const dataPipeline = this.buildCompleteAggregationPipeline({
+      ...commonParams,
       pageIndex,
       pageSize,
     });
-
-    // Get total count and base amounts for metadata
-    const totals = await this.getTotalCountAndAmounts(pipeline);
-
-    // Execute aggregation
-    const results = await this.playerPromotionModel.aggregate(pipeline);
-
-    // Map to response format
+    const results = await this.playerPromotionModel.aggregate(dataPipeline);
     const items = results.map(doc => this.mapAggregationResultToResponse(doc));
 
     return {
