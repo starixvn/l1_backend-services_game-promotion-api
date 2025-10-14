@@ -480,6 +480,16 @@ export class BonusWinsService {
     const promotion = await this.promotionModel.findById(promotionId).lean().exec();
 
     if (!promotion) {
+      this.loggerService.error(
+        `isClaimable failed: Promotion not found in database - Player: ${playerId}`,
+        undefined,
+        {
+          playerId,
+          operatorId,
+          siteName,
+          promotionId,
+        },
+      );
       return false;
     }
 
@@ -492,11 +502,34 @@ export class BonusWinsService {
 
     const minRequiredTurnover = actualWinAmount.totalWinAmount * promotion.minTurnoverMultiplier;
 
-    return this.canClaimBonusWins(
+    const canClaim = this.canClaimBonusWins(
       totalTurnover,
       minRequiredTurnover,
       actualWinAmount.totalWinAmount,
     );
+
+    if (!canClaim) {
+      this.loggerService.warn(
+        `isClaimable failed: canClaimBonusWins check failed - Player: ${playerId}`,
+        {
+          playerId,
+          operatorId,
+          siteName,
+          promotionId,
+          totalTurnover,
+          minRequiredTurnover,
+          totalWinAmount: actualWinAmount.totalWinAmount,
+          turnoverMultiplier: promotion.minTurnoverMultiplier,
+          reasons: {
+            minRequiredTurnoverInvalid: minRequiredTurnover <= 0,
+            turnoverNotMet: totalTurnover < minRequiredTurnover,
+            noWinAmount: actualWinAmount.totalWinAmount <= 0,
+          },
+        },
+      );
+    }
+
+    return canClaim;
   }
 
   /**
@@ -511,23 +544,7 @@ export class BonusWinsService {
     minRequiredTurnover: number,
     totalWinAmount: number,
   ): boolean {
-    const canClaim =
-      minRequiredTurnover > 0 && totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
-
-    if (!canClaim) {
-      this.loggerService.warn('canClaimBonusWins check failed', {
-        totalTurnover,
-        minRequiredTurnover,
-        totalWinAmount,
-        reasons: {
-          minRequiredTurnoverInvalid: minRequiredTurnover <= 0,
-          turnoverNotMet: totalTurnover < minRequiredTurnover,
-          noWinAmount: totalWinAmount <= 0,
-        },
-      });
-    }
-
-    return canClaim;
+    return minRequiredTurnover > 0 && totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
   }
 
   /**
