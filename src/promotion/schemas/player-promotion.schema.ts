@@ -20,6 +20,9 @@ export class PlayerPromotion {
   @Prop({ required: true })
   promotionCode: string;
 
+  @Prop({ required: true })
+  gameId: number;
+
   @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
   currencyGroup: MongooseSchema.Types.ObjectId;
 

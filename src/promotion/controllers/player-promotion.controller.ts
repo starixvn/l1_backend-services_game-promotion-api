@@ -39,29 +39,6 @@ export class PlayerPromotionController {
     return { promotions };
   }
 
-  @Post('assign')
-  @ApiOperation({ summary: 'Assign a promotion to a player' })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Promotion assigned successfully',
-    type: Responses.AssignmentResponse,
-  })
-  async assignPromotion(
-    @Body() assignDto: Models.AssignPromotionDto,
-  ): Promise<Responses.AssignmentResponse> {
-    const { playerId, promotionId, operatorId, siteName, currencyGroup } = assignDto;
-
-    await this.playerPromotionService.assignPromotionToPlayer(
-      playerId,
-      promotionId,
-      operatorId,
-      siteName,
-      currencyGroup,
-    );
-
-    return { message: 'Promotion assigned successfully' };
-  }
-
   @Post('deduct-bonus-item')
   @ApiOperation({ summary: 'Deduct a bonus item from player promotion' })
   @ApiResponse({

@@ -1,7 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { ApiClientConfig } from './config/api-client.config';
 import {
-  AssignPromotionDto,
   CalculateTORequirementDto,
   ClaimBonusWinsDto,
   CompletePromotionDto,
@@ -18,7 +17,6 @@ import {
 } from './dtos';
 import { TotalWinDto } from './dtos/total-win.dto';
 import {
-  AssignmentResponse,
   CalculateTORequirementResponse,
   ClaimBonusWinsResponse,
   CreatePromotionTicketResponse,
@@ -165,17 +163,6 @@ export class GamePromotionApiClient {
     const response: AxiosResponse<PlayerPromotionResponse> = await this.httpClient.post(
       '/player-promotions/redeem-promotion',
       redeemDto,
-    );
-    return response.data;
-  }
-
-  /**
-   * Assign a promotion to a player
-   */
-  async assignPromotion(assignDto: AssignPromotionDto): Promise<AssignmentResponse> {
-    const response: AxiosResponse<AssignmentResponse> = await this.httpClient.post(
-      '/player-promotions/assign',
-      assignDto,
     );
     return response.data;
   }

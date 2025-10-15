@@ -1,13 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
-import { AssignPromotionDto } from '../models/assign-promotion.dto';
 import { DeductBonusItemDto } from '../models/deduct-bonus-item.dto';
 import { PlayerDto } from '../models/player.dto';
 import { RedeemPromotionDto } from '../models/redeem-promotion.dto';
 import { RollbackBonusItemDto } from '../models/rollback-bonus-item.dto';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
 import { PlayerPromotionStateExportDto } from '../models/player-promotion-state-export.dto';
-import { AssignmentResponse } from '../responses/assignment-response';
 import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
 import { EligiblePromotionsResponse } from '../responses/eligible-promotion.response';
 import { PlayerPromotionResponse } from '../responses/player-promotion.response';
@@ -70,6 +68,7 @@ describe('PlayerPromotionController', () => {
           siteName: 'site123',
           promotionId: 'promotion789' as any,
           promotionCode: 'PROMO123',
+          gameId: 1,
           currencyGroup: 'USD' as any,
           remainingBonusItems: 5,
           initialBonusItem: 5,
@@ -161,37 +160,6 @@ describe('PlayerPromotionController', () => {
       // Assert
       expect(mockPlayerPromotionService.hasAvailablePromotions).toHaveBeenCalledWith(inputDto);
       expect(actualResult).toEqual({ promotions: [] });
-    });
-  });
-
-  describe('assignPromotion', () => {
-    const inputDto: AssignPromotionDto = {
-      playerId: 'player456',
-      promotionId: 'promotion789',
-      operatorId: 'operator123',
-      siteName: 'site123',
-      currencyGroup: 'USD',
-    };
-
-    it('should successfully assign promotion to player', async () => {
-      // Arrange
-      const expectedResponse: AssignmentResponse = {
-        message: 'Promotion assigned successfully',
-      };
-      mockPlayerPromotionService.assignPromotionToPlayer.mockResolvedValue({} as any);
-
-      // Act
-      const actualResult = await controller.assignPromotion(inputDto);
-
-      // Assert
-      expect(mockPlayerPromotionService.assignPromotionToPlayer).toHaveBeenCalledWith(
-        inputDto.playerId,
-        inputDto.promotionId,
-        inputDto.operatorId,
-        inputDto.siteName,
-        inputDto.currencyGroup,
-      );
-      expect(actualResult).toEqual(expectedResponse);
     });
   });
 
@@ -324,6 +292,7 @@ describe('PlayerPromotionController', () => {
           siteName: 'site123',
           promotionId: 'promotion789' as any,
           promotionCode: 'GIFT123',
+          gameId: 1,
           currencyGroup: 'USD' as any,
           remainingBonusItems: 5,
           initialBonusItem: 5,

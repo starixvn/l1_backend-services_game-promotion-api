@@ -147,6 +147,7 @@ export class PlayerPromotionService {
       operatorId,
       siteName,
       currencyGroup,
+      gameId,
     );
     return this.mapToPlayerPromotionResponse(playerPromotion);
   }
@@ -175,9 +176,17 @@ export class PlayerPromotionService {
     operatorId: string,
     siteName: string,
     currencyGroup: string,
+    gameId: number,
   ): Promise<PlayerPromotionDocument> {
     const promotion = await this.getPromotionById(promotionId);
-    return this.createPlayerPromotion(playerId, promotion._id, operatorId, siteName, currencyGroup);
+    return this.createPlayerPromotion(
+      playerId,
+      promotion._id,
+      operatorId,
+      siteName,
+      currencyGroup,
+      gameId,
+    );
   }
 
   /**
@@ -226,6 +235,7 @@ export class PlayerPromotionService {
       operatorId,
       siteName,
       giftCode,
+      gameId,
     );
 
     const promotions = await this.promotionModel
@@ -263,6 +273,7 @@ export class PlayerPromotionService {
     operatorId: string,
     siteName: string,
     giftCode?: string,
+    gameId?: number,
   ): Promise<PlayerPromotionDocument[]> {
     const query: any = {
       playerId,
@@ -274,7 +285,9 @@ export class PlayerPromotionService {
     if (giftCode) {
       query.promotionCode = giftCode;
     }
-
+    if (gameId) {
+      query.$or = [{ gameId: null }, { gameId }];
+    }
     return this.playerPromotionModel.find(query).lean().exec();
   }
 
@@ -436,6 +449,7 @@ export class PlayerPromotionService {
     operatorId: string,
     siteName: string,
     currencyGroup: string,
+    gameId: number,
   ): Promise<PlayerPromotionDocument> {
     const promotion = await this.getPromotionById(promotionId);
 
@@ -454,6 +468,7 @@ export class PlayerPromotionService {
       siteName,
       promotionId: promotion._id,
       promotionCode: promotion.code,
+      gameId,
       currencyGroup,
       remainingBonusItems: promotion.bonusItemCount,
       initialBonusItem: promotion.bonusItemCount,
@@ -867,6 +882,7 @@ export class PlayerPromotionService {
       siteName: playerPromotion.siteName,
       promotionId: playerPromotion.promotionId,
       promotionCode: playerPromotion.promotionCode,
+      gameId: playerPromotion.gameId,
       currencyGroup: playerPromotion.currencyGroup,
       remainingBonusItems: playerPromotion.remainingBonusItems,
       initialBonusItem: playerPromotion.initialBonusItem,
@@ -936,6 +952,7 @@ export class PlayerPromotionService {
         operatorId,
         siteName,
         currencyGroup,
+        gameId,
       );
       return this.mapToPlayerPromotionResponse(playerPromotion);
     } catch (error) {

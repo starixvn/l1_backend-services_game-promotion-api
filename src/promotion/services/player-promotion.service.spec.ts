@@ -236,6 +236,7 @@ describe('PlayerPromotionService', () => {
       const operatorId = 'op123';
       const siteName = 'site1';
       const currencyGroup = 'currency1';
+      const gameId = 1001;
 
       const mockPromotion = {
         _id: promotionId,
@@ -269,6 +270,7 @@ describe('PlayerPromotionService', () => {
         operatorId,
         siteName,
         currencyGroup,
+        gameId,
       );
 
       // Assert
@@ -283,6 +285,7 @@ describe('PlayerPromotionService', () => {
       const operatorId = 'op123';
       const siteName = 'site1';
       const currencyGroup = 'currency1';
+      const gameId = 1001;
 
       // Mock the findById chain to return null
       promotionModel.findById.mockReturnValue({
@@ -293,7 +296,14 @@ describe('PlayerPromotionService', () => {
 
       // Act & Assert
       await expect(
-        service.assignPromotionToPlayer(playerId, promotionId, operatorId, siteName, currencyGroup),
+        service.assignPromotionToPlayer(
+          playerId,
+          promotionId,
+          operatorId,
+          siteName,
+          currencyGroup,
+          gameId,
+        ),
       ).rejects.toThrow('Promotion not found');
     });
   });
@@ -385,6 +395,7 @@ describe('PlayerPromotionService', () => {
         'op123',
         'site1',
         'currency1',
+        1001,
       );
     });
 
