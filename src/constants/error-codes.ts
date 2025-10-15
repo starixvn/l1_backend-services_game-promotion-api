@@ -17,6 +17,8 @@
 export const PLAYER_PROMOTION_ERROR_CODES = {
   PLAYER_PROMOTION_NOT_FOUND: {
     code: 'SB3000',
+    message: 'Player Promotion Not Found',
+    description: 'Player promotion not found in database',
   },
   DEDUCTION_FAILED: {
     code: 'SB3001',
@@ -41,6 +43,8 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
   },
   STREAM_PROCESSING_ERROR: {
     code: 'SB3008',
+    message: 'Stream Processing Error',
+    description: 'Error occurred while processing TO progress',
   },
   UPDATE_TOTAL_WIN_SUCCESS: {
     code: 'SB3009',
@@ -71,6 +75,8 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
   },
   BONUS_ALREADY_CLAIMED: {
     code: 'SB3018',
+    message: 'Bonus Already Claimed',
+    description: 'Bonus has already been claimed by the player',
   },
   GIFT_CODE_REQUIRED: {
     code: 'SB3019',
@@ -83,28 +89,45 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
   },
   NO_ACTIVE_BONUS_WIN: {
     code: 'SB3022',
+    message: 'No Active Bonus Win',
+    description: 'Player does not have an active bonus win',
   },
   CLAIMING_EXPIRED: {
     code: 'SB3023',
+    message: 'Claiming Expired',
+    description: 'Claim expiration date has passed',
   },
   // Claim Bonus Wins - Specific Error Codes (SB3024-SB3029)
   CLAIM_TO_REQUIREMENT_NOT_MET: {
     code: 'SB3024',
+    message: 'Turnover Requirement Not Met',
+    description: 'Player has not met the minimum turnover requirement',
   },
   CLAIM_VERIFICATION_FAILED: {
     code: 'SB3025',
+    message: 'Claim Verification Failed',
+    description: 'Verification check failed - total win amount or turnover mismatch detected',
   },
   CLAIM_UPDATE_FAILED: {
     code: 'SB3026',
+    message: 'Claim Update Failed',
+    description:
+      'Failed to update player promotion in database - promotion may have already been claimed or does not exist',
   },
   CLAIM_PROMOTION_NOT_FOUND: {
     code: 'SB3027',
+    message: 'Promotion Not Found',
+    description: 'Player promotion not found in database',
   },
   CLAIM_ACTUAL_WIN_MISMATCH: {
     code: 'SB3028',
+    message: 'Actual Win Mismatch',
+    description: 'Actual win amount does not match expected amount',
   },
   CLAIM_UNEXPECTED_ERROR: {
     code: 'SB3029',
+    message: 'Unexpected Error',
+    description: 'An unexpected error occurred during claim process',
   },
 } as const;
 

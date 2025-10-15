@@ -16,6 +16,7 @@ import {
 import { Promotion, PromotionDocument } from '../../promotion/schemas/promotion.schema';
 import { PlayerPromotionService } from '../../promotion/services/player-promotion.service';
 import { PromotionTicketService } from '../../promotion-ticket/services/promotion-ticket.service';
+import { LogBuilder } from '../../core/utils/log-builder.util';
 
 /**
  * Service for managing bonus wins and turnover tracking
@@ -369,6 +370,14 @@ export class BonusWinsService {
     siteName: string,
     promotionId: string,
   ): Promise<ClaimBonusWinsResponse> {
+    const logBuilder = new LogBuilder(operatorId, 'claim-bonus-win', {
+      playerId,
+      siteName,
+      promotionId,
+    });
+
+    this.loggerService.log('Player attempting to claim bonus wins', false, logBuilder.build());
+
     try {
       const toRequirementResult = await this.getTOProgress(
         playerId,
@@ -378,6 +387,20 @@ export class BonusWinsService {
       );
 
       if (toRequirementResult.errorCode) {
+        this.loggerService.error(
+          'Claim bonus wins failed: TO progress check failed',
+          undefined,
+          logBuilder
+            .withResponse({
+              claimedAmount: 0,
+              totalTurnover: toRequirementResult.totalTurnover,
+              minRequiredTurnover: toRequirementResult.minRequiredTurnover,
+              totalWinAmount: toRequirementResult.totalWinAmount,
+            })
+            .withError(toRequirementResult.errorCode)
+            .build(),
+        );
+
         return {
           claimedAmount: 0,
           totalTurnover: 0,
@@ -396,6 +419,22 @@ export class BonusWinsService {
       );
 
       if (!toRequirementResult.canClaim) {
+        this.loggerService.error(
+          'Claim bonus wins failed: TO requirement not met',
+          undefined,
+          logBuilder
+            .withResponse({
+              claimedAmount: 0,
+              totalTurnover: toRequirementResult.totalTurnover,
+              minRequiredTurnover: toRequirementResult.minRequiredTurnover,
+              totalWinAmount: toRequirementResult.totalWinAmount,
+              remainingTO: toRequirementResult.remainingTO,
+              progressPercentage: toRequirementResult.progressPercentage,
+            })
+            .withError(PLAYER_PROMOTION_ERROR_CODES.CLAIM_TO_REQUIREMENT_NOT_MET.code)
+            .build(),
+        );
+
         return {
           claimedAmount: 0,
           totalTurnover: 0,
@@ -406,6 +445,20 @@ export class BonusWinsService {
       }
 
       if (!isClaimable) {
+        this.loggerService.error(
+          'Claim bonus wins failed: Claim verification failed',
+          undefined,
+          logBuilder
+            .withResponse({
+              claimedAmount: 0,
+              totalTurnover: toRequirementResult.totalTurnover,
+              minRequiredTurnover: toRequirementResult.minRequiredTurnover,
+              totalWinAmount: toRequirementResult.totalWinAmount,
+            })
+            .withError(PLAYER_PROMOTION_ERROR_CODES.CLAIM_VERIFICATION_FAILED.code)
+            .build(),
+        );
+
         return {
           claimedAmount: 0,
           totalTurnover: 0,
@@ -437,6 +490,22 @@ export class BonusWinsService {
 
       if (updatedPromotion) {
         const { totalTurnover, minRequiredTurnover, totalWinAmount } = updatedPromotion;
+
+        this.loggerService.log(
+          'Bonus wins claimed successfully',
+          false,
+          logBuilder
+            .withResponse({
+              claimedAmount: totalWinAmount,
+              totalTurnover,
+              minRequiredTurnover,
+              totalWinAmount,
+              progressPercentage: toRequirementResult.progressPercentage,
+              claimedAt: updatedPromotion.claimedAt,
+            })
+            .build(),
+        );
+
         return {
           claimedAmount: totalWinAmount,
           totalTurnover,
@@ -444,6 +513,20 @@ export class BonusWinsService {
           totalWinAmount,
         };
       }
+
+      this.loggerService.error(
+        'Claim bonus wins failed: Database update failed',
+        undefined,
+        logBuilder
+          .withResponse({
+            claimedAmount: 0,
+            totalTurnover: toRequirementResult.totalTurnover,
+            minRequiredTurnover: toRequirementResult.minRequiredTurnover,
+            totalWinAmount: toRequirementResult.totalWinAmount,
+          })
+          .withError(PLAYER_PROMOTION_ERROR_CODES.CLAIM_UPDATE_FAILED.code)
+          .build(),
+      );
 
       return {
         claimedAmount: 0,
@@ -453,13 +536,20 @@ export class BonusWinsService {
         errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_UPDATE_FAILED.code,
       };
     } catch (error) {
-      this.loggerService.error('Error in claimBonusWins', error.stack, {
-        playerId,
-        operatorId,
-        siteName,
-        promotionId,
-        error: error.message,
-      });
+      this.loggerService.error(
+        'Claim bonus wins failed: Unexpected error',
+        error.stack,
+        logBuilder
+          .withResponse({
+            claimedAmount: 0,
+            totalTurnover: 0,
+            minRequiredTurnover: 0,
+            totalWinAmount: 0,
+            error: error.message,
+          })
+          .withError(PLAYER_PROMOTION_ERROR_CODES.CLAIM_UNEXPECTED_ERROR.code)
+          .build(),
+      );
 
       return {
         claimedAmount: 0,
