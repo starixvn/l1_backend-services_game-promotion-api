@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { CompletePromotionDto } from 'src/promotion/models/complete-promotion.dto';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { LoggerService } from '../../core/logger/logger.service';
+import { roundToFourDecimals } from '../../core/utils/number.utils';
 import { CalculateTORequirementResponse } from '../../promotion/responses/calculate-to-requirement.response';
 import { ClaimBonusWinsResponse } from '../../promotion/responses/claim-bonus-wins.response';
 import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
@@ -500,12 +501,14 @@ export class BonusWinsService {
       promotionId,
     });
 
-    const minRequiredTurnover = actualWinAmount.totalWinAmount * promotion.minTurnoverMultiplier;
+    const minRequiredTurnover = roundToFourDecimals(
+      actualWinAmount.totalWinAmount * promotion.minTurnoverMultiplier,
+    );
 
     const canClaim = this.canClaimBonusWins(
       totalTurnover,
       minRequiredTurnover,
-      actualWinAmount.totalWinAmount,
+      roundToFourDecimals(actualWinAmount.totalWinAmount),
     );
 
     if (!canClaim) {

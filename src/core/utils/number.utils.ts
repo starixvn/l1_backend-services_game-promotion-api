@@ -12,6 +12,15 @@ export function roundToTwoDecimals(value: number): number {
 }
 
 /**
+ * Rounds a number to 4 decimal places
+ * @param value - The number to round
+ * @returns Rounded number to 4 decimal places
+ */
+export function roundToFourDecimals(value: number): number {
+  return Number((value || 0).toFixed(4));
+}
+
+/**
  * Calculates percentage and rounds to 2 decimal places
  * @param part - The part value
  * @param total - The total value
