@@ -444,4 +444,388 @@ describe('BonusWinsService', () => {
       expect(result.errorCode).toBe('SB3022');
     });
   });
+
+  describe('Floating Point Precision Tests', () => {
+    describe('claimBonusWins - floating point edge cases', () => {
+      it('should handle floating point precision issue with .99999993 in turnover calculation', async () => {
+        // Scenario: totalTurnover is 99.99999993 which is very close to required 100
+        // Without proper rounding, this might cause issues
+        const mockPlayerPromotion = {
+          playerId: 'player_fp1',
+          operatorId: 'op_fp1',
+          siteName: 'site_fp1',
+          promotionId: 'promo_fp1',
+          totalTurnover: 99.99999993,
+          minRequiredTurnover: 100,
+          totalWinAmount: 50,
+          bonusClaimed: false,
+          claimedAt: null,
+        };
+
+        const mockPromotion = {
+          _id: 'promo_fp1',
+          minTurnoverMultiplier: 2.0,
+          claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        };
+
+        playerPromotionModel.findOne.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+          }),
+        } as any);
+
+        promotionModel.findById.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPromotion),
+          }),
+        } as any);
+
+        promotionTicketService.calculateTotalWin.mockResolvedValue({
+          totalWinAmount: 50,
+          baseTotalWinAmount: 50,
+        });
+
+        const result = await service.claimBonusWins(
+          'player_fp1',
+          'op_fp1',
+          'site_fp1',
+          'promo_fp1',
+        );
+
+        // Should not be claimable because 99.99999993 < 100
+        expect(result.errorCode).toBe('SB3024'); // CLAIM_TO_REQUIREMENT_NOT_MET
+        expect(result.claimedAmount).toBe(0);
+      });
+
+      it('should handle floating point precision with exact match after rounding', async () => {
+        // Scenario: minRequiredTurnover calculated from 50 * 2.0000001 = 100.00000005
+        // Should be rounded to 100.0000 (4 decimals) and match totalTurnover of 100
+        const mockPlayerPromotion = {
+          playerId: 'player_fp2',
+          operatorId: 'op_fp2',
+          siteName: 'site_fp2',
+          promotionId: 'promo_fp2',
+          totalTurnover: 100,
+          minRequiredTurnover: 100,
+          totalWinAmount: 50,
+          bonusClaimed: false,
+          claimedAt: null,
+        };
+
+        const mockPromotion = {
+          _id: 'promo_fp2',
+          minTurnoverMultiplier: 2.0000001, // This creates floating point issue
+          claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        };
+
+        playerPromotionModel.findOne.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+          }),
+        } as any);
+
+        promotionModel.findById.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPromotion),
+          }),
+        } as any);
+
+        // When calculating: 50 * 2.0000001 = 100.00000005
+        // After rounding to 4 decimals: 100.0000
+        promotionTicketService.calculateTotalWin.mockResolvedValue({
+          totalWinAmount: 50,
+          baseTotalWinAmount: 50,
+        });
+
+        playerPromotionModel.findOneAndUpdate.mockResolvedValue({
+          ...mockPlayerPromotion,
+          bonusClaimed: true,
+          claimedAt: new Date(),
+        } as any);
+
+        const result = await service.claimBonusWins(
+          'player_fp2',
+          'op_fp2',
+          'site_fp2',
+          'promo_fp2',
+        );
+
+        // Should be claimable because after rounding: 100 >= 100.0000
+        expect(result.claimedAmount).toBe(50);
+        expect(result.errorCode).toBeUndefined();
+      });
+
+      it('should handle very small floating point number .000000000003', async () => {
+        // Scenario: Very tiny turnover amount
+        const mockPlayerPromotion = {
+          playerId: 'player_fp3',
+          operatorId: 'op_fp3',
+          siteName: 'site_fp3',
+          promotionId: 'promo_fp3',
+          totalTurnover: 0.000000000003,
+          minRequiredTurnover: 100,
+          totalWinAmount: 50,
+          bonusClaimed: false,
+          claimedAt: null,
+        };
+
+        const mockPromotion = {
+          _id: 'promo_fp3',
+          minTurnoverMultiplier: 2.0,
+          claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        };
+
+        playerPromotionModel.findOne.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+          }),
+        } as any);
+
+        promotionModel.findById.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPromotion),
+          }),
+        } as any);
+
+        promotionTicketService.calculateTotalWin.mockResolvedValue({
+          totalWinAmount: 50,
+          baseTotalWinAmount: 50,
+        });
+
+        const result = await service.claimBonusWins(
+          'player_fp3',
+          'op_fp3',
+          'site_fp3',
+          'promo_fp3',
+        );
+
+        // Should not be claimable due to insufficient turnover
+        expect(result.errorCode).toBe('SB3024'); // CLAIM_TO_REQUIREMENT_NOT_MET
+        expect(result.claimedAmount).toBe(0);
+      });
+
+      it('should handle win amount with floating point .99999993', async () => {
+        // Scenario: Win amount is 49.99999993, multiplier is 2
+        // minRequiredTurnover = 49.99999993 * 2 = 99.99999986 -> rounds to 100.0000
+        const mockPlayerPromotion = {
+          playerId: 'player_fp4',
+          operatorId: 'op_fp4',
+          siteName: 'site_fp4',
+          promotionId: 'promo_fp4',
+          totalTurnover: 100,
+          minRequiredTurnover: 100,
+          totalWinAmount: 49.99999993,
+          bonusClaimed: false,
+          claimedAt: null,
+        };
+
+        const mockPromotion = {
+          _id: 'promo_fp4',
+          minTurnoverMultiplier: 2.0,
+          claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        };
+
+        playerPromotionModel.findOne.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+          }),
+        } as any);
+
+        promotionModel.findById.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPromotion),
+          }),
+        } as any);
+
+        promotionTicketService.calculateTotalWin.mockResolvedValue({
+          totalWinAmount: 49.99999993,
+          baseTotalWinAmount: 49.99999993,
+        });
+
+        playerPromotionModel.findOneAndUpdate.mockResolvedValue({
+          ...mockPlayerPromotion,
+          bonusClaimed: true,
+          claimedAt: new Date(),
+        } as any);
+
+        const result = await service.claimBonusWins(
+          'player_fp4',
+          'op_fp4',
+          'site_fp4',
+          'promo_fp4',
+        );
+
+        // After rounding to 4 decimals: 50.0000 (win) * 2.0 = 100.0000
+        // totalTurnover 100 >= 100.0000, should be claimable
+        expect(result.claimedAmount).toBe(49.99999993);
+        expect(result.errorCode).toBeUndefined();
+      });
+
+      it('should handle complex multiplication resulting in floating point precision error', async () => {
+        // Scenario: 33.33333333 * 3 = 99.99999999 which should round to 100.0000
+        const mockPlayerPromotion = {
+          playerId: 'player_fp5',
+          operatorId: 'op_fp5',
+          siteName: 'site_fp5',
+          promotionId: 'promo_fp5',
+          totalTurnover: 100.00001, // Slightly over
+          minRequiredTurnover: 100,
+          totalWinAmount: 33.33333333,
+          bonusClaimed: false,
+          claimedAt: null,
+        };
+
+        const mockPromotion = {
+          _id: 'promo_fp5',
+          minTurnoverMultiplier: 3.0,
+          claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        };
+
+        playerPromotionModel.findOne.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+          }),
+        } as any);
+
+        promotionModel.findById.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPromotion),
+          }),
+        } as any);
+
+        promotionTicketService.calculateTotalWin.mockResolvedValue({
+          totalWinAmount: 33.33333333,
+          baseTotalWinAmount: 33.33333333,
+        });
+
+        playerPromotionModel.findOneAndUpdate.mockResolvedValue({
+          ...mockPlayerPromotion,
+          bonusClaimed: true,
+          claimedAt: new Date(),
+        } as any);
+
+        const result = await service.claimBonusWins(
+          'player_fp5',
+          'op_fp5',
+          'site_fp5',
+          'promo_fp5',
+        );
+
+        // 33.33333333 * 3 = 99.99999999 -> rounds to 100.0000
+        // totalTurnover 100.00001 >= 100.0000, should be claimable
+        expect(result.claimedAmount).toBe(33.33333333);
+        expect(result.errorCode).toBeUndefined();
+      });
+    });
+
+    describe('getTOProgress - floating point edge cases', () => {
+      it('should handle remainingTO calculation with floating point precision', async () => {
+        // minRequiredTurnover = 100.00000005, totalTurnover = 50
+        // remainingTO = 100.00000005 - 50 = 50.00000005 (should not round automatically)
+        const mockPlayerPromotion = {
+          playerId: 'player_fp6',
+          operatorId: 'op_fp6',
+          siteName: 'site_fp6',
+          promotionId: 'promo_fp6',
+          totalTurnover: 50,
+          minRequiredTurnover: 100.00000005,
+          totalWinAmount: 50,
+          bonusClaimed: false,
+        };
+
+        playerPromotionModel.findOne.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+          }),
+        } as any);
+
+        promotionModel.findById.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue({
+              claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            }),
+          }),
+        } as any);
+
+        const result = await service.getTOProgress('player_fp6', 'op_fp6', 'site_fp6', 'promo_fp6');
+
+        // remainingTO should preserve floating point (not rounded in getTOProgress)
+        expect(result.remainingTO).toBe(50.00000005);
+        expect(result.canClaim).toBe(false);
+      });
+
+      it('should calculate progress percentage correctly with floating point numbers', async () => {
+        // totalTurnover = 99.99999993, minRequiredTurnover = 100
+        // Progress = (99.99999993 / 100) * 100 = 99.99999993% -> rounds to 100.00%
+        const mockPlayerPromotion = {
+          playerId: 'player_fp7',
+          operatorId: 'op_fp7',
+          siteName: 'site_fp7',
+          promotionId: 'promo_fp7',
+          totalTurnover: 99.99999993,
+          minRequiredTurnover: 100,
+          totalWinAmount: 50,
+          bonusClaimed: false,
+        };
+
+        playerPromotionModel.findOne.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+          }),
+        } as any);
+
+        promotionModel.findById.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue({
+              claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            }),
+          }),
+        } as any);
+
+        const result = await service.getTOProgress('player_fp7', 'op_fp7', 'site_fp7', 'promo_fp7');
+
+        // Progress percentage rounds to 2 decimals: 100.00%
+        expect(result.progressPercentage).toBe(100);
+        // But canClaim should still be false because 99.99999993 < 100
+        expect(result.canClaim).toBe(false);
+        expect(result.remainingTO).toBeCloseTo(0.00000007, 8);
+      });
+
+      it('should handle very small remainingTO with floating point', async () => {
+        // minRequiredTurnover = 100, totalTurnover = 99.99999999
+        // remainingTO = 0.00000001 (very small number)
+        const mockPlayerPromotion = {
+          playerId: 'player_fp8',
+          operatorId: 'op_fp8',
+          siteName: 'site_fp8',
+          promotionId: 'promo_fp8',
+          totalTurnover: 99.99999999,
+          minRequiredTurnover: 100,
+          totalWinAmount: 50,
+          bonusClaimed: false,
+        };
+
+        playerPromotionModel.findOne.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+          }),
+        } as any);
+
+        promotionModel.findById.mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue({
+              claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            }),
+          }),
+        } as any);
+
+        const result = await service.getTOProgress('player_fp8', 'op_fp8', 'site_fp8', 'promo_fp8');
+
+        // remainingTO should be very small but positive
+        expect(result.remainingTO).toBeGreaterThan(0);
+        expect(result.remainingTO).toBeLessThan(0.01);
+        expect(result.canClaim).toBe(false);
+      });
+    });
+  });
 });
