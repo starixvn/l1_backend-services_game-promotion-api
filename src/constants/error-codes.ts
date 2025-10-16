@@ -106,6 +106,9 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
   CLAIM_UNEXPECTED_ERROR: {
     code: 'SB3029',
   },
+  PROMOTION_CANCELLED: {
+    code: 'SB3030',
+  },
 } as const;
 
 // Promotion Error Codes (PR31XX) - Ready for future use
