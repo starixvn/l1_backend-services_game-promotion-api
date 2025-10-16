@@ -616,38 +616,46 @@ describe('PromotionService', () => {
   describe('findOne', () => {
     it('should return a promotion by id', async () => {
       // Arrange
-      const mockExec = jest.fn().mockResolvedValue(mockPromotion);
-      const mockLean = jest.fn().mockReturnValue({ exec: mockExec });
-
-      model.findById.mockReturnValueOnce({
-        lean: mockLean,
+      const validPromotionId = '507f1f77bcf86cd799439011';
+      const mockAggregate = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([mockPromotion]),
       });
 
+      model.aggregate = mockAggregate;
+
       // Act
-      const result = await service.findOne('a-promotion-id');
+      const result = await service.findOne(validPromotionId);
 
       // Assert
       expect(result).toEqual(mockPromotion);
-      expect(model.findById).toHaveBeenCalledWith('a-promotion-id');
-      expect(mockLean).toHaveBeenCalled();
+      expect(model.aggregate).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            $match: {
+              _id: new Types.ObjectId(validPromotionId),
+            },
+          }),
+        ]),
+      );
     });
 
     it('should throw NotFoundException if promotion not found', async () => {
       // Arrange
-      const mockExec = jest.fn().mockResolvedValue(null);
-      const mockLean = jest.fn().mockReturnValue({ exec: mockExec });
-
-      model.findById.mockReturnValueOnce({
-        lean: mockLean,
+      const nonexistentId = '507f191e810c19729de860ea';
+      const mockAggregate = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
       });
 
+      model.aggregate = mockAggregate;
+
       // Act & Assert
-      await expect(service.findOne('nonexistent-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(nonexistentId)).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('update', () => {
     it('should update a promotion', async () => {
+      const validPromotionId = '507f1f77bcf86cd799439011';
       const updatePromotionDto: UpdatePromotionDto = {
         name: 'Updated Promotion',
         code: 'updated-promotion',
@@ -663,16 +671,17 @@ describe('PromotionService', () => {
         exec: jest.fn().mockResolvedValueOnce(updatedPromotion),
       });
 
-      const result = await service.update('a-promotion-id', updatePromotionDto);
+      const result = await service.update(validPromotionId, updatePromotionDto);
       expect(result).toEqual(updatedPromotion);
       expect(model.findByIdAndUpdate).toHaveBeenCalledWith(
-        'a-promotion-id',
+        validPromotionId,
         { ...updatePromotionDto, code: 'updated-promotion' },
         { new: true },
       );
     });
 
     it('should not update code if name is not provided', async () => {
+      const validPromotionId = '507f1f77bcf86cd799439011';
       const updatePromotionDto: UpdatePromotionDto = {
         bonusItemCount: 20,
       };
@@ -686,19 +695,20 @@ describe('PromotionService', () => {
         exec: jest.fn().mockResolvedValueOnce(updatedPromotion),
       });
 
-      const result = await service.update('a-promotion-id', updatePromotionDto);
+      const result = await service.update(validPromotionId, updatePromotionDto);
       expect(result).toEqual(updatedPromotion);
-      expect(model.findByIdAndUpdate).toHaveBeenCalledWith('a-promotion-id', updatePromotionDto, {
+      expect(model.findByIdAndUpdate).toHaveBeenCalledWith(validPromotionId, updatePromotionDto, {
         new: true,
       });
     });
 
     it('should throw NotFoundException if promotion not found', async () => {
+      const nonexistentId = '507f191e810c19729de860ea';
       model.findByIdAndUpdate.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce(null),
       });
 
-      await expect(service.update('nonexistent-id', { name: 'Updated Promotion' })).rejects.toThrow(
+      await expect(service.update(nonexistentId, { name: 'Updated Promotion' })).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -706,21 +716,23 @@ describe('PromotionService', () => {
 
   describe('remove', () => {
     it('should delete a promotion and return true', async () => {
+      const validPromotionId = '507f1f77bcf86cd799439011';
       model.deleteOne.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce({ deletedCount: 1 }),
       });
 
-      const result = await service.remove('a-promotion-id');
+      const result = await service.remove(validPromotionId);
       expect(result).toBe(true);
-      expect(model.deleteOne).toHaveBeenCalledWith({ _id: 'a-promotion-id' });
+      expect(model.deleteOne).toHaveBeenCalledWith({ _id: validPromotionId });
     });
 
     it('should throw NotFoundException if promotion not found', async () => {
+      const nonexistentId = '507f191e810c19729de860ea';
       model.deleteOne.mockReturnValueOnce({
         exec: jest.fn().mockResolvedValueOnce({ deletedCount: 0 }),
       });
 
-      await expect(service.remove('nonexistent-id')).rejects.toThrow(NotFoundException);
+      await expect(service.remove(nonexistentId)).rejects.toThrow(NotFoundException);
     });
   });
 
