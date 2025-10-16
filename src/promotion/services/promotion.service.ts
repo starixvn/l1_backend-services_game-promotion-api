@@ -230,17 +230,48 @@ export class PromotionService {
    * @param id - The promotion ID
    * @returns The found promotion or null
    */
-  async findOne(id: string): Promise<Promotion> {
+  async findOne(id: string): Promise<any> {
     if (!id) {
       this.logger.error(`Promotion ID is required`);
       throw new NotFoundException(`Promotion ID is required`);
     }
 
-    const promotion = await this.promotionModel.findById(id).lean().exec();
-    if (!promotion) {
+    const aggregationPipeline = [
+      {
+        $match: {
+          _id: new Types.ObjectId(id),
+        },
+      },
+      {
+        $lookup: {
+          from: 'game_configs',
+          localField: 'gameIds',
+          foreignField: 'gameId',
+          as: 'games',
+        },
+      },
+      {
+        $addFields: {
+          games: {
+            $map: {
+              input: '$games',
+              as: 'game',
+              in: {
+                gameId: '$$game.gameId',
+                name: '$$game.name',
+              },
+            },
+          },
+        },
+      },
+    ];
+
+    const result = await this.promotionModel.aggregate(aggregationPipeline).exec();
+
+    if (!result || result.length === 0) {
       throw new NotFoundException(`Promotion with ID ${id} not found`);
     }
-    return promotion;
+    return result[0];
   }
 
   /**

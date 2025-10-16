@@ -285,7 +285,7 @@ export class PromotionController {
     type: Promotion,
   })
   @ApiResponse({ status: 404, description: PROMOTION_NOT_FOUND_DESCRIPTION })
-  async findOne(@Param('id', ParseMongoIdPipe) id: string): Promise<Promotion> {
+  async findOne(@Param('id', ParseMongoIdPipe) id: string): Promise<any> {
     return this.promotionService.findOne(id);
   }
 
