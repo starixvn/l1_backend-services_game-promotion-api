@@ -17,6 +17,7 @@ import { LoggerService } from './core/logger/logger.service';
       isGlobal: true,
     }),
     SentryModule.forRoot(),
+    // Main database connection for promotions
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -27,6 +28,21 @@ import { LoggerService } from './core/logger/logger.service';
         return {
           uri,
           ...(dbName && { dbName }),
+        };
+      },
+    }),
+    // Logs database connection (same URI, different dbName)
+    MongooseModule.forRootAsync({
+      connectionName: 'logs',
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => {
+        const uri = configService.get<string>('MONGODB_URI');
+        const logsDbName = configService.get<string>('MONGODB_DB_NAME_LOG', 'log');
+
+        return {
+          uri,
+          dbName: logsDbName,
         };
       },
     }),

@@ -90,24 +90,42 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
   // Claim Bonus Wins - Specific Error Codes (SB3024-SB3029)
   CLAIM_TO_REQUIREMENT_NOT_MET: {
     code: 'SB3024',
+    message: 'Turnover requirement not met',
+    description: 'Player has not completed the required turnover to claim bonus',
   },
   CLAIM_VERIFICATION_FAILED: {
     code: 'SB3025',
+    message: 'Claim verification failed',
+    description: 'Bonus claim verification checks failed',
   },
   CLAIM_UPDATE_FAILED: {
     code: 'SB3026',
+    message: 'Claim update failed',
+    description: 'Failed to update promotion as claimed (promotion not found or already claimed)',
   },
   CLAIM_PROMOTION_NOT_FOUND: {
     code: 'SB3027',
+    message: 'Promotion not found',
+    description: 'The promotion does not exist or has been removed',
   },
   CLAIM_ACTUAL_WIN_MISMATCH: {
     code: 'SB3028',
+    message: 'Actual win amount mismatch',
+    description: 'The calculated win amount does not match the stored amount',
   },
   CLAIM_UNEXPECTED_ERROR: {
     code: 'SB3029',
+    message: 'Unexpected error during claim',
+    description: 'An unexpected error occurred while processing the bonus claim',
   },
   PROMOTION_CANCELLED: {
     code: 'SB3030',
+  },
+  CLAIM_GET_TO_PROGRESS_FAILED: {
+    code: 'SB3031',
+    message: 'Failed to get TO progress',
+    description:
+      'Failed to get TO progress for player promotion (player promotion not found or already claimed)',
   },
   MANUAL_CLAIM_SUCCESS: {
     code: 'SB3031',

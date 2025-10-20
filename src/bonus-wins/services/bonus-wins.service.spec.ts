@@ -1,7 +1,23 @@
+// Mock LogBuilder before imports
+jest.mock('../../core/action-log/utils/log-builder', () => ({
+  LogBuilder: {
+    create: jest.fn().mockReturnValue({
+      withRequest: jest.fn().mockReturnThis(),
+      withResponse: jest.fn().mockReturnThis(),
+      withError: jest.fn().mockReturnThis(),
+      send: jest.fn().mockResolvedValue({}),
+      sendToSentry: jest.fn().mockResolvedValue({}),
+      sendToMongoDB: jest.fn().mockResolvedValue({}),
+    }),
+  },
+}));
+
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Model, Types } from 'mongoose';
 import { LoggerService } from '../../core/logger/logger.service';
+import { ActionLogService } from '../../core/action-log/services/action-log.service';
+import { LogBuilder } from '../../core/action-log/utils/log-builder';
 import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
 import {
   PlayerPromotion,
@@ -77,6 +93,12 @@ describe('BonusWinsService', () => {
             log: jest.fn(),
             warn: jest.fn(),
             captureMessage: jest.fn(),
+          },
+        },
+        {
+          provide: ActionLogService,
+          useValue: {
+            saveLog: jest.fn().mockResolvedValue({}),
           },
         },
         {
@@ -1218,6 +1240,282 @@ describe('BonusWinsService', () => {
           errorMessage: expect.stringContaining('Unexpected error'),
         });
       });
+    });
+  });
+
+  describe('claimBonusWins', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should successfully claim bonus and log success', async () => {
+      const mockPlayerPromotion = {
+        playerId: 'player1',
+        operatorId: 'op1',
+        siteName: 'site1',
+        promotionId: 'promo1',
+        totalTurnover: 100,
+        minRequiredTurnover: 100,
+        totalWinAmount: 50,
+        bonusClaimed: false,
+        claimedAt: null,
+      };
+
+      const mockPromotion = {
+        _id: 'promo1',
+        minTurnoverMultiplier: 2,
+        claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      };
+
+      // Mock getTOProgress
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      } as any);
+
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPromotion),
+        }),
+      } as any);
+
+      // Mock isClaimable
+      promotionTicketService.calculateTotalWin.mockResolvedValue({
+        totalWinAmount: 50,
+        baseTotalWinAmount: 100,
+      });
+
+      // Mock successful update (return with proper structure for lean+exec)
+      const updatedPromotion = {
+        ...mockPlayerPromotion,
+        bonusClaimed: true,
+        claimedAt: new Date(),
+      };
+
+      playerPromotionModel.findOneAndUpdate.mockReturnValueOnce(updatedPromotion as any);
+
+      const result = await service.claimBonusWins('player1', 'op1', 'site1', 'promo1');
+
+      // Verify success response
+      expect(result.claimedAmount).toBe(50);
+      expect(result.totalTurnover).toBe(100);
+      expect(result.totalWinAmount).toBe(50);
+      expect(result.errorCode).toBeUndefined();
+
+      // Verify LogBuilder was called for success
+      expect(LogBuilder.create).toHaveBeenCalledWith(
+        'op1',
+        'claim-bonus-win',
+        expect.anything(),
+        expect.anything(),
+      );
+      const mockBuilderInstance = (LogBuilder.create as jest.Mock).mock.results[0].value;
+      expect(mockBuilderInstance.withRequest).toHaveBeenCalledWith({
+        playerId: 'player1',
+        siteName: 'site1',
+        promotionId: 'promo1',
+      });
+      expect(mockBuilderInstance.withResponse).toHaveBeenCalled();
+      expect(mockBuilderInstance.send).toHaveBeenCalled();
+    });
+
+    it('should log error when TO requirement not met', async () => {
+      const mockPlayerPromotion = {
+        playerId: 'player2',
+        operatorId: 'op2',
+        siteName: 'site2',
+        promotionId: 'promo2',
+        totalTurnover: 50,
+        minRequiredTurnover: 100,
+        totalWinAmount: 50,
+        bonusClaimed: false,
+        claimedAt: null,
+      };
+
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      } as any);
+
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({
+            claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          }),
+        }),
+      } as any);
+
+      const result = await service.claimBonusWins('player2', 'op2', 'site2', 'promo2');
+
+      // Verify error response - should return error
+      expect(result.claimedAmount).toBe(0);
+      expect(result.errorCode).toBeDefined();
+
+      // Verify LogBuilder was called
+      expect(LogBuilder.create).toHaveBeenCalled();
+      expect(LogBuilder.create).toHaveBeenCalledWith(
+        'op2',
+        'claim-bonus-win',
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('should log error when player promotion not found', async () => {
+      // Mock getTOProgress to return error
+      jest.spyOn(service, 'getTOProgress').mockResolvedValueOnce({
+        totalTurnover: 0,
+        minRequiredTurnover: 0,
+        remainingTO: 0,
+        progressPercentage: 0,
+        canClaim: false,
+        totalWinAmount: 0,
+        errorCode: 'SB3000',
+      });
+
+      const result = await service.claimBonusWins('player3', 'op3', 'site3', 'promo3');
+
+      // Verify error response - should be the errorCode from getTOProgress
+      expect(result.errorCode).toBe('SB3000'); // PLAYER_PROMOTION_NOT_FOUND
+      expect(result.claimedAmount).toBe(0);
+
+      // Verify LogBuilder was called with error
+      expect(LogBuilder.create).toHaveBeenCalled();
+      const mockBuilderInstance = (LogBuilder.create as jest.Mock).mock.results[
+        (LogBuilder.create as jest.Mock).mock.calls.length - 1
+      ].value;
+      expect(mockBuilderInstance.withError).toHaveBeenCalledWith(
+        'SB3000',
+        expect.any(String),
+        expect.any(String),
+        expect.any(Object),
+      );
+    });
+
+    it('should log error when claim update fails', async () => {
+      const toProgressResult = {
+        totalTurnover: 100,
+        minRequiredTurnover: 100,
+        remainingTO: 0,
+        progressPercentage: 100,
+        canClaim: true,
+        totalWinAmount: 50,
+      };
+
+      // Mock getTOProgress to return success
+      jest.spyOn(service, 'getTOProgress').mockResolvedValueOnce(toProgressResult);
+
+      // Mock isClaimable
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({
+            minTurnoverMultiplier: 2,
+          }),
+        }),
+      } as any);
+
+      promotionTicketService.calculateTotalWin.mockResolvedValue({
+        totalWinAmount: 50,
+        baseTotalWinAmount: 100,
+      });
+
+      // Mock update failure (already claimed by another request)
+      playerPromotionModel.findOneAndUpdate.mockReturnValueOnce(null as any);
+
+      const result = await service.claimBonusWins('player4', 'op4', 'site4', 'promo4');
+
+      // Verify error response
+      expect(result.errorCode).toBe('SB3026'); // CLAIM_UPDATE_FAILED
+      expect(result.claimedAmount).toBe(0);
+
+      // Verify LogBuilder was called with error
+      const mockBuilderInstance = (LogBuilder.create as jest.Mock).mock.results[
+        (LogBuilder.create as jest.Mock).mock.calls.length - 1
+      ].value;
+      expect(mockBuilderInstance.withError).toHaveBeenCalledWith(
+        'SB3026',
+        'Claim update failed',
+        'Failed to update promotion as claimed (promotion not found or already claimed)',
+        expect.any(Object),
+      );
+    });
+
+    it('should log error when verification fails', async () => {
+      const mockPlayerPromotion = {
+        playerId: 'player5',
+        operatorId: 'op5',
+        siteName: 'site5',
+        promotionId: 'promo5',
+        totalTurnover: 100,
+        minRequiredTurnover: 100,
+        totalWinAmount: 50,
+        bonusClaimed: false,
+        claimedAt: null,
+      };
+
+      playerPromotionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
+        }),
+      } as any);
+
+      // Mock promotion with minTurnoverMultiplier
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({
+            _id: 'promo5',
+            minTurnoverMultiplier: 2,
+            claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          }),
+        }),
+      } as any);
+
+      // Mock verification failure (actual win amount doesn't match)
+      promotionTicketService.calculateTotalWin.mockResolvedValue({
+        totalWinAmount: 30, // Different from stored amount (50)
+        baseTotalWinAmount: 60,
+      });
+
+      const result = await service.claimBonusWins('player5', 'op5', 'site5', 'promo5');
+
+      // Verify error response - should return error
+      expect(result.claimedAmount).toBe(0);
+      expect(result.errorCode).toBeDefined();
+
+      // Verify LogBuilder was called
+      expect(LogBuilder.create).toHaveBeenCalled();
+      expect(LogBuilder.create).toHaveBeenCalledWith(
+        'op5',
+        'claim-bonus-win',
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('should log unexpected error when exception occurs', async () => {
+      // Mock getTOProgress to throw exception
+      jest
+        .spyOn(service, 'getTOProgress')
+        .mockRejectedValueOnce(new Error('Database connection lost'));
+
+      const result = await service.claimBonusWins('player6', 'op6', 'site6', 'promo6');
+
+      // Verify error response
+      expect(result.errorCode).toBe('SB3029'); // CLAIM_UNEXPECTED_ERROR
+      expect(result.claimedAmount).toBe(0);
+
+      // Verify LogBuilder was called with error
+      expect(LogBuilder.create).toHaveBeenCalled();
+      const mockBuilderInstance = (LogBuilder.create as jest.Mock).mock.results[
+        (LogBuilder.create as jest.Mock).mock.calls.length - 1
+      ].value;
+      expect(mockBuilderInstance.withError).toHaveBeenCalledWith(
+        'SB3029',
+        'Unexpected error during claim',
+        expect.stringContaining('Database connection lost'),
+      );
     });
   });
 });

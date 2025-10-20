@@ -7,6 +7,7 @@ import { Promotion } from './schemas/promotion.schema';
 import { PlayerPromotion } from './schemas/player-promotion.schema';
 import { PlayerFinishedPromotion } from './schemas/player-finished-promotion.schema';
 import { PromotionTicket } from '../promotion-ticket/schemas/promotion-ticket.schema';
+import { ActionLog } from '../core/action-log/schemas/action-log.schema';
 // Used in query parameters: /promotions?status=running
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { PromotionStatus } from './models/promotion-filter.dto';
@@ -252,6 +253,8 @@ describe('PromotionModule (Integration)', () => {
       .useValue(mockPlayerFinishedPromotionModel)
       .overrideProvider(getModelToken(PromotionTicket.name))
       .useValue(mockPromotionTicketModel)
+      .overrideProvider(getModelToken(ActionLog.name, 'logs'))
+      .useValue(mockActionLogModel)
       .compile();
 
     app = moduleFixture.createNestApplication();
