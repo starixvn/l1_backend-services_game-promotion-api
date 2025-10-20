@@ -6,6 +6,7 @@ import { PromotionModule } from './promotion.module';
 import { Promotion } from './schemas/promotion.schema';
 import { PlayerPromotion } from './schemas/player-promotion.schema';
 import { PromotionTicket } from '../promotion-ticket/schemas/promotion-ticket.schema';
+import { ActionLog } from '../core/action-log/schemas/action-log.schema';
 // Used in query parameters: /promotions?status=running
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { PromotionStatus } from './models/promotion-filter.dto';
@@ -210,6 +211,23 @@ describe('PromotionModule (Integration)', () => {
       }),
     };
 
+    // Mock for ActionLog model (required by BonusWinsModule via ActionLogService)
+    const mockActionLogModel = {
+      create: jest.fn(),
+      save: jest.fn(),
+      find: jest.fn().mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          limit: jest.fn().mockReturnValue({
+            skip: jest.fn().mockReturnValue({
+              lean: jest.fn().mockReturnValue({
+                exec: jest.fn().mockResolvedValue([]),
+              }),
+            }),
+          }),
+        }),
+      }),
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [PromotionModule],
     })
@@ -219,6 +237,8 @@ describe('PromotionModule (Integration)', () => {
       .useValue(mockPlayerPromotionModel)
       .overrideProvider(getModelToken(PromotionTicket.name))
       .useValue(mockPromotionTicketModel)
+      .overrideProvider(getModelToken(ActionLog.name, 'logs'))
+      .useValue(mockActionLogModel)
       .compile();
 
     app = moduleFixture.createNestApplication();

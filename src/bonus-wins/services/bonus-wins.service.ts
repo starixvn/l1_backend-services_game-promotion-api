@@ -4,6 +4,8 @@ import { Model } from 'mongoose';
 import { CompletePromotionDto } from 'src/promotion/models/complete-promotion.dto';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { LoggerService } from '../../core/logger/logger.service';
+import { LogBuilder } from '../../core/action-log/utils/log-builder';
+import { ActionLogService } from '../../core/action-log/services/action-log.service';
 import { roundToFourDecimals } from '../../core/utils/number.utils';
 import { CalculateTORequirementResponse } from '../../promotion/responses/calculate-to-requirement.response';
 import { ClaimBonusWinsResponse } from '../../promotion/responses/claim-bonus-wins.response';
@@ -28,6 +30,7 @@ export class BonusWinsService {
     @InjectModel(Promotion.name)
     private readonly promotionModel: Model<PromotionDocument>,
     private readonly loggerService: LoggerService,
+    private readonly actionLogService: ActionLogService,
     private readonly playerPromotionService: PlayerPromotionService,
     @Inject(forwardRef(() => PromotionTicketService))
     private readonly promotionTicketService: PromotionTicketService,
@@ -378,6 +381,35 @@ export class BonusWinsService {
       );
 
       if (toRequirementResult.errorCode) {
+        // Log error: Failed to get TO progress
+        const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_GET_TO_PROGRESS_FAILED;
+        await LogBuilder.create(
+          operatorId,
+          'claim-bonus-win',
+          this.loggerService,
+          this.actionLogService,
+        )
+          .withRequest({
+            playerId,
+            siteName,
+            promotionId,
+          })
+          .withError(
+            toRequirementResult.errorCode,
+            toRequirementResult.errorMessage || errorConfig.message,
+            errorConfig.description,
+            {
+              totalTurnover: toRequirementResult.totalTurnover,
+              minRequiredTurnover: toRequirementResult.minRequiredTurnover,
+              progressPercentage: toRequirementResult.progressPercentage,
+              totalWinAmount: toRequirementResult.totalWinAmount,
+              remainingTO: toRequirementResult.remainingTO,
+              canClaim: toRequirementResult.canClaim,
+              claimExpirationDate: toRequirementResult.claimExpirationDate,
+            },
+          )
+          .send();
+
         return {
           claimedAmount: 0,
           totalTurnover: 0,
@@ -396,6 +428,30 @@ export class BonusWinsService {
       );
 
       if (!toRequirementResult.canClaim) {
+        // Log error: TO requirement not met
+        const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_TO_REQUIREMENT_NOT_MET;
+        await LogBuilder.create(
+          operatorId,
+          'claim-bonus-win',
+          this.loggerService,
+          this.actionLogService,
+        )
+          .withRequest({
+            playerId,
+            siteName,
+            promotionId,
+          })
+          .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
+            totalTurnover: toRequirementResult.totalTurnover,
+            minRequiredTurnover: toRequirementResult.minRequiredTurnover,
+            progressPercentage: toRequirementResult.progressPercentage,
+            totalWinAmount: toRequirementResult.totalWinAmount,
+            remainingTO: toRequirementResult.remainingTO,
+            canClaim: toRequirementResult.canClaim,
+            claimExpirationDate: toRequirementResult.claimExpirationDate,
+          })
+          .send();
+
         return {
           claimedAmount: 0,
           totalTurnover: 0,
@@ -406,6 +462,30 @@ export class BonusWinsService {
       }
 
       if (!isClaimable) {
+        // Log error: Claim verification failed
+        const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_VERIFICATION_FAILED;
+        await LogBuilder.create(
+          operatorId,
+          'claim-bonus-win',
+          this.loggerService,
+          this.actionLogService,
+        )
+          .withRequest({
+            playerId,
+            siteName,
+            promotionId,
+          })
+          .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
+            totalTurnover: toRequirementResult.totalTurnover,
+            minRequiredTurnover: toRequirementResult.minRequiredTurnover,
+            progressPercentage: toRequirementResult.progressPercentage,
+            totalWinAmount: toRequirementResult.totalWinAmount,
+            remainingTO: toRequirementResult.remainingTO,
+            canClaim: toRequirementResult.canClaim,
+            claimExpirationDate: toRequirementResult.claimExpirationDate,
+          })
+          .send();
+
         return {
           claimedAmount: 0,
           totalTurnover: 0,
@@ -437,6 +517,31 @@ export class BonusWinsService {
 
       if (updatedPromotion) {
         const { totalTurnover, minRequiredTurnover, totalWinAmount } = updatedPromotion;
+
+        // Log success
+        await LogBuilder.create(
+          operatorId,
+          'claim-bonus-win',
+          this.loggerService,
+          this.actionLogService,
+        )
+          .withRequest({
+            playerId,
+            siteName,
+            promotionId,
+          })
+          .withResponse({
+            claimedAmount: totalWinAmount,
+            totalTurnover,
+            minRequiredTurnover,
+            totalWinAmount,
+            progressPercentage: toRequirementResult.progressPercentage,
+            remainingTO: toRequirementResult.remainingTO,
+            canClaim: toRequirementResult.canClaim,
+            claimExpirationDate: toRequirementResult.claimExpirationDate,
+          })
+          .send();
+
         return {
           claimedAmount: totalWinAmount,
           totalTurnover,
@@ -444,6 +549,30 @@ export class BonusWinsService {
           totalWinAmount,
         };
       }
+
+      // Log error: Update failed (promotion not found or already claimed)
+      const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_UPDATE_FAILED;
+      await LogBuilder.create(
+        operatorId,
+        'claim-bonus-win',
+        this.loggerService,
+        this.actionLogService,
+      )
+        .withRequest({
+          playerId,
+          siteName,
+          promotionId,
+        })
+        .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
+          totalTurnover: toRequirementResult.totalTurnover,
+          minRequiredTurnover: toRequirementResult.minRequiredTurnover,
+          progressPercentage: toRequirementResult.progressPercentage,
+          totalWinAmount: toRequirementResult.totalWinAmount,
+          remainingTO: toRequirementResult.remainingTO,
+          canClaim: toRequirementResult.canClaim,
+          claimExpirationDate: toRequirementResult.claimExpirationDate,
+        })
+        .send();
 
       return {
         claimedAmount: 0,
@@ -460,6 +589,22 @@ export class BonusWinsService {
         promotionId,
         error: error.message,
       });
+
+      // Log unexpected error
+      const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_UNEXPECTED_ERROR;
+      await LogBuilder.create(
+        operatorId,
+        'claim-bonus-win',
+        this.loggerService,
+        this.actionLogService,
+      )
+        .withRequest({
+          playerId,
+          siteName,
+          promotionId,
+        })
+        .withError(errorConfig.code, errorConfig.message, error.stack || error.message)
+        .send();
 
       return {
         claimedAmount: 0,
