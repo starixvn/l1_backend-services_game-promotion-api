@@ -381,7 +381,6 @@ export class BonusWinsService {
       );
 
       if (toRequirementResult.errorCode) {
-        // Log error: Failed to get TO progress
         const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_GET_TO_PROGRESS_FAILED;
         await LogBuilder.create(
           operatorId,
@@ -393,6 +392,7 @@ export class BonusWinsService {
             playerId,
             siteName,
             promotionId,
+            operatorId,
           })
           .withError(
             toRequirementResult.errorCode,
@@ -428,7 +428,6 @@ export class BonusWinsService {
       );
 
       if (!toRequirementResult.canClaim) {
-        // Log error: TO requirement not met
         const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_TO_REQUIREMENT_NOT_MET;
         await LogBuilder.create(
           operatorId,
@@ -440,6 +439,7 @@ export class BonusWinsService {
             playerId,
             siteName,
             promotionId,
+            operatorId,
           })
           .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
             totalTurnover: toRequirementResult.totalTurnover,
@@ -462,7 +462,6 @@ export class BonusWinsService {
       }
 
       if (!isClaimable) {
-        // Log error: Claim verification failed
         const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_VERIFICATION_FAILED;
         await LogBuilder.create(
           operatorId,
@@ -474,6 +473,7 @@ export class BonusWinsService {
             playerId,
             siteName,
             promotionId,
+            operatorId,
           })
           .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
             totalTurnover: toRequirementResult.totalTurnover,
@@ -518,7 +518,6 @@ export class BonusWinsService {
       if (updatedPromotion) {
         const { totalTurnover, minRequiredTurnover, totalWinAmount } = updatedPromotion;
 
-        // Log success
         await LogBuilder.create(
           operatorId,
           'claim-bonus-win',
@@ -529,6 +528,7 @@ export class BonusWinsService {
             playerId,
             siteName,
             promotionId,
+            operatorId,
           })
           .withResponse({
             claimedAmount: totalWinAmount,
@@ -550,7 +550,6 @@ export class BonusWinsService {
         };
       }
 
-      // Log error: Update failed (promotion not found or already claimed)
       const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_UPDATE_FAILED;
       await LogBuilder.create(
         operatorId,
@@ -561,6 +560,7 @@ export class BonusWinsService {
         .withRequest({
           playerId,
           siteName,
+          operatorId,
           promotionId,
         })
         .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
@@ -582,15 +582,6 @@ export class BonusWinsService {
         errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_UPDATE_FAILED.code,
       };
     } catch (error) {
-      this.loggerService.error('Error in claimBonusWins', error.stack, {
-        playerId,
-        operatorId,
-        siteName,
-        promotionId,
-        error: error.message,
-      });
-
-      // Log unexpected error
       const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_UNEXPECTED_ERROR;
       await LogBuilder.create(
         operatorId,
@@ -601,6 +592,7 @@ export class BonusWinsService {
         .withRequest({
           playerId,
           siteName,
+          operatorId,
           promotionId,
         })
         .withError(errorConfig.code, errorConfig.message, error.stack || error.message)
@@ -626,16 +618,24 @@ export class BonusWinsService {
     const promotion = await this.promotionModel.findById(promotionId).lean().exec();
 
     if (!promotion) {
-      this.loggerService.error(
-        `isClaimable failed: Promotion not found in database - Player: ${playerId}`,
-        undefined,
-        {
+      await LogBuilder.create(
+        operatorId,
+        'claim-bonus-win',
+        this.loggerService,
+        this.actionLogService,
+      )
+        .withRequest({
           playerId,
-          operatorId,
           siteName,
           promotionId,
-        },
-      );
+          operatorId,
+        })
+        .withError(
+          PLAYER_PROMOTION_ERROR_CODES.CLAIM_PROMOTION_NOT_FOUND.code,
+          PLAYER_PROMOTION_ERROR_CODES.CLAIM_PROMOTION_NOT_FOUND.message,
+          PLAYER_PROMOTION_ERROR_CODES.CLAIM_PROMOTION_NOT_FOUND.description,
+        )
+        .send();
       return false;
     }
 
@@ -657,13 +657,24 @@ export class BonusWinsService {
     );
 
     if (!canClaim) {
-      this.loggerService.warn(
-        `isClaimable failed: canClaimBonusWins check failed - Player: ${playerId}`,
-        {
+      await LogBuilder.create(
+        operatorId,
+        'claim-bonus-win',
+        this.loggerService,
+        this.actionLogService,
+      )
+        .withRequest({
           playerId,
-          operatorId,
           siteName,
           promotionId,
+          operatorId,
+        })
+        .withError(
+          PLAYER_PROMOTION_ERROR_CODES.CLAIM_TO_REQUIREMENT_NOT_MET.code,
+          PLAYER_PROMOTION_ERROR_CODES.CLAIM_TO_REQUIREMENT_NOT_MET.message,
+          PLAYER_PROMOTION_ERROR_CODES.CLAIM_TO_REQUIREMENT_NOT_MET.description,
+        )
+        .withResponse({
           totalTurnover,
           minRequiredTurnover,
           totalWinAmount: actualWinAmount.totalWinAmount,
@@ -673,8 +684,8 @@ export class BonusWinsService {
             turnoverNotMet: totalTurnover < minRequiredTurnover,
             noWinAmount: actualWinAmount.totalWinAmount <= 0,
           },
-        },
-      );
+        })
+        .send();
     }
 
     return canClaim;

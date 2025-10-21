@@ -35,6 +35,7 @@ export interface IActionLog {
 export interface IActionLogRequest {
   playerId: string;
   siteName: string;
+  operatorId: string;
   promotionId?: string;
   [key: string]: any; // Allow additional fields
 }
