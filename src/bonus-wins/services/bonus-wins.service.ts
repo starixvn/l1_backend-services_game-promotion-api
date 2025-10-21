@@ -24,6 +24,8 @@ import { PromotionTicketService } from '../../promotion-ticket/services/promotio
  */
 @Injectable()
 export class BonusWinsService {
+  private readonly CLAIM_BONUS_WIN_ACTION = 'claim-bonus-win';
+
   constructor(
     @InjectModel(PlayerPromotion.name)
     private readonly playerPromotionModel: Model<PlayerPromotionDocument>,
@@ -382,18 +384,7 @@ export class BonusWinsService {
 
       if (toRequirementResult.errorCode) {
         const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_GET_TO_PROGRESS_FAILED;
-        await LogBuilder.create(
-          operatorId,
-          'claim-bonus-win',
-          this.loggerService,
-          this.actionLogService,
-        )
-          .withRequest({
-            playerId,
-            siteName,
-            promotionId,
-            operatorId,
-          })
+        await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
           .withError(
             toRequirementResult.errorCode,
             toRequirementResult.errorMessage || errorConfig.message,
@@ -429,18 +420,7 @@ export class BonusWinsService {
 
       if (!toRequirementResult.canClaim) {
         const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_TO_REQUIREMENT_NOT_MET;
-        await LogBuilder.create(
-          operatorId,
-          'claim-bonus-win',
-          this.loggerService,
-          this.actionLogService,
-        )
-          .withRequest({
-            playerId,
-            siteName,
-            promotionId,
-            operatorId,
-          })
+        await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
           .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
             totalTurnover: toRequirementResult.totalTurnover,
             minRequiredTurnover: toRequirementResult.minRequiredTurnover,
@@ -463,18 +443,7 @@ export class BonusWinsService {
 
       if (!isClaimable) {
         const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_VERIFICATION_FAILED;
-        await LogBuilder.create(
-          operatorId,
-          'claim-bonus-win',
-          this.loggerService,
-          this.actionLogService,
-        )
-          .withRequest({
-            playerId,
-            siteName,
-            promotionId,
-            operatorId,
-          })
+        await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
           .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
             totalTurnover: toRequirementResult.totalTurnover,
             minRequiredTurnover: toRequirementResult.minRequiredTurnover,
@@ -518,18 +487,7 @@ export class BonusWinsService {
       if (updatedPromotion) {
         const { totalTurnover, minRequiredTurnover, totalWinAmount } = updatedPromotion;
 
-        await LogBuilder.create(
-          operatorId,
-          'claim-bonus-win',
-          this.loggerService,
-          this.actionLogService,
-        )
-          .withRequest({
-            playerId,
-            siteName,
-            promotionId,
-            operatorId,
-          })
+        await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
           .withResponse({
             claimedAmount: totalWinAmount,
             totalTurnover,
@@ -551,18 +509,7 @@ export class BonusWinsService {
       }
 
       const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_UPDATE_FAILED;
-      await LogBuilder.create(
-        operatorId,
-        'claim-bonus-win',
-        this.loggerService,
-        this.actionLogService,
-      )
-        .withRequest({
-          playerId,
-          siteName,
-          operatorId,
-          promotionId,
-        })
+      await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
         .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
           totalTurnover: toRequirementResult.totalTurnover,
           minRequiredTurnover: toRequirementResult.minRequiredTurnover,
@@ -583,18 +530,7 @@ export class BonusWinsService {
       };
     } catch (error) {
       const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_UNEXPECTED_ERROR;
-      await LogBuilder.create(
-        operatorId,
-        'claim-bonus-win',
-        this.loggerService,
-        this.actionLogService,
-      )
-        .withRequest({
-          playerId,
-          siteName,
-          operatorId,
-          promotionId,
-        })
+      await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
         .withError(errorConfig.code, errorConfig.message, error.stack || error.message)
         .send();
 
@@ -620,7 +556,7 @@ export class BonusWinsService {
     if (!promotion) {
       await LogBuilder.create(
         operatorId,
-        'claim-bonus-win',
+        this.CLAIM_BONUS_WIN_ACTION,
         this.loggerService,
         this.actionLogService,
       )
@@ -659,7 +595,7 @@ export class BonusWinsService {
     if (!canClaim) {
       await LogBuilder.create(
         operatorId,
-        'claim-bonus-win',
+        this.CLAIM_BONUS_WIN_ACTION,
         this.loggerService,
         this.actionLogService,
       )
@@ -704,6 +640,28 @@ export class BonusWinsService {
     totalWinAmount: number,
   ): boolean {
     return minRequiredTurnover > 0 && totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
+  }
+
+  /**
+   * Create a LogBuilder instance for claim bonus win operations
+   */
+  private createClaimLogBuilder(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ) {
+    return LogBuilder.create(
+      operatorId,
+      this.CLAIM_BONUS_WIN_ACTION,
+      this.loggerService,
+      this.actionLogService,
+    ).withRequest({
+      playerId,
+      siteName,
+      promotionId,
+      operatorId,
+    });
   }
 
   /**

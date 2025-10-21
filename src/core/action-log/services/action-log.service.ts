@@ -37,11 +37,7 @@ export class ActionLogService {
    * @param skip - Number of logs to skip
    * @returns Array of action logs
    */
-  async getLogsByOperator(
-    operatorId: string,
-    limit: number = 100,
-    skip: number = 0,
-  ): Promise<ActionLog[]> {
+  async getLogsByOperator(operatorId: string, limit = 100, skip = 0): Promise<ActionLog[]> {
     return this.actionLogModel
       .find({ operatorId })
       .sort({ logTimeStamp: -1 })
@@ -58,11 +54,7 @@ export class ActionLogService {
    * @param skip - Number of logs to skip
    * @returns Array of action logs
    */
-  async getLogsByPlayer(
-    playerId: string,
-    limit: number = 100,
-    skip: number = 0,
-  ): Promise<ActionLog[]> {
+  async getLogsByPlayer(playerId: string, limit = 100, skip = 0): Promise<ActionLog[]> {
     return this.actionLogModel
       .find({ 'request.playerId': playerId })
       .sort({ logTimeStamp: -1 })
@@ -79,11 +71,7 @@ export class ActionLogService {
    * @param skip - Number of logs to skip
    * @returns Array of action logs
    */
-  async getLogsByAction(
-    action: string,
-    limit: number = 100,
-    skip: number = 0,
-  ): Promise<ActionLog[]> {
+  async getLogsByAction(action: string, limit = 100, skip = 0): Promise<ActionLog[]> {
     return this.actionLogModel
       .find({ action })
       .sort({ logTimeStamp: -1 })
@@ -99,7 +87,7 @@ export class ActionLogService {
    * @param skip - Number of logs to skip
    * @returns Array of error logs
    */
-  async getErrorLogs(limit: number = 100, skip: number = 0): Promise<ActionLog[]> {
+  async getErrorLogs(limit = 100, skip = 0): Promise<ActionLog[]> {
     return this.actionLogModel
       .find({ 'response.errorCode': { $exists: true } })
       .sort({ logTimeStamp: -1 })
@@ -120,8 +108,8 @@ export class ActionLogService {
   async getLogsByDateRange(
     startDate: string,
     endDate: string,
-    limit: number = 100,
-    skip: number = 0,
+    limit = 100,
+    skip = 0,
   ): Promise<ActionLog[]> {
     return this.actionLogModel
       .find({
@@ -142,7 +130,7 @@ export class ActionLogService {
    * @param daysToKeep - Number of days to keep logs
    * @returns Number of deleted logs
    */
-  async deleteOldLogs(daysToKeep: number = 30): Promise<number> {
+  async deleteOldLogs(daysToKeep = 30): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
     const cutoffDateString = cutoffDate.toISOString();
