@@ -1312,6 +1312,7 @@ describe('BonusWinsService', () => {
       );
       const mockBuilderInstance = (LogBuilder.create as jest.Mock).mock.results[0].value;
       expect(mockBuilderInstance.withRequest).toHaveBeenCalledWith({
+        operatorId: 'op1',
         playerId: 'player1',
         siteName: 'site1',
         promotionId: 'promo1',
