@@ -102,5 +102,13 @@
       "prettier --write",
       "eslint --fix"
     ]
+  },
+  "resolutions": {
+    "@paralleldrive/cuid2": "2.2.2",
+    "@noble/hashes": "1.8.0"
+  },
+  "overrides": {
+    "@paralleldrive/cuid2": "2.2.2",
+    "@noble/hashes": "1.8.0"
   }
 }

@@ -4,6 +4,10 @@ import {
   PlayerPromotion,
   PlayerPromotionSchema,
 } from '../promotion/schemas/player-promotion.schema';
+import {
+  PlayerFinishedPromotion,
+  PlayerFinishedPromotionSchema,
+} from '../promotion/schemas/player-finished-promotion.schema';
 import { Promotion, PromotionSchema } from '../promotion/schemas/promotion.schema';
 import { BonusWinsController } from './controllers/bonus-wins.controller';
 import { BonusWinsService } from './services/bonus-wins.service';
@@ -16,6 +20,7 @@ import { PromotionTicketModule } from '../promotion-ticket/promotion-ticket.modu
   imports: [
     MongooseModule.forFeature([
       { name: PlayerPromotion.name, schema: PlayerPromotionSchema },
+      { name: PlayerFinishedPromotion.name, schema: PlayerFinishedPromotionSchema },
       { name: Promotion.name, schema: PromotionSchema },
     ]),
     CoreModule,
