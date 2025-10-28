@@ -1,0 +1,297 @@
+---
+description: 'Task list for Early Promotion Termination feature implementation'
+---
+
+# Tasks: Early Promotion Termination
+
+**Input**: Design documents from `/specs/GL-5286-end-promotion/`  
+**Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/
+
+**Tests**: Per the project constitution, tests are MANDATORY and must follow the AAA pattern with single assertions per test. Tests must be written BEFORE implementation (Test-First Development).
+
+**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
+
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to (e.g., US1, US2)
+- Include exact file paths in descriptions
+
+## Path Conventions
+
+- **Single project**: `src/`, `tests/` at repository root (NestJS monolith)
+- Paths shown below assume single project structure from plan.md
+
+---
+
+## Phase 1: Setup (Shared Infrastructure)
+
+**Purpose**: Project initialization and basic structure - these tasks prepare the environment for feature development.
+
+- [ ] T001 Verify NestJS 10.x, TypeScript 5.1.3, and Mongoose 7.6.3 are installed and configured
+- [ ] T002 [P] Verify Jest 29.5.0 test framework is configured with ts-jest
+- [ ] T003 [P] Verify class-validator 0.14.0 and class-transformer 0.5.1 are available
+- [ ] T004 Verify src/promotion/ module structure exists (controllers/, services/, models/, responses/, schemas/)
+- [ ] T005 Verify tests/ directory structure exists (unit/, integration/, contract/)
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+**Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
+
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete
+
+- [ ] T006 [P] Add error codes to src/constants/error-codes.ts: PR3103 (TERMINATION_SUCCESS), PR3104 (TERMINATION_FAILED), PR3105 (INVALID_TERMINATION_STATUS)
+- [ ] T007 [P] Add API messages to src/constants/api-messages.ts: PROMOTION_TERMINATED, PROMOTION_TERMINATION_FAILED, INVALID_STATUS_FOR_TERMINATION
+- [ ] T008 Create TerminatePromotionDto in src/promotion/models/terminate-promotion.dto.ts with adminUserId validation
+- [ ] T009 Create TerminatePromotionResponseData class in src/promotion/responses/terminate-promotion.response.ts
+- [ ] T010 Create TerminatePromotionResponse class in src/promotion/responses/terminate-promotion.response.ts
+- [ ] T011 [P] Export TerminatePromotionDto from src/promotion/models/index.ts
+- [ ] T012 [P] Export TerminatePromotionResponse from src/promotion/responses/index.ts
+
+**Checkpoint**: Foundation ready - user story implementation can now begin
+
+---
+
+## Phase 3: User Story 1 - Emergency Promotion Termination (Priority: P1) 🎯 MVP
+
+**Goal**: Enable admins to immediately terminate a single running promotion before its scheduled end date
+
+**Independent Test**: Admin can call PATCH /promotions/:id/terminate with a running promotion ID, provide adminUserId, and verify the promotion's endDate and claimExpirationDate are updated to current timestamp, with status becoming "ended"
+
+### Tests for User Story 1 (MANDATORY per Constitution) ⚠️
+
+> **CONSTITUTION REQUIREMENT: Write these tests FIRST, ensure they FAIL before implementation**
+> **Follow AAA Pattern (Arrange-Act-Assert) with SINGLE assertion per test**
+
+- [ ] T013 [P] [US1] Create test file tests/unit/promotion/promotion.service.terminate.spec.ts with test module setup
+- [ ] T014 [P] [US1] Write unit test: terminatePromotion updates endDate to current timestamp (AAA pattern)
+- [ ] T015 [P] [US1] Write unit test: terminatePromotion updates claimExpirationDate to current timestamp (AAA pattern)
+- [ ] T016 [P] [US1] Write unit test: terminatePromotion calls findByIdAndUpdate with correct parameters (AAA pattern)
+- [ ] T017 [P] [US1] Write unit test: terminatePromotion calls LoggerService.captureMessage for audit (AAA pattern)
+- [ ] T018 [P] [US1] Write unit test: terminatePromotion throws NotFoundException when promotion not found (AAA pattern)
+- [ ] T019 [P] [US1] Write unit test: terminatePromotion returns updated promotion document (AAA pattern)
+- [ ] T020 [P] [US1] Create test file tests/unit/promotion/promotion.controller.terminate.spec.ts with test module setup
+- [ ] T021 [P] [US1] Write controller test: terminatePromotion endpoint calls service with correct parameters (AAA pattern)
+- [ ] T022 [P] [US1] Write controller test: terminatePromotion endpoint returns formatted TerminatePromotionResponse (AAA pattern)
+- [ ] T023 [P] [US1] Write controller test: terminatePromotion endpoint handles NotFoundException correctly (AAA pattern)
+- [ ] T024 [P] [US1] Create test file tests/contract/promotion/terminate-promotion.contract.spec.ts for OpenAPI validation
+- [ ] T025 [US1] Write contract test: PATCH /promotions/:id/terminate response matches OpenAPI schema (AAA pattern)
+- [ ] T026 [US1] Create test file tests/integration/promotion/terminate-promotion.integration.spec.ts with test database setup
+- [ ] T027 [US1] Write integration test: Full request/response cycle for successful termination (AAA pattern)
+- [ ] T028 [US1] Write integration test: Returns 404 for non-existent promotion (AAA pattern)
+- [ ] T029 [US1] Write integration test: Returns 400 for invalid MongoDB ObjectId (AAA pattern)
+
+**Run all tests - they should FAIL (RED) ❌**
+
+### Implementation for User Story 1
+
+- [ ] T030 [US1] Implement terminatePromotion method in src/promotion/services/promotion.service.ts (<20 lines, atomic update via findByIdAndUpdate)
+- [ ] T031 [US1] Add audit logging to terminatePromotion method using LoggerService.captureMessage with structured JSON format
+- [ ] T032 [US1] Add error handling to terminatePromotion method (throw NotFoundException if promotion not found)
+- [ ] T033 [US1] Implement terminatePromotion endpoint in src/promotion/controllers/promotion.controller.ts (PATCH /:id/terminate)
+- [ ] T034 [US1] Add @Patch(':id/terminate') decorator with ParseMongoIdPipe for id parameter validation
+- [ ] T035 [US1] Add @ApiOperation decorator to terminatePromotion endpoint with summary and description
+- [ ] T036 [US1] Add @ApiResponse decorators for 200, 400, 404, 500 status codes with TerminatePromotionResponse type
+- [ ] T037 [US1] Map service result to TerminatePromotionResponse format in controller
+- [ ] T038 [US1] Add response formatting: success=true, code=PR3103, message, data with promotion details
+- [ ] T039 [US1] Update Swagger documentation examples in controller with realistic termination data
+
+**Run all tests - they should PASS (GREEN) ✅**
+
+**Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
+
+---
+
+## Phase 4: User Story 2 - Audit Trail and History (Priority: P2)
+
+**Goal**: Enable admins to view audit logs showing termination history with admin user, timestamp, and original end date
+
+**Independent Test**: After terminating a promotion, admin can query logs (via Sentry/logging platform) and find the structured JSON audit entry with action='PROMOTION_TERMINATED', promotionId, adminUserId, timestamp, originalEndDate, and newEndDate
+
+### Tests for User Story 2 (MANDATORY per Constitution) ⚠️
+
+> **Follow AAA Pattern (Arrange-Act-Assert) with SINGLE assertion per test**
+
+- [ ] T040 [P] [US2] Write unit test: Audit log contains promotionId field (AAA pattern)
+- [ ] T041 [P] [US2] Write unit test: Audit log contains promotionCode field (AAA pattern)
+- [ ] T042 [P] [US2] Write unit test: Audit log contains adminUserId field (AAA pattern)
+- [ ] T043 [P] [US2] Write unit test: Audit log contains timestamp in ISO 8601 format (AAA pattern)
+- [ ] T044 [P] [US2] Write unit test: Audit log contains originalEndDate field (AAA pattern)
+- [ ] T045 [P] [US2] Write unit test: Audit log contains newEndDate field (AAA pattern)
+- [ ] T046 [P] [US2] Write unit test: Audit log contains action='PROMOTION_TERMINATED' field (AAA pattern)
+- [ ] T047 [US2] Write integration test: Audit log is searchable via structured JSON format (AAA pattern)
+
+**Run all tests - they should FAIL (RED) ❌**
+
+### Implementation for User Story 2
+
+- [ ] T048 [US2] Enhance LoggerService.captureMessage call to include promotionCode in audit log
+- [ ] T049 [US2] Enhance LoggerService.captureMessage call to include operatorId in audit log for filtering
+- [ ] T050 [US2] Verify audit log format matches documented structure (action, promotionId, promotionCode, adminUserId, timestamp, originalEndDate, newEndDate, operatorId)
+- [ ] T051 [US2] Add JSDoc comments to terminatePromotion method documenting audit log structure
+- [ ] T052 [US2] Update Swagger documentation to mention audit logging behavior in endpoint description
+
+**Run all tests - they should PASS (GREEN) ✅**
+
+**Checkpoint**: User Stories 1 AND 2 should both work independently with complete audit trail
+
+---
+
+## Phase 5: Polish & Cross-Cutting Concerns
+
+**Purpose**: Improvements that affect multiple user stories and ensure constitution compliance
+
+- [ ] T053 [P] Verify all error codes (PR3103-PR3105) are exported correctly from src/constants/error-codes.ts
+- [ ] T054 [P] Verify all API messages are exported correctly from src/constants/api-messages.ts
+- [ ] T055 Verify PromotionService class remains under 200 lines after adding terminatePromotion method
+- [ ] T056 Verify terminatePromotion method is under 20 lines
+- [ ] T057 Verify terminatePromotion controller endpoint method is under 20 lines
+- [ ] T058 [P] Run ESLint on src/promotion/ to verify code quality (npm run lint:check)
+- [ ] T059 [P] Run Prettier on src/promotion/ to verify formatting (npm run format:check)
+- [ ] T060 Verify all unit tests follow AAA pattern with single assertion per test
+- [ ] T061 Run full test suite and verify all tests pass (npm test)
+- [ ] T062 Generate test coverage report and verify coverage is maintained or improved (npm run test-coverage)
+- [ ] T063 [P] Verify Swagger documentation is complete at /api endpoint (start dev server and navigate to http://localhost:5000/api)
+- [ ] T064 [P] Verify all responses use standardized format: { success, code, message, data }
+- [ ] T065 Verify structured logging (JSON format) is used for all termination operations
+- [ ] T066 [P] Manual smoke test: Terminate a running promotion via Swagger UI and verify response
+- [ ] T067 [P] Manual smoke test: Verify terminated promotion shows status "ended" in list
+- [ ] T068 [P] Manual smoke test: Attempt to terminate already-ended promotion and verify error PR3105
+- [ ] T069 [P] Manual smoke test: Attempt to terminate non-existent promotion and verify 404 error
+- [ ] T070 Performance test: Measure single termination response time (<200ms p95 requirement)
+- [ ] T071 [P] Update README.md if needed (document new endpoint)
+- [ ] T072 [P] Update API documentation in diagrams/api-endpoints/ if needed
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Setup (Phase 1)**: No dependencies - can start immediately
+- **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories
+- **User Story 1 (Phase 3)**: Depends on Foundational (Phase 2) - No dependencies on other stories
+- **User Story 2 (Phase 4)**: Depends on User Story 1 completion (builds on existing audit logging)
+- **Polish (Phase 5)**: Depends on all desired user stories being complete
+
+### User Story Dependencies
+
+- **User Story 1 (P1)**: Can start after Foundational (Phase 2) - **No dependencies on other stories** ✅
+- **User Story 2 (P2)**: Depends on User Story 1 (enhances existing audit logging implementation)
+
+### Within Each User Story
+
+- **Tests MUST be written and FAIL before implementation** (Test-First Development)
+- Models before services
+- Services before controllers
+- Controllers before integration tests
+- Story complete before moving to next priority
+
+### Parallel Opportunities
+
+- All Setup tasks marked [P] can run in parallel (T002, T003)
+- All Foundational tasks marked [P] can run in parallel (T006, T007, T011, T012)
+- All tests within a user story marked [P] can run in parallel
+  - User Story 1 tests: T014-T019 (service tests), T021-T023 (controller tests), T024 (contract test) can be written in parallel
+  - User Story 2 tests: T040-T046 (audit log tests) can be written in parallel
+- All polish tasks marked [P] can run in parallel (T053, T054, T058, T059, T063, T064, T066-T069, T071, T072)
+
+---
+
+## Parallel Example: User Story 1 Tests
+
+```bash
+# Launch all service tests for User Story 1 together:
+Task T014: "Write unit test: terminatePromotion updates endDate to current timestamp"
+Task T015: "Write unit test: terminatePromotion updates claimExpirationDate to current timestamp"
+Task T016: "Write unit test: terminatePromotion calls findByIdAndUpdate with correct parameters"
+Task T017: "Write unit test: terminatePromotion calls LoggerService.captureMessage for audit"
+Task T018: "Write unit test: terminatePromotion throws NotFoundException when promotion not found"
+Task T019: "Write unit test: terminatePromotion returns updated promotion document"
+
+# Launch all controller tests for User Story 1 together:
+Task T021: "Write controller test: terminatePromotion endpoint calls service with correct parameters"
+Task T022: "Write controller test: terminatePromotion endpoint returns formatted TerminatePromotionResponse"
+Task T023: "Write controller test: terminatePromotion endpoint handles NotFoundException correctly"
+```
+
+---
+
+## Implementation Strategy
+
+### MVP First (User Story 1 Only)
+
+1. Complete Phase 1: Setup
+2. Complete Phase 2: Foundational (CRITICAL - blocks all stories)
+3. Complete Phase 3: User Story 1 (write tests → see fail → implement → see pass)
+4. **STOP and VALIDATE**: Test User Story 1 independently via Swagger UI
+5. Deploy/demo if ready
+
+**MVP Deliverable**: Single promotion termination with atomic updates and basic audit logging
+
+### Incremental Delivery
+
+1. Complete Setup + Foundational → Foundation ready
+2. Add User Story 1 → Test independently → Deploy/Demo (**MVP!**)
+3. Add User Story 2 → Test independently → Deploy/Demo (enhanced audit trail)
+4. Run Polish phase → Final quality checks → Production ready
+5. Each story adds value without breaking previous stories
+
+### Sequential Strategy (Single Developer)
+
+1. Complete Phase 1 (Setup) - 5 minutes
+2. Complete Phase 2 (Foundational) - 15 minutes
+3. Complete Phase 3 (User Story 1) - 2 hours
+   - Write all tests (T013-T029): 45 minutes
+   - Verify tests fail: 2 minutes
+   - Implement feature (T030-T039): 60 minutes
+   - Verify tests pass: 2 minutes
+   - Manual smoke test: 5 minutes
+4. Complete Phase 4 (User Story 2) - 30 minutes
+   - Write tests (T040-T047): 15 minutes
+   - Implement enhancements (T048-T052): 15 minutes
+5. Complete Phase 5 (Polish) - 30 minutes
+
+**Total Estimated Time**: ~3.5 hours for complete feature
+
+---
+
+## Notes
+
+- [P] tasks = different files, no dependencies
+- [Story] label maps task to specific user story for traceability
+- Each user story should be independently completable and testable
+- **Verify tests fail before implementing** (Test-First Development principle)
+- Commit after each task or logical group
+- Stop at any checkpoint to validate story independently
+- Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
+- All tests MUST follow AAA pattern (Arrange-Act-Assert) with single assertion per test
+- Constitution compliance: Functions <20 lines, classes <200 lines, single assertions
+- No bulk termination - admins terminate promotions one-by-one for safety
+
+---
+
+## Task Summary
+
+**Total Tasks**: 72 tasks
+
+- Phase 1 (Setup): 5 tasks
+- Phase 2 (Foundational): 7 tasks
+- Phase 3 (User Story 1): 27 tasks (17 tests + 10 implementation)
+- Phase 4 (User Story 2): 13 tasks (8 tests + 5 implementation)
+- Phase 5 (Polish): 20 tasks
+
+**Parallel Opportunities**: 32 tasks can be executed in parallel (marked with [P])
+
+**Test Tasks**: 25 mandatory test tasks (MUST be written before implementation)
+
+**MVP Scope**: Phase 1 + Phase 2 + Phase 3 (User Story 1 only) = 39 tasks (~2 hours)
+
+**Independent Test Criteria**:
+
+- **User Story 1**: Can verify by calling PATCH /promotions/:id/terminate and checking response
+- **User Story 2**: Can verify by querying audit logs for structured JSON entries
+
+**Constitution Compliance**: All tasks follow SOLID principles, Clean Code standards, Test-First development (AAA pattern with single assertions)

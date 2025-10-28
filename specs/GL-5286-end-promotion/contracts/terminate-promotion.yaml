@@ -1,0 +1,236 @@
+openapi: 3.0.3
+info:
+  title: Terminate Promotion Endpoint
+  description: API contract for terminating a single running promotion before its scheduled end date
+  version: 1.0.0
+
+paths:
+  /promotions/{id}/terminate:
+    patch:
+      summary: Terminate a running promotion
+      description: |
+        Immediately terminates a running promotion by updating its end date and claim expiration date to the current timestamp.
+        
+        **Requirements:**
+        - Promotion must exist
+        - Promotion status must be "running" (current date between startDate and endDate)
+        - Operation is atomic (all fields update or none)
+        - Irreversible (cannot undo termination)
+        
+        **Side Effects:**
+        - endDate set to current timestamp
+        - claimExpirationDate set to current timestamp
+        - Status becomes "ended" automatically
+        - Audit log entry created
+        - Players can no longer claim bonus items
+      operationId: terminatePromotion
+      tags:
+        - promotions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: MongoDB ObjectId of the promotion to terminate
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
+            example: '507f1f77bcf86cd799439011'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - adminUserId
+              properties:
+                adminUserId:
+                  type: string
+                  description: Admin user ID performing the termination (for audit trail)
+                  example: 'admin123'
+                  minLength: 1
+            examples:
+              valid:
+                summary: Valid termination request
+                value:
+                  adminUserId: 'admin123'
+      responses:
+        '200':
+          description: Promotion terminated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerminatePromotionResponse'
+              examples:
+                success:
+                  summary: Successful termination
+                  value:
+                    success: true
+                    code: 'PR3103'
+                    message: 'Promotion terminated successfully'
+                    data:
+                      promotionId: '507f1f77bcf86cd799439011'
+                      promotionCode: 'summer-promo-2025'
+                      originalEndDate: '2025-12-31T23:59:59.000Z'
+                      newEndDate: '2025-10-28T14:30:00.000Z'
+                      terminatedAt: '2025-10-28T14:30:00.000Z'
+                      adminUserId: 'admin123'
+        '400':
+          description: Invalid request (validation error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidObjectId:
+                  summary: Invalid promotion ID format
+                  value:
+                    success: false
+                    code: 'VALIDATION_ERROR'
+                    message: 'Invalid MongoDB ObjectId format'
+                    data: null
+                missingAdminUserId:
+                  summary: Missing adminUserId
+                  value:
+                    success: false
+                    code: 'VALIDATION_ERROR'
+                    message: 'adminUserId is required'
+                    data: null
+        '404':
+          description: Promotion not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  summary: Promotion does not exist
+                  value:
+                    success: false
+                    code: 'PR3100'
+                    message: 'Promotion not found'
+                    data: null
+        '422':
+          description: Invalid promotion status for termination
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notStarted:
+                  summary: Promotion has not started yet
+                  value:
+                    success: false
+                    code: 'PR3105'
+                    message: 'Cannot terminate promotion with status "not_started"'
+                    data: null
+                alreadyEnded:
+                  summary: Promotion already ended
+                  value:
+                    success: false
+                    code: 'PR3105'
+                    message: 'Cannot terminate promotion with status "ended"'
+                    data: null
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                databaseError:
+                  summary: Database operation failed
+                  value:
+                    success: false
+                    code: 'PR3104'
+                    message: 'Promotion termination failed due to database error'
+                    data: null
+
+components:
+  schemas:
+    TerminatePromotionResponse:
+      type: object
+      required:
+        - success
+        - code
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+          example: true
+        code:
+          type: string
+          description: Response code (PR3103 for success)
+          example: 'PR3103'
+        message:
+          type: string
+          description: Human-readable message
+          example: 'Promotion terminated successfully'
+        data:
+          $ref: '#/components/schemas/TerminationData'
+
+    TerminationData:
+      type: object
+      required:
+        - promotionId
+        - promotionCode
+        - originalEndDate
+        - newEndDate
+        - terminatedAt
+        - adminUserId
+      properties:
+        promotionId:
+          type: string
+          description: Terminated promotion ID
+          example: '507f1f77bcf86cd799439011'
+        promotionCode:
+          type: string
+          description: Promotion code
+          example: 'summer-promo-2025'
+        originalEndDate:
+          type: string
+          format: date-time
+          description: Original scheduled end date (before termination)
+          example: '2025-12-31T23:59:59.000Z'
+        newEndDate:
+          type: string
+          format: date-time
+          description: New end date (termination timestamp)
+          example: '2025-10-28T14:30:00.000Z'
+        terminatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when termination occurred
+          example: '2025-10-28T14:30:00.000Z'
+        adminUserId:
+          type: string
+          description: Admin user who performed the termination
+          example: 'admin123'
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - code
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Operation success status (always false for errors)
+          example: false
+        code:
+          type: string
+          description: Error code (PR31XX family for promotion errors)
+          example: 'PR3100'
+        message:
+          type: string
+          description: Human-readable error message
+          example: 'Promotion not found'
+        data:
+          type: object
+          nullable: true
+          description: Additional error context (null for most errors)
+          example: null
+
