@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 
 export type PromotionTicketDocument = PromotionTicket & Document;
 
@@ -13,6 +13,12 @@ export class PromotionTicket {
 
   @Prop({ required: true })
   siteName: string;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  playerPromotionId: MongooseSchema.Types.ObjectId;
+
+  @Prop({ type: Boolean, required: true, default: false })
+  isClaimed: boolean;
 
   @Prop({ required: true })
   promotionId: string;

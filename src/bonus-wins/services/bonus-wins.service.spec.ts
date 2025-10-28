@@ -7,6 +7,10 @@ import {
   PlayerPromotion,
   PlayerPromotionDocument,
 } from '../../promotion/schemas/player-promotion.schema';
+import {
+  PlayerFinishedPromotion,
+  PlayerFinishedPromotionDocument,
+} from '../../promotion/schemas/player-finished-promotion.schema';
 import { Promotion, PromotionDocument } from '../../promotion/schemas/promotion.schema';
 import { PlayerPromotionService } from '../../promotion/services/player-promotion.service';
 import { PromotionTicketService } from '../../promotion-ticket/services/promotion-ticket.service';
@@ -20,6 +24,7 @@ import { AwardAPIService } from './award-api.service';
 describe('BonusWinsService', () => {
   let service: BonusWinsService;
   let playerPromotionModel: jest.Mocked<Model<PlayerPromotionDocument>>;
+  let playerFinishedPromotionModel: jest.Mocked<Model<PlayerFinishedPromotionDocument>>;
   let promotionModel: jest.Mocked<Model<PromotionDocument>>;
   let promotionTicketModel: jest.Mocked<Model<PromotionTicketDocument>>;
   let playerPromotionService: jest.Mocked<PlayerPromotionService>;
@@ -36,6 +41,15 @@ describe('BonusWinsService', () => {
             findOne: jest.fn(),
             findOneAndUpdate: jest.fn(),
             find: jest.fn(),
+            deleteOne: jest.fn(),
+          },
+        },
+        {
+          provide: getModelToken(PlayerFinishedPromotion.name),
+          useValue: {
+            create: jest.fn(),
+            findOne: jest.fn(),
+            deleteOne: jest.fn(),
           },
         },
         {
@@ -69,12 +83,15 @@ describe('BonusWinsService', () => {
           provide: PlayerPromotionService,
           useValue: {
             findExistingPromotion: jest.fn(),
+            findPlayerPromotion: jest.fn(),
+            findUniquePlayerPromotion: jest.fn(),
           },
         },
         {
           provide: PromotionTicketService,
           useValue: {
             calculateTotalWin: jest.fn(),
+            markTicketAsClaimed: jest.fn(),
           },
         },
       ],
@@ -82,6 +99,7 @@ describe('BonusWinsService', () => {
 
     service = module.get<BonusWinsService>(BonusWinsService);
     playerPromotionModel = module.get(getModelToken(PlayerPromotion.name));
+    playerFinishedPromotionModel = module.get(getModelToken(PlayerFinishedPromotion.name));
     promotionModel = module.get(getModelToken(Promotion.name));
     promotionTicketModel = module.get(getModelToken(PromotionTicket.name));
     playerPromotionService = module.get(PlayerPromotionService);
@@ -474,7 +492,7 @@ describe('BonusWinsService', () => {
 
         const mockPromotion = {
           _id: 'promo_fp1',
-          minTurnoverMultiplier: 2.0,
+          minTurnoverMultiplier: 2,
           claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
         };
 
@@ -547,10 +565,29 @@ describe('BonusWinsService', () => {
           baseTotalWinAmount: 50,
         });
 
-        playerPromotionModel.findOneAndUpdate.mockResolvedValue({
+        playerFinishedPromotionModel.create.mockResolvedValue({
           ...mockPlayerPromotion,
           bonusClaimed: true,
           claimedAt: new Date(),
+          totalWinAmount: 50,
+        } as any);
+
+        playerPromotionModel.deleteOne.mockResolvedValue({ deletedCount: 1 } as any);
+        promotionTicketService.markTicketAsClaimed.mockResolvedValue({
+          success: true,
+          code: 'ST2001',
+          message: 'Update successful',
+        });
+
+        // Mock the getMaxRedemptionCount method
+        playerFinishedPromotionModel.findOne.mockReturnValue({
+          sort: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnValue({
+              lean: jest.fn().mockReturnValue({
+                exec: jest.fn().mockResolvedValue({ redemptionCount: 0 }),
+              }),
+            }),
+          }),
         } as any);
 
         const result = await service.claimBonusWins(
@@ -562,7 +599,7 @@ describe('BonusWinsService', () => {
 
         // Should be claimable because after rounding: 100 >= 100.0000
         expect(result.claimedAmount).toBe(50);
-        expect(result.errorCode).toBeUndefined();
+        expect(result.errorCode).toBe('SB3016'); // BONUS_WIN_CLAIM_SUCCESS
       });
 
       it('should handle very small floating point number .000000000003', async () => {
@@ -581,7 +618,7 @@ describe('BonusWinsService', () => {
 
         const mockPromotion = {
           _id: 'promo_fp3',
-          minTurnoverMultiplier: 2.0,
+          minTurnoverMultiplier: 2,
           claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
         };
 
@@ -631,7 +668,7 @@ describe('BonusWinsService', () => {
 
         const mockPromotion = {
           _id: 'promo_fp4',
-          minTurnoverMultiplier: 2.0,
+          minTurnoverMultiplier: 2,
           claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
         };
 
@@ -652,10 +689,29 @@ describe('BonusWinsService', () => {
           baseTotalWinAmount: 49.99999993,
         });
 
-        playerPromotionModel.findOneAndUpdate.mockResolvedValue({
+        playerFinishedPromotionModel.create.mockResolvedValue({
           ...mockPlayerPromotion,
           bonusClaimed: true,
           claimedAt: new Date(),
+          totalWinAmount: 49.99999993,
+        } as any);
+
+        playerPromotionModel.deleteOne.mockResolvedValue({ deletedCount: 1 } as any);
+        promotionTicketService.markTicketAsClaimed.mockResolvedValue({
+          success: true,
+          code: 'ST2001',
+          message: 'Update successful',
+        });
+
+        // Mock the getMaxRedemptionCount method
+        playerFinishedPromotionModel.findOne.mockReturnValue({
+          sort: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnValue({
+              lean: jest.fn().mockReturnValue({
+                exec: jest.fn().mockResolvedValue({ redemptionCount: 0 }),
+              }),
+            }),
+          }),
         } as any);
 
         const result = await service.claimBonusWins(
@@ -668,7 +724,7 @@ describe('BonusWinsService', () => {
         // After rounding to 4 decimals: 50.0000 (win) * 2.0 = 100.0000
         // totalTurnover 100 >= 100.0000, should be claimable
         expect(result.claimedAmount).toBe(49.99999993);
-        expect(result.errorCode).toBeUndefined();
+        expect(result.errorCode).toBe('SB3016'); // BONUS_WIN_CLAIM_SUCCESS
       });
 
       it('should handle complex multiplication resulting in floating point precision error', async () => {
@@ -687,7 +743,7 @@ describe('BonusWinsService', () => {
 
         const mockPromotion = {
           _id: 'promo_fp5',
-          minTurnoverMultiplier: 3.0,
+          minTurnoverMultiplier: 3,
           claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
         };
 
@@ -708,10 +764,29 @@ describe('BonusWinsService', () => {
           baseTotalWinAmount: 33.33333333,
         });
 
-        playerPromotionModel.findOneAndUpdate.mockResolvedValue({
+        playerFinishedPromotionModel.create.mockResolvedValue({
           ...mockPlayerPromotion,
           bonusClaimed: true,
           claimedAt: new Date(),
+          totalWinAmount: 33.33333333,
+        } as any);
+
+        playerPromotionModel.deleteOne.mockResolvedValue({ deletedCount: 1 } as any);
+        promotionTicketService.markTicketAsClaimed.mockResolvedValue({
+          success: true,
+          code: 'ST2001',
+          message: 'Update successful',
+        });
+
+        // Mock the getMaxRedemptionCount method
+        playerFinishedPromotionModel.findOne.mockReturnValue({
+          sort: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnValue({
+              lean: jest.fn().mockReturnValue({
+                exec: jest.fn().mockResolvedValue({ redemptionCount: 0 }),
+              }),
+            }),
+          }),
         } as any);
 
         const result = await service.claimBonusWins(
@@ -724,7 +799,7 @@ describe('BonusWinsService', () => {
         // 33.33333333 * 3 = 99.99999999 -> rounds to 100.0000
         // totalTurnover 100.00001 >= 100.0000, should be claimable
         expect(result.claimedAmount).toBe(33.33333333);
-        expect(result.errorCode).toBeUndefined();
+        expect(result.errorCode).toBe('SB3016'); // BONUS_WIN_CLAIM_SUCCESS
       });
     });
 

@@ -1,6 +1,6 @@
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Model } from 'mongoose';
+import { Model, Schema as MongooseSchema } from 'mongoose';
 import { PROMOTION_TICKET_ERROR_CODES } from '../../constants/error-codes';
 import { LoggerService } from '../../core/logger/logger.service';
 import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto';
@@ -67,16 +67,7 @@ describe('PromotionTicketService', () => {
         },
         {
           provide: BonusWinsService,
-          useFactory: () => ({
-            updateTotalWinAmount: jest.fn(),
-            calculateTORequirement: jest.fn(),
-            updateTotalTurnover: jest.fn(),
-            getTOProgress: jest.fn(),
-            claimBonusWins: jest.fn(),
-            findByPromotion: jest.fn(),
-            completePromotion: jest.fn(),
-            calculateTotalWin: jest.fn(),
-          }),
+          useValue: mockBonusWinsService,
         },
       ],
     }).compile();
@@ -105,9 +96,12 @@ describe('PromotionTicketService', () => {
 
     it('should successfully create a promotion ticket', async () => {
       // Arrange
+      const mockPlayerPromotionId = new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011');
+      const mockPlayerPromotion = { _id: mockPlayerPromotionId } as any;
       const mockSavedTicket = {
         _id: 'ticket-id-123',
         ...inputDto,
+        playerPromotionId: mockPlayerPromotionId,
         createdAt: new Date(),
         updatedAt: new Date(),
       } as unknown as PromotionTicketDocument;
@@ -117,6 +111,7 @@ describe('PromotionTicketService', () => {
       };
 
       (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
+      mockBonusWinsService.findByPromotion.mockResolvedValue(mockPlayerPromotion);
 
       // Mock calculateTotalWin method
       const mockCalculateTotalWin = jest
@@ -145,6 +140,12 @@ describe('PromotionTicketService', () => {
       const actualResult = await service.createTicket(inputDto);
 
       // Assert
+      expect(mockBonusWinsService.findByPromotion).toHaveBeenCalledWith(
+        inputDto.playerId,
+        inputDto.operatorId,
+        inputDto.siteName,
+        inputDto.promotionId,
+      );
       expect(mockPromotionTicketModel).toHaveBeenCalledWith(inputDto);
       expect(mockTicketInstance.save).toHaveBeenCalledTimes(1);
       expect(mockCalculateTotalWin).toHaveBeenCalledWith({
@@ -152,13 +153,7 @@ describe('PromotionTicketService', () => {
         operatorId: inputDto.operatorId,
         siteName: inputDto.siteName,
         promotionId: inputDto.promotionId,
-        gameId: inputDto.gameId,
-        gameRoundId: inputDto.gameRoundId,
-        appType: inputDto.appType,
-        betAmount: inputDto.betAmount,
-        winAmount: inputDto.winAmount,
-        baseBetAmount: inputDto.baseBetAmount,
-        baseWinAmount: inputDto.baseWinAmount,
+        playerPromotionId: mockPlayerPromotionId,
       });
       expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
         inputDto.playerId,
@@ -174,12 +169,15 @@ describe('PromotionTicketService', () => {
 
     it('should return failure response when ticket creation fails', async () => {
       // Arrange
+      const mockPlayerPromotionId = new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011');
+      const mockPlayerPromotion = { _id: mockPlayerPromotionId } as any;
       const mockError = new Error('Database error');
       const mockTicketInstance = {
         save: jest.fn().mockRejectedValue(mockError),
       };
 
       (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
+      mockBonusWinsService.findByPromotion.mockResolvedValue(mockPlayerPromotion);
 
       const expectedResult: CreatePromotionTicketResponse = {
         success: false,
@@ -190,6 +188,12 @@ describe('PromotionTicketService', () => {
       const actualResult = await service.createTicket(inputDto);
 
       // Assert
+      expect(mockBonusWinsService.findByPromotion).toHaveBeenCalledWith(
+        inputDto.playerId,
+        inputDto.operatorId,
+        inputDto.siteName,
+        inputDto.promotionId,
+      );
       expect(mockPromotionTicketModel).toHaveBeenCalledWith(inputDto);
       expect(mockTicketInstance.save).toHaveBeenCalledTimes(1);
       expect(actualResult).toEqual(expectedResult);
@@ -202,9 +206,12 @@ describe('PromotionTicketService', () => {
 
     it('should create ticket with correct data structure', async () => {
       // Arrange
+      const mockPlayerPromotionId = new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011');
+      const mockPlayerPromotion = { _id: mockPlayerPromotionId } as any;
       const mockSavedTicket = {
         _id: 'ticket-id-123',
         ...inputDto,
+        playerPromotionId: mockPlayerPromotionId,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -214,6 +221,7 @@ describe('PromotionTicketService', () => {
       };
 
       (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
+      mockBonusWinsService.findByPromotion.mockResolvedValue(mockPlayerPromotion);
 
       // Mock calculateTotalWin method
       jest
@@ -231,6 +239,12 @@ describe('PromotionTicketService', () => {
       await service.createTicket(inputDto);
 
       // Assert
+      expect(mockBonusWinsService.findByPromotion).toHaveBeenCalledWith(
+        inputDto.playerId,
+        inputDto.operatorId,
+        inputDto.siteName,
+        inputDto.promotionId,
+      );
       expect(mockPromotionTicketModel).toHaveBeenCalledWith({
         playerId: 'player123',
         operatorId: 'operator456',
@@ -257,9 +271,12 @@ describe('PromotionTicketService', () => {
 
     it('should trigger TO calculation when remainingBonusItems is 0', async () => {
       // Arrange
+      const mockPlayerPromotionId = new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011');
+      const mockPlayerPromotion = { _id: mockPlayerPromotionId } as any;
       const mockSavedTicket = {
         _id: 'ticket-id-123',
         ...inputDto,
+        playerPromotionId: mockPlayerPromotionId,
         createdAt: new Date(),
         updatedAt: new Date(),
       } as unknown as PromotionTicketDocument;
@@ -269,6 +286,7 @@ describe('PromotionTicketService', () => {
       };
 
       (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
+      mockBonusWinsService.findByPromotion.mockResolvedValue(mockPlayerPromotion);
 
       // Mock calculateTotalWin method
       jest
@@ -297,6 +315,12 @@ describe('PromotionTicketService', () => {
       const actualResult = await service.createTicket(inputDto);
 
       // Assert
+      expect(mockBonusWinsService.findByPromotion).toHaveBeenCalledWith(
+        inputDto.playerId,
+        inputDto.operatorId,
+        inputDto.siteName,
+        inputDto.promotionId,
+      );
       expect(mockPromotionTicketModel).toHaveBeenCalledWith(inputDto);
       expect(mockTicketInstance.save).toHaveBeenCalledTimes(1);
       expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
@@ -319,9 +343,12 @@ describe('PromotionTicketService', () => {
 
     it('should handle BonusWinsService errors gracefully', async () => {
       // Arrange
+      const mockPlayerPromotionId = new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011');
+      const mockPlayerPromotion = { _id: mockPlayerPromotionId } as any;
       const mockSavedTicket = {
         _id: 'ticket-id-123',
         ...inputDto,
+        playerPromotionId: mockPlayerPromotionId,
         createdAt: new Date(),
         updatedAt: new Date(),
       } as unknown as PromotionTicketDocument;
@@ -331,6 +358,7 @@ describe('PromotionTicketService', () => {
       };
 
       (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
+      mockBonusWinsService.findByPromotion.mockResolvedValue(mockPlayerPromotion);
 
       // Mock calculateTotalWin method
       jest
@@ -350,6 +378,12 @@ describe('PromotionTicketService', () => {
       const actualResult = await service.createTicket(inputDto);
 
       // Assert
+      expect(mockBonusWinsService.findByPromotion).toHaveBeenCalledWith(
+        inputDto.playerId,
+        inputDto.operatorId,
+        inputDto.siteName,
+        inputDto.promotionId,
+      );
       expect(mockPromotionTicketModel).toHaveBeenCalledWith(inputDto);
       expect(mockTicketInstance.save).toHaveBeenCalledTimes(1);
       expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
@@ -366,10 +400,45 @@ describe('PromotionTicketService', () => {
         {
           method: 'updateBonusWinsAfterTicketChange',
           service: 'PromotionTicketService',
-          context: inputDto,
+          context: {
+            playerId: inputDto.playerId,
+            operatorId: inputDto.operatorId,
+            siteName: inputDto.siteName,
+            promotionId: inputDto.promotionId,
+            playerPromotionId: mockPlayerPromotionId,
+          },
           error: updateError.message,
         },
       );
+      expect(actualResult).toEqual(expectedResult);
+      expect(mockLoggerService.captureException).not.toHaveBeenCalled();
+    });
+
+    it('should return failure response when player promotion is not found', async () => {
+      // Arrange
+      const mockTicketInstance = {
+        save: jest.fn(),
+      };
+      (mockPromotionTicketModel as any).mockReturnValue(mockTicketInstance);
+      mockBonusWinsService.findByPromotion.mockResolvedValue(null);
+
+      const expectedResult: CreatePromotionTicketResponse = {
+        success: false,
+        ...PROMOTION_TICKET_ERROR_CODES.CREATION_FAILED,
+      };
+
+      // Act
+      const actualResult = await service.createTicket(inputDto);
+
+      // Assert
+      expect(mockBonusWinsService.findByPromotion).toHaveBeenCalledWith(
+        inputDto.playerId,
+        inputDto.operatorId,
+        inputDto.siteName,
+        inputDto.promotionId,
+      );
+      expect(mockPromotionTicketModel).toHaveBeenCalledWith(inputDto);
+      expect(mockTicketInstance.save).not.toHaveBeenCalled();
       expect(actualResult).toEqual(expectedResult);
       expect(mockLoggerService.captureException).not.toHaveBeenCalled();
     });
@@ -391,9 +460,11 @@ describe('PromotionTicketService', () => {
 
     it('should successfully update a promotion ticket', async () => {
       // Arrange
+      const mockPlayerPromotionId = new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011');
       const mockUpdatedTicket = {
         _id: 'ticket-id-123',
         ...updateTicketDto,
+        playerPromotionId: mockPlayerPromotionId,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -433,7 +504,7 @@ describe('PromotionTicketService', () => {
         {
           $set: {
             winAmount: updateTicketDto.winAmount,
-            baseWinAmount: updateTicketDto.baseWinAmount,
+            baseWinAmount: updateTicketDto?.baseWinAmount || 0,
           },
         },
         {
@@ -578,9 +649,11 @@ describe('PromotionTicketService', () => {
 
     it('should handle BonusWinsService errors gracefully', async () => {
       // Arrange
+      const mockPlayerPromotionId = new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011');
       const mockUpdatedTicket = {
         _id: 'ticket-id-123',
         ...updateTicketDto,
+        playerPromotionId: mockPlayerPromotionId,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -639,7 +712,13 @@ describe('PromotionTicketService', () => {
         {
           method: 'updateBonusWinsAfterTicketChange',
           service: 'PromotionTicketService',
-          context: updateTicketDto,
+          context: {
+            playerId: updateTicketDto.playerId,
+            operatorId: updateTicketDto.operatorId,
+            siteName: updateTicketDto.siteName,
+            promotionId: updateTicketDto.promotionId,
+            playerPromotionId: mockPlayerPromotionId,
+          },
           error: updateError.message,
         },
       );
@@ -708,21 +787,9 @@ describe('PromotionTicketService', () => {
       // Arrange
       mockPromotionTicketModel.findOneAndUpdate = jest.fn().mockResolvedValue(null);
 
-      // Mock calculateTotalWin method
-      jest
-        .spyOn(service, 'calculateTotalWin')
-        .mockResolvedValue({ totalWinAmount: 0, baseTotalWinAmount: 100 });
-
-      // Mock BonusWinsService methods
-      mockBonusWinsService.updateTotalWinAmount.mockResolvedValue({
-        success: true,
-        totalWinAmount: 0,
-        remainingBonusItems: 2,
-      });
-
       const expectedResult: UpdatePromotionTicketResponse = {
-        success: true,
-        ...PROMOTION_TICKET_ERROR_CODES.UPDATE_SUCCESS,
+        success: false,
+        ...PROMOTION_TICKET_ERROR_CODES.UPDATE_FAILED,
       };
 
       // Act
@@ -741,21 +808,13 @@ describe('PromotionTicketService', () => {
         {
           $set: {
             winAmount: updateTicketDto.winAmount,
-            baseWinAmount: updateTicketDto.baseWinAmount,
+            baseWinAmount: updateTicketDto?.baseWinAmount || 0,
           },
         },
         {
           new: true,
           lean: true,
         },
-      );
-      expect(mockBonusWinsService.updateTotalWinAmount).toHaveBeenCalledWith(
-        updateTicketDto.playerId,
-        updateTicketDto.operatorId,
-        updateTicketDto.siteName,
-        updateTicketDto.promotionId,
-        0,
-        100,
       );
       expect(actualResult).toEqual(expectedResult);
       expect(mockLoggerService.error).not.toHaveBeenCalled();
@@ -778,18 +837,18 @@ describe('PromotionTicketService', () => {
         {
           _id: 'ticket-id-1',
           gameId: 1001,
-          betAmount: 10.0,
-          winAmount: 25.0,
-          baseBetAmount: 10.0,
-          baseWinAmount: 25.0,
+          betAmount: 10,
+          winAmount: 25,
+          baseBetAmount: 10,
+          baseWinAmount: 25,
         },
         {
           _id: 'ticket-id-2',
           gameId: 1002,
-          betAmount: 15.0,
-          winAmount: 30.0,
-          baseBetAmount: 15.0,
-          baseWinAmount: 30.0,
+          betAmount: 15,
+          winAmount: 30,
+          baseBetAmount: 15,
+          baseWinAmount: 30,
         },
       ];
 
@@ -827,8 +886,8 @@ describe('PromotionTicketService', () => {
       expect(result.totalPages).toBe(1);
       expect(result.pageSize).toBe(10);
       expect(result.metaData?.totalCount).toBe(2);
-      expect(result.metaData?.totalBaseBetAmount).toBe(25.0);
-      expect(result.metaData?.totalBaseWinAmount).toBe(55.0);
+      expect(result.metaData?.totalBaseBetAmount).toBe(25);
+      expect(result.metaData?.totalBaseWinAmount).toBe(55);
     });
   });
 
@@ -850,7 +909,7 @@ describe('PromotionTicketService', () => {
           playerId: 'player123',
           promotionId: 'promo789',
           gameId: 1001,
-          winAmount: 25.0,
+          winAmount: 25,
           createdAt: new Date(),
         },
       ];
@@ -895,26 +954,283 @@ describe('PromotionTicketService', () => {
     });
   });
 
+  describe('markTicketAsClaimed', () => {
+    it('should successfully mark ticket as claimed', async () => {
+      // Arrange
+      const mockUpdatedTicket = {
+        _id: 'ticket-id-123',
+        playerId: 'player123',
+        operatorId: 'operator456',
+        siteName: 'site1',
+        promotionId: 'promo789',
+        isClaimed: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockPromotionTicketModel.updateMany = jest.fn().mockResolvedValue(mockUpdatedTicket);
+
+      const expectedResult: UpdatePromotionTicketResponse = {
+        success: true,
+        ...PROMOTION_TICKET_ERROR_CODES.UPDATE_SUCCESS,
+      };
+
+      // Act
+      const actualResult = await service.markTicketAsClaimed(
+        'player123',
+        'operator456',
+        'site1',
+        'promo789',
+        new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011'),
+      );
+
+      // Assert
+      expect(mockPromotionTicketModel.updateMany).toHaveBeenCalledWith(
+        {
+          playerId: 'player123',
+          operatorId: 'operator456',
+          siteName: 'site1',
+          promotionId: 'promo789',
+          $and: [
+            {
+              $or: [
+                {
+                  playerPromotionId: {
+                    $eq: new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011'),
+                  },
+                },
+                { playerPromotionId: { $exists: false } },
+              ],
+            },
+            {
+              $or: [{ isClaimed: { $eq: false } }, { isClaimed: { $exists: false } }],
+            },
+          ],
+        },
+        {
+          $set: {
+            isClaimed: true,
+          },
+        },
+        {
+          new: true,
+          lean: true,
+        },
+      );
+      expect(actualResult).toEqual(expectedResult);
+      expect(mockLoggerService.error).not.toHaveBeenCalled();
+    });
+
+    it('should return failure response when ticket is not found', async () => {
+      // Arrange
+      mockPromotionTicketModel.updateMany = jest.fn().mockResolvedValue(null);
+
+      const expectedResult: UpdatePromotionTicketResponse = {
+        success: false,
+        ...PROMOTION_TICKET_ERROR_CODES.UPDATE_FAILED,
+      };
+
+      // Act
+      const actualResult = await service.markTicketAsClaimed(
+        'player123',
+        'operator456',
+        'site1',
+        'promo789',
+        new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011'),
+      );
+
+      // Assert
+      expect(mockPromotionTicketModel.updateMany).toHaveBeenCalledWith(
+        {
+          playerId: 'player123',
+          operatorId: 'operator456',
+          siteName: 'site1',
+          promotionId: 'promo789',
+          $and: [
+            {
+              $or: [
+                {
+                  playerPromotionId: {
+                    $eq: new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011'),
+                  },
+                },
+                { playerPromotionId: { $exists: false } },
+              ],
+            },
+            {
+              $or: [{ isClaimed: { $eq: false } }, { isClaimed: { $exists: false } }],
+            },
+          ],
+        },
+        {
+          $set: {
+            isClaimed: true,
+          },
+        },
+        {
+          new: true,
+          lean: true,
+        },
+      );
+      expect(actualResult).toEqual(expectedResult);
+      expect(mockLoggerService.error).not.toHaveBeenCalled();
+    });
+
+    it('should handle database errors gracefully', async () => {
+      // Arrange
+      const mockError = new Error('Database error');
+      mockPromotionTicketModel.updateMany = jest.fn().mockRejectedValue(mockError);
+
+      const expectedResult: UpdatePromotionTicketResponse = {
+        success: false,
+        ...PROMOTION_TICKET_ERROR_CODES.UPDATE_FAILED,
+      };
+
+      // Act
+      const actualResult = await service.markTicketAsClaimed(
+        'player123',
+        'operator456',
+        'site1',
+        'promo789',
+        new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011'),
+      );
+
+      // Assert
+      expect(mockPromotionTicketModel.updateMany).toHaveBeenCalledWith(
+        {
+          playerId: 'player123',
+          operatorId: 'operator456',
+          siteName: 'site1',
+          promotionId: 'promo789',
+          $and: [
+            {
+              $or: [
+                {
+                  playerPromotionId: {
+                    $eq: new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011'),
+                  },
+                },
+                { playerPromotionId: { $exists: false } },
+              ],
+            },
+            {
+              $or: [{ isClaimed: { $eq: false } }, { isClaimed: { $exists: false } }],
+            },
+          ],
+        },
+        {
+          $set: {
+            isClaimed: true,
+          },
+        },
+        {
+          new: true,
+          lean: true,
+        },
+      );
+      expect(actualResult).toEqual(expectedResult);
+      expect(mockLoggerService.error).toHaveBeenCalledWith(
+        'Error in markTicketAsClaimed',
+        mockError.stack,
+        {
+          method: 'markTicketAsClaimed',
+          service: 'PromotionTicketService',
+          playerId: 'player123',
+          operatorId: 'operator456',
+          siteName: 'site1',
+          promotionId: 'promo789',
+          error: mockError.message,
+        },
+      );
+    });
+  });
+
+  describe('calculateTotalWinAmount', () => {
+    it('should calculate total win amount successfully', async () => {
+      // Arrange
+      const mockPlayerPromotionId = new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011');
+      const mockPlayerPromotion = { _id: mockPlayerPromotionId } as any;
+      const totalWinDto = {
+        playerId: 'player123',
+        operatorId: 'operator456',
+        siteName: 'site1',
+        promotionId: 'promo789',
+      };
+
+      mockBonusWinsService.findByPromotion.mockResolvedValue(mockPlayerPromotion);
+      jest
+        .spyOn(service, 'calculateTotalWin')
+        .mockResolvedValue({ totalWinAmount: 100, baseTotalWinAmount: 50 });
+
+      // Act
+      const result = await service.calculateTotalWinAmount(totalWinDto);
+
+      // Assert
+      expect(mockBonusWinsService.findByPromotion).toHaveBeenCalledWith(
+        totalWinDto.playerId,
+        totalWinDto.operatorId,
+        totalWinDto.siteName,
+        totalWinDto.promotionId,
+      );
+      expect(service.calculateTotalWin).toHaveBeenCalledWith({
+        playerId: totalWinDto.playerId,
+        operatorId: totalWinDto.operatorId,
+        siteName: totalWinDto.siteName,
+        promotionId: totalWinDto.promotionId,
+        playerPromotionId: mockPlayerPromotionId,
+      });
+      expect(result).toBe(100);
+    });
+
+    it('should return 0 when player promotion is not found', async () => {
+      // Arrange
+      const totalWinDto = {
+        playerId: 'player123',
+        operatorId: 'operator456',
+        siteName: 'site1',
+        promotionId: 'promo789',
+      };
+
+      mockBonusWinsService.findByPromotion.mockResolvedValue(null);
+
+      // Act
+      const result = await service.calculateTotalWinAmount(totalWinDto);
+
+      // Assert
+      expect(mockBonusWinsService.findByPromotion).toHaveBeenCalledWith(
+        totalWinDto.playerId,
+        totalWinDto.operatorId,
+        totalWinDto.siteName,
+        totalWinDto.promotionId,
+      );
+      expect(result).toBe(0);
+      expect(mockLoggerService.error).toHaveBeenCalledWith(
+        'Player promotion not found',
+        undefined,
+        {
+          method: 'calculateTotalWinAmount',
+          service: 'PromotionTicketService',
+          totalWinDto,
+        },
+      );
+    });
+  });
+
   describe('calculateTotalWin', () => {
+    const mockPlayerPromotionId = new MongooseSchema.Types.ObjectId('507f1f77bcf86cd799439011');
     const totalWinDto = {
       playerId: 'player123',
       operatorId: 'operator456',
       siteName: 'site1',
       promotionId: 'promo789',
-      gameId: 1001,
-      gameRoundId: 789,
-      appType: 1,
-      betAmount: 10.5,
-      winAmount: 25.0,
-      baseBetAmount: 25.0,
-      baseWinAmount: 15.0,
+      playerPromotionId: mockPlayerPromotionId,
     };
 
     it('should calculate total win amounts correctly', async () => {
       // Arrange
       const mockTickets = [
-        { winAmount: 25.0, baseWinAmount: 15.0 },
-        { winAmount: 30.0, baseWinAmount: 20.0 },
+        { winAmount: 25, baseWinAmount: 15 },
+        { winAmount: 30, baseWinAmount: 20 },
       ];
 
       mockPromotionTicketModel.find = jest.fn().mockReturnValue({
@@ -927,13 +1243,24 @@ describe('PromotionTicketService', () => {
       const result = await service.calculateTotalWin(totalWinDto);
 
       // Assert
-      expect(result.totalWinAmount).toBe(55.0);
-      expect(result.baseTotalWinAmount).toBe(35.0);
+      expect(result.totalWinAmount).toBe(55);
+      expect(result.baseTotalWinAmount).toBe(35);
       expect(mockPromotionTicketModel.find).toHaveBeenCalledWith({
         promotionId: 'promo789',
         playerId: 'player123',
         operatorId: 'operator456',
         siteName: 'site1',
+        $and: [
+          {
+            $or: [
+              { playerPromotionId: { $eq: mockPlayerPromotionId } },
+              { playerPromotionId: { $exists: false } },
+            ],
+          },
+          {
+            $or: [{ isClaimed: { $eq: false } }, { isClaimed: { $exists: false } }],
+          },
+        ],
       });
     });
 
@@ -957,7 +1284,7 @@ describe('PromotionTicketService', () => {
       // Arrange
       const mockTickets = [
         { winAmount: null, baseWinAmount: undefined },
-        { winAmount: 25.0, baseWinAmount: 15.0 },
+        { winAmount: 25, baseWinAmount: 15 },
       ];
 
       mockPromotionTicketModel.find = jest.fn().mockReturnValue({
@@ -970,8 +1297,8 @@ describe('PromotionTicketService', () => {
       const result = await service.calculateTotalWin(totalWinDto);
 
       // Assert
-      expect(result.totalWinAmount).toBe(25.0);
-      expect(result.baseTotalWinAmount).toBe(15.0);
+      expect(result.totalWinAmount).toBe(25);
+      expect(result.baseTotalWinAmount).toBe(15);
     });
   });
 });

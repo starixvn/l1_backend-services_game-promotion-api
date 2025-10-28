@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Schema as MongooseSchema } from 'mongoose';
 import { BonusWinsService } from '../../bonus-wins/services/bonus-wins.service';
 import { PROMOTION_TICKET_ERROR_CODES } from '../../constants/error-codes';
 import { LoggerService } from '../../core/logger/logger.service';
 import { CreatePromotionTicketDto } from '../models/create-promotion-ticket.dto';
-import { TotalWinDto } from '../models/total-win.dto';
 import { UpdatePromotionTicketDto } from '../models/update-promotion-ticket.dto';
 import {
   CreatePromotionTicketResponse,
@@ -15,12 +14,14 @@ import {
 } from '../responses/promotion-ticket.response';
 import { PromotionTicket, PromotionTicketDocument } from '../schemas/promotion-ticket.schema';
 import { GetPromotionTicketsDto } from '../models/get-promotion-tickets.dto';
+import { TotalWinDto } from '../models/total-win.dto';
 
 interface PlayerPromotionContext {
   playerId: string;
   operatorId: string;
   siteName: string;
   promotionId: string;
+  playerPromotionId: MongooseSchema.Types.ObjectId;
 }
 interface PlayerPromotionWinAmount {
   totalWinAmount: number;
@@ -49,10 +50,29 @@ export class PromotionTicketService {
   ): Promise<CreatePromotionTicketResponse> {
     try {
       const ticket = new this.promotionTicketModel(createTicketDto);
+      const findPlayerPromotion = await this.bonusWinsService.findByPromotion(
+        createTicketDto.playerId,
+        createTicketDto.operatorId,
+        createTicketDto.siteName,
+        createTicketDto.promotionId,
+      );
+      if (!findPlayerPromotion) {
+        return {
+          success: false,
+          ...PROMOTION_TICKET_ERROR_CODES.CREATION_FAILED,
+        };
+      }
+      ticket.playerPromotionId = findPlayerPromotion._id;
       const savedTicket = await ticket.save();
 
       // Update bonus wins after ticket creation
-      await this.updateBonusWinsAfterTicketChange(createTicketDto);
+      await this.updateBonusWinsAfterTicketChange({
+        playerId: createTicketDto.playerId,
+        operatorId: createTicketDto.operatorId,
+        siteName: createTicketDto.siteName,
+        promotionId: createTicketDto.promotionId,
+        playerPromotionId: findPlayerPromotion?._id,
+      });
 
       return {
         success: true,
@@ -81,7 +101,7 @@ export class PromotionTicketService {
     updateTicketDto: UpdatePromotionTicketDto,
   ): Promise<UpdatePromotionTicketResponse> {
     try {
-      await this.promotionTicketModel.findOneAndUpdate(
+      const updatedTicket = await this.promotionTicketModel.findOneAndUpdate(
         this.buildTicketQuery(updateTicketDto),
         {
           $set: {
@@ -94,9 +114,21 @@ export class PromotionTicketService {
           lean: true,
         },
       );
+      if (!updatedTicket) {
+        return {
+          success: false,
+          ...PROMOTION_TICKET_ERROR_CODES.UPDATE_FAILED,
+        };
+      }
 
       // Update bonus wins after ticket update
-      await this.updateBonusWinsAfterTicketChange(updateTicketDto);
+      await this.updateBonusWinsAfterTicketChange({
+        playerId: updateTicketDto.playerId,
+        operatorId: updateTicketDto.operatorId,
+        siteName: updateTicketDto.siteName,
+        promotionId: updateTicketDto.promotionId,
+        playerPromotionId: updatedTicket.playerPromotionId,
+      });
 
       return {
         success: true,
@@ -261,21 +293,83 @@ export class PromotionTicketService {
    * @param totalWinDto Total win calculation data
    * @returns Total win amount (number)
    */
-  async calculateTotalWin(totalWinDto: TotalWinDto): Promise<PlayerPromotionWinAmount> {
+  async calculateTotalWin(totalWinDto: PlayerPromotionContext): Promise<PlayerPromotionWinAmount> {
     const tickets = await this.promotionTicketModel
       .find(this.buildPlayerPromotionQuery(totalWinDto))
       .lean()
       .exec();
-    const totalWinAmount = tickets.reduce((sum, ticket) => sum + (ticket.winAmount || 0), 0);
-    const baseTotalWinAmount = tickets.reduce(
-      (sum, ticket) => sum + (ticket.baseWinAmount || 0),
-      0,
+    const { totalWinAmount, baseTotalWinAmount } = tickets.reduce(
+      (acc, ticket) => ({
+        totalWinAmount: acc.totalWinAmount + (ticket.winAmount || 0),
+        baseTotalWinAmount: acc.baseTotalWinAmount + (ticket.baseWinAmount || 0),
+      }),
+      { totalWinAmount: 0, baseTotalWinAmount: 0 },
     );
 
     return {
       totalWinAmount,
       baseTotalWinAmount,
     };
+  }
+
+  /**
+   * Mark a promotion ticket as claimed
+   * @param updateTicketDto Ticket update data
+   * @returns Success or failure response
+   */
+  async markTicketAsClaimed(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+    playerPromotionId: MongooseSchema.Types.ObjectId,
+  ): Promise<UpdatePromotionTicketResponse> {
+    try {
+      const updatedTicket = await this.promotionTicketModel.updateMany(
+        this.buildPlayerPromotionQuery({
+          playerId,
+          operatorId,
+          siteName,
+          promotionId,
+          playerPromotionId,
+        }),
+        {
+          $set: {
+            isClaimed: true,
+          },
+        },
+        {
+          new: true,
+          lean: true,
+        },
+      );
+
+      if (!updatedTicket) {
+        return {
+          success: false,
+          ...PROMOTION_TICKET_ERROR_CODES.UPDATE_FAILED,
+        };
+      }
+      return {
+        success: true,
+        ...PROMOTION_TICKET_ERROR_CODES.UPDATE_SUCCESS,
+      };
+    } catch (error) {
+      this.loggerService.error('Error in markTicketAsClaimed', error.stack, {
+        method: 'markTicketAsClaimed',
+        service: 'PromotionTicketService',
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        error: error.message,
+      });
+
+      return {
+        success: false,
+        ...PROMOTION_TICKET_ERROR_CODES.UPDATE_FAILED,
+      };
+    }
   }
 
   /**
@@ -329,6 +423,17 @@ export class PromotionTicketService {
       playerId: context.playerId,
       operatorId: context.operatorId,
       siteName: context.siteName,
+      $and: [
+        {
+          $or: [
+            { playerPromotionId: { $eq: context.playerPromotionId } },
+            { playerPromotionId: { $exists: false } },
+          ],
+        },
+        {
+          $or: [{ isClaimed: { $eq: false } }, { isClaimed: { $exists: false } }],
+        },
+      ],
     };
   }
 
@@ -387,5 +492,31 @@ export class PromotionTicketService {
         totalBaseWinAmount: 0,
       },
     );
+  }
+
+  async calculateTotalWinAmount(totalWinDto: TotalWinDto): Promise<number> {
+    const playerPromotion = await this.bonusWinsService.findByPromotion(
+      totalWinDto.playerId,
+      totalWinDto.operatorId,
+      totalWinDto.siteName,
+      totalWinDto.promotionId,
+    );
+    if (!playerPromotion) {
+      this.loggerService.error('Player promotion not found', undefined, {
+        method: 'calculateTotalWinAmount',
+        service: 'PromotionTicketService',
+        totalWinDto,
+      });
+      return 0;
+    }
+    return (
+      await this.calculateTotalWin({
+        playerId: totalWinDto.playerId,
+        operatorId: totalWinDto.operatorId,
+        siteName: totalWinDto.siteName,
+        promotionId: totalWinDto.promotionId,
+        playerPromotionId: playerPromotion._id,
+      })
+    ).totalWinAmount;
   }
 }

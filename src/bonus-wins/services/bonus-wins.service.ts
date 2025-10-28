@@ -1,6 +1,6 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Schema as MongooseSchema } from 'mongoose';
 import { CompletePromotionDto } from 'src/promotion/models/complete-promotion.dto';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { LoggerService } from '../../core/logger/logger.service';
@@ -18,6 +18,10 @@ import {
 import { Promotion, PromotionDocument } from '../../promotion/schemas/promotion.schema';
 import { PlayerPromotionService } from '../../promotion/services/player-promotion.service';
 import { PromotionTicketService } from '../../promotion-ticket/services/promotion-ticket.service';
+import {
+  PlayerFinishedPromotion,
+  PlayerFinishedPromotionDocument,
+} from '../../promotion/schemas/player-finished-promotion.schema';
 
 /**
  * Service for managing bonus wins and turnover tracking
@@ -27,6 +31,8 @@ export class BonusWinsService {
   constructor(
     @InjectModel(PlayerPromotion.name)
     private readonly playerPromotionModel: Model<PlayerPromotionDocument>,
+    @InjectModel(PlayerFinishedPromotion.name)
+    private readonly playerFinishedPromotionModel: Model<PlayerFinishedPromotionDocument>,
     @InjectModel(Promotion.name)
     private readonly promotionModel: Model<PromotionDocument>,
     private readonly loggerService: LoggerService,
@@ -393,12 +399,29 @@ export class BonusWinsService {
         };
       }
 
+      const playerPromotion = await this.findByPromotion(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+      if (!playerPromotion) {
+        return {
+          claimedAmount: 0,
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          totalWinAmount: 0,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
+        };
+      }
+
       const isClaimable = await this.isClaimable(
         playerId,
         operatorId,
         siteName,
         promotionId,
         toRequirementResult.totalTurnover,
+        playerPromotion._id,
       );
 
       if (!toRequirementResult.canClaim) {
@@ -420,43 +443,23 @@ export class BonusWinsService {
           errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_VERIFICATION_FAILED.code,
         };
       }
-
-      const updatedPromotion = await this.playerPromotionModel.findOneAndUpdate(
-        {
-          playerId,
-          operatorId,
-          siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
-          promotionId,
-          bonusClaimed: { $ne: true },
-        },
-        {
-          $set: {
-            bonusClaimed: true,
-            claimedAt: new Date(),
-          },
-        },
-        {
-          new: true,
-          lean: true,
-        },
-      );
-
-      if (updatedPromotion) {
-        const { totalTurnover, minRequiredTurnover, totalWinAmount } = updatedPromotion;
+      const { playerFinishedPromotion, errorCode: finishedPromotionErrorCode } =
+        await this.processBonusClaim(playerId, operatorId, siteName, promotionId, playerPromotion);
+      if (finishedPromotionErrorCode || !playerFinishedPromotion) {
         return {
-          claimedAmount: totalWinAmount,
-          totalTurnover,
-          minRequiredTurnover,
-          totalWinAmount,
+          claimedAmount: 0,
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          totalWinAmount: 0,
+          errorCode: finishedPromotionErrorCode,
         };
       }
-
       return {
-        claimedAmount: 0,
-        totalTurnover: 0,
-        minRequiredTurnover: 0,
-        totalWinAmount: 0,
-        errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_UPDATE_FAILED.code,
+        claimedAmount: playerFinishedPromotion.totalWinAmount,
+        totalTurnover: playerFinishedPromotion.totalTurnover,
+        minRequiredTurnover: playerFinishedPromotion.minRequiredTurnover,
+        totalWinAmount: playerFinishedPromotion.totalWinAmount,
+        errorCode: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_SUCCESS.code,
       };
     } catch (error) {
       this.loggerService.error('Error in claimBonusWins', error.stack, {
@@ -477,12 +480,67 @@ export class BonusWinsService {
     }
   }
 
+  private async processBonusClaim(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+    playerPromotion: PlayerPromotionDocument,
+  ): Promise<{
+    errorCode?: string;
+    playerFinishedPromotion?: PlayerFinishedPromotionDocument;
+  }> {
+    try {
+      const maxRedemptionCount = await this.getMaxRedemptionCount(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+
+      const playerFinishedPromotion = await this.playerFinishedPromotionModel.create({
+        ...playerPromotion,
+        bonusClaimed: true,
+        claimedAt: new Date(),
+        redemptionCount: maxRedemptionCount + 1,
+        playerPromotionId: playerPromotion._id,
+      });
+
+      if (!playerFinishedPromotion) {
+        return { errorCode: PLAYER_PROMOTION_ERROR_CODES.MOVING_TO_FINISHED_PROMOTION_FAILED.code };
+      }
+
+      await Promise.all([
+        this.playerPromotionModel.deleteOne({ _id: playerPromotion._id }),
+        this.promotionTicketService.markTicketAsClaimed(
+          playerId,
+          operatorId,
+          siteName,
+          promotionId,
+          playerPromotion._id,
+        ),
+      ]);
+
+      return { playerFinishedPromotion };
+    } catch (error) {
+      this.loggerService.error('Error in processBonusClaim', error.stack, {
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        error: error.message,
+      });
+      return { errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_UNEXPECTED_ERROR.code };
+    }
+  }
+
   private async isClaimable(
     playerId: string,
     operatorId: string,
     siteName: string,
     promotionId: string,
     totalTurnover: number,
+    playerPromotionId: MongooseSchema.Types.ObjectId,
   ): Promise<boolean> {
     const promotion = await this.promotionModel.findById(promotionId).lean().exec();
 
@@ -505,6 +563,7 @@ export class BonusWinsService {
       operatorId,
       siteName,
       promotionId,
+      playerPromotionId,
     });
 
     const minRequiredTurnover = roundToFourDecimals(
@@ -688,5 +747,34 @@ export class BonusWinsService {
       totalWinAmount: 0,
       errorCode: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
     };
+  }
+
+  /**
+   * Get maximum redemption count for a specific player promotion
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @returns Maximum redemption count
+   */
+  async getMaxRedemptionCount(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<number> {
+    const result = await this.playerFinishedPromotionModel
+      .findOne({
+        playerId,
+        operatorId,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
+        promotionId,
+      })
+      .sort({ redemptionCount: -1 })
+      .select('redemptionCount')
+      .lean()
+      .exec();
+
+    return result?.redemptionCount ?? 0;
   }
 }

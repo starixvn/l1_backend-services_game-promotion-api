@@ -77,6 +77,6 @@ export class PromotionTicketController {
     type: Number,
   })
   async calculateTotalWin(@Body() totalWinDto: TotalWinDto): Promise<number> {
-    return (await this.promotionTicketService.calculateTotalWin(totalWinDto)).totalWinAmount;
+    return this.promotionTicketService.calculateTotalWinAmount(totalWinDto);
   }
 }
