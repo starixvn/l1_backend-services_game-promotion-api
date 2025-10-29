@@ -1,5 +1,6 @@
 export * from './assignment-response';
 export * from './calculate-to-requirement.response';
+export * from './cancel-promotion.response';
 export * from './claim-bonus-wins.response';
 export * from './deduct-bonus-item.response';
 export * from './manual-claim-bonus-wins.response';

@@ -497,4 +497,55 @@ export class PromotionService {
       dailyStats: [],
     };
   }
+
+  /**
+   * Cancels a running promotion by updating its end date and claim expiration date to current timestamp
+   * @param promotionId - The promotion ID to cancel
+   * @param adminUserId - Admin user ID performing the cancellation (for audit trail)
+   * @returns The updated promotion document
+   */
+  async cancelPromotion(promotionId: string, adminUserId: string): Promise<PromotionDocument> {
+    const now = new Date();
+
+    // Fetch original promotion to capture original end date for audit trail
+    const originalPromotion = await this.promotionModel.findById(promotionId).exec();
+
+    if (!originalPromotion) {
+      throw new NotFoundException(`Promotion with ID ${promotionId} not found`);
+    }
+
+    const originalEndDate = originalPromotion.endDate;
+
+    // Update promotion dates
+    const promotion = await this.promotionModel
+      .findByIdAndUpdate(
+        promotionId,
+        {
+          $set: {
+            endDate: now,
+            claimExpirationDate: now,
+          },
+        },
+        { new: true, runValidators: false },
+      )
+      .exec();
+
+    if (!promotion) {
+      throw new NotFoundException(`Promotion with ID ${promotionId} not found`);
+    }
+
+    // Audit logging with original and new end dates
+    this.logger.captureMessage('PROMOTION_CANCELLED', 'info', {
+      action: 'PROMOTION_CANCELLED',
+      promotionId: promotion._id.toString(),
+      promotionCode: promotion.code,
+      adminUserId,
+      timestamp: now.toISOString(),
+      originalEndDate: originalEndDate.toISOString(),
+      newEndDate: now.toISOString(),
+      operatorId: promotion.operatorId,
+    });
+
+    return promotion;
+  }
 }

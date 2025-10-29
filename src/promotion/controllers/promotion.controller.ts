@@ -6,6 +6,7 @@ import {
   Param,
   Delete,
   Put,
+  Patch,
   HttpStatus,
   Query,
   BadRequestException,
@@ -21,12 +22,18 @@ import {
 import { PromotionService } from '../services/promotion.service';
 import { CreatePromotionDto } from '../models/create-promotion.dto';
 import { UpdatePromotionDto } from '../models/update-promotion.dto';
+import { CancelPromotionDto } from '../models/cancel-promotion.dto';
 import { Promotion, PromotionExpiryDocument } from '../schemas/promotion.schema';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
-import { PROMOTION_NOT_FOUND_DESCRIPTION } from '../../constants/api-messages';
+import { PROMOTION_NOT_FOUND_DESCRIPTION, PROMOTION_CANCELLED } from '../../constants/api-messages';
 import { PaginationResponse } from '../responses/pagination.response';
 import { ParseMongoIdPipe } from '../../core/pipes/parse-mongo-id.pipe';
 import { PromotionPerformanceResponse } from '../responses/performance-promotion.response';
+import {
+  CancelPromotionResponse,
+  CancelPromotionResponseData,
+} from '../responses/cancel-promotion.response';
+import { PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 
 const PROMOTION_ID_PARAM = {
   name: 'id',
@@ -310,6 +317,50 @@ export class PromotionController {
     @Body() updatePromotionDto: UpdatePromotionDto,
   ): Promise<Promotion> {
     return this.promotionService.update(id, updatePromotionDto);
+  }
+
+  /**
+   * Cancel a running promotion before its scheduled end date
+   * @param id - The promotion ID
+   * @param cancelDto - Cancellation data with admin user ID
+   * @returns Standardized cancellation response
+   */
+  @Patch(':id/cancel')
+  @ApiOperation({
+    summary: 'Cancel a running promotion',
+    description:
+      'Immediately terminates a running promotion by updating its end date and claim expiration date to the current timestamp. This operation is irreversible.',
+  })
+  @ApiParam(PROMOTION_ID_PARAM)
+  @ApiResponse({
+    status: 200,
+    description: 'Promotion successfully cancelled',
+    type: CancelPromotionResponse,
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - invalid promotion ID format' })
+  @ApiResponse({ status: 404, description: 'Promotion not found' })
+  @ApiResponse({ status: 500, description: 'Internal server error - cancellation failed' })
+  async cancelPromotion(
+    @Param('id', ParseMongoIdPipe) id: string,
+    @Body() cancelDto: CancelPromotionDto,
+  ): Promise<CancelPromotionResponse> {
+    const promotion = await this.promotionService.cancelPromotion(id, cancelDto.adminUserId);
+
+    const responseData: CancelPromotionResponseData = {
+      promotionId: promotion._id.toString(),
+      promotionCode: promotion.code,
+      originalEndDate: promotion.endDate.toISOString(),
+      newEndDate: promotion.endDate.toISOString(),
+      cancelledAt: new Date().toISOString(),
+      adminUserId: cancelDto.adminUserId,
+    };
+
+    return {
+      success: true,
+      code: PROMOTION_ERROR_CODES.CANCELLATION_SUCCESS.code,
+      message: PROMOTION_CANCELLED,
+      data: responseData,
+    };
   }
 
   /**

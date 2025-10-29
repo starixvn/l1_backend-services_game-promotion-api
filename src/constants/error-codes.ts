@@ -161,6 +161,15 @@ export const PROMOTION_ERROR_CODES = {
   PROMOTION_NOT_ACTIVE: {
     code: 'PR3102',
   },
+  CANCELLATION_SUCCESS: {
+    code: 'PR3103',
+  },
+  CANCELLATION_FAILED: {
+    code: 'PR3104',
+  },
+  INVALID_CANCELLATION_STATUS: {
+    code: 'PR3105',
+  },
 } as const;
 
 // Announcement Error Codes (AN32XX) - Ready for future use
