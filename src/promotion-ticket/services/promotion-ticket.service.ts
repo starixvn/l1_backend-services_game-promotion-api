@@ -390,12 +390,42 @@ export class PromotionTicketService {
 
       // Trigger TO requirement calculation if no bonus items remain
       if (updateResult.success && updateResult.remainingBonusItems === 0) {
-        await this.bonusWinsService.calculateTORequirement(
+        const toRequirementResult = await this.bonusWinsService.calculateTORequirement(
           context.playerId,
           context.operatorId,
           context.siteName,
           context.promotionId,
         );
+        if (toRequirementResult.success && toRequirementResult.totalWinAmount === 0) {
+          const playerPromotion = await this.bonusWinsService.findByPromotion(
+            context.playerId,
+            context.operatorId,
+            context.siteName,
+            context.promotionId,
+          );
+          if (!playerPromotion) {
+            return;
+          }
+          const processBonusClaimResult = await this.bonusWinsService.processBonusClaim(
+            context.playerId,
+            context.operatorId,
+            context.siteName,
+            context.promotionId,
+            playerPromotion,
+          );
+          if (processBonusClaimResult.errorCode) {
+            this.loggerService.error(
+              'Failed to move the promotion to the finished state when totalWinAmount is 0',
+              undefined,
+              {
+                method: 'updateBonusWinsAfterTicketChange',
+                service: 'PromotionTicketService',
+                context,
+                error: processBonusClaimResult.errorCode,
+              },
+            );
+          }
+        }
       }
     } catch (error) {
       this.loggerService.error(

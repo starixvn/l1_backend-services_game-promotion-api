@@ -480,7 +480,7 @@ export class BonusWinsService {
     }
   }
 
-  private async processBonusClaim(
+  async processBonusClaim(
     playerId: string,
     operatorId: string,
     siteName: string,
