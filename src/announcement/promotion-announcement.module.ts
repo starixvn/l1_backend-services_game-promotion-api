@@ -17,6 +17,7 @@ import {
   PromotionTicketSchema,
 } from '../promotion-ticket/schemas/promotion-ticket.schema';
 import { LoggerService } from '../core/logger/logger.service';
+import { CoreModule } from '../core/core.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { LoggerService } from '../core/logger/logger.service';
       { name: PlayerPromotion.name, schema: PlayerPromotionSchema },
       { name: PromotionTicket.name, schema: PromotionTicketSchema },
     ]),
+    CoreModule,
   ],
   controllers: [PromotionAnnouncementController],
   providers: [PromotionAnnouncementService, PromotionService, LoggerService],

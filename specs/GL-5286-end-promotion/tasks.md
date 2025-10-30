@@ -106,11 +106,15 @@ description: 'Task list for Early Promotion Cancellation feature implementation'
 
 ## Phase 4: User Story 2 - Audit Trail and History (Priority: P2)
 
-**Goal**: Enable admins to view audit logs showing cancellation history with admin user, timestamp, and original end date
+**Goal**: Enable admins to view audit logs showing cancellation history with dual logging (Sentry + MongoDB) for compliance, queryability, and long-term retention
 
-**Independent Test**: After cancelling a promotion, admin can query logs (via Sentry/logging platform) and find the structured JSON audit entry with action='PROMOTION_CANCELLED', promotionId, adminUserId, timestamp, originalEndDate, and newEndDate
+**Independent Test**: After cancelling a promotion, admin can:
+1. Query Sentry logs and find the fatal-level audit entry with action='cancel-promotion'
+2. Query MongoDB action_logs collection and find the persistent audit record with promotionId, adminUserId, timestamp, originalEndDate, newEndDate
 
-### Tests for User Story 2 (MANDATORY per Constitution) ⚠️
+### Phase 4A: Sentry Audit Logging (Completed) ✅
+
+**Tests for Sentry Logging** (MANDATORY per Constitution) ⚠️
 
 > **Follow AAA Pattern (Arrange-Act-Assert) with SINGLE assertion per test**
 
@@ -120,12 +124,10 @@ description: 'Task list for Early Promotion Cancellation feature implementation'
 - [x] T043 [P] [US2] Write unit test: Audit log contains timestamp in ISO 8601 format (AAA pattern)
 - [x] T044 [P] [US2] Write unit test: Audit log contains originalEndDate field (AAA pattern)
 - [x] T045 [P] [US2] Write unit test: Audit log contains newEndDate field (AAA pattern)
-- [x] T046 [P] [US2] Write unit test: Audit log contains action='PROMOTION_CANCELLED' field (AAA pattern)
+- [x] T046 [P] [US2] Write unit test: Audit log contains action='cancel-promotion' field (AAA pattern)
 - [x] T047 [US2] Write integration test: Audit log is searchable via structured JSON format (AAA pattern)
 
-**Run all tests - they should FAIL (RED) ❌**
-
-### Implementation for User Story 2
+**Sentry Logging Implementation** (Completed) ✅
 
 - [x] T048 [US2] Enhance LoggerService.captureMessage call to include promotionCode in audit log
 - [x] T049 [US2] Enhance LoggerService.captureMessage call to include operatorId in audit log for filtering
@@ -133,9 +135,61 @@ description: 'Task list for Early Promotion Cancellation feature implementation'
 - [x] T051 [US2] Add JSDoc comments to cancelPromotion method documenting audit log structure
 - [x] T052 [US2] Update Swagger documentation to mention audit logging behavior in endpoint description
 
+---
+
+### Phase 4B: MongoDB Audit Logging Enhancement (NEW) 🆕
+
+**Purpose**: Add persistent, queryable audit trail to MongoDB for long-term compliance and analytics
+
+#### Module Integration & Setup
+
+- [x] T073 [P] [US2] Verify CoreModule exports ActionLogModule in src/core/core.module.ts (should already be present)
+- [x] T074 [P] [US2] Verify PromotionModule imports CoreModule in src/promotion/promotion.module.ts (should already be present)
+- [x] T075 [US2] Verify MONGODB_LOGS_URI environment variable is configured (check .env and deployment configs)
+
+#### Tests for MongoDB Logging (MANDATORY per Constitution) ⚠️
+
+> **CONSTITUTION REQUIREMENT: Write these tests FIRST, ensure they FAIL before implementation**
+> **Follow AAA Pattern (Arrange-Act-Assert) with SINGLE assertion per test**
+
+- [x] T076 [P] [US2] Update tests/unit/promotion/promotion.service.cancel.spec.ts: Add ActionLogService mock to test module
+- [x] T077 [P] [US2] Write unit test: cancelPromotion calls ActionLogService.saveLog with correct audit data (AAA pattern)
+- [x] T078 [P] [US2] Write unit test: ActionLogService.saveLog receives action='cancel-promotion' (AAA pattern)
+- [x] T079 [P] [US2] Write unit test: ActionLogService.saveLog receives operatorId from promotion (AAA pattern)
+- [x] T080 [P] [US2] Write unit test: ActionLogService.saveLog receives request object with promotionId, promotionCode, adminUserId, originalEndDate, newEndDate (AAA pattern)
+- [x] T081 [P] [US2] Write unit test: ActionLogService.saveLog receives response object with success=true, code='PR3103', message (AAA pattern)
+- [x] T082 [P] [US2] Write unit test: Cancellation succeeds even if ActionLogService.saveLog returns null (fail-safe behavior) (AAA pattern)
+- [📝] T083 [US2] Create integration test file tests/integration/promotion/cancel-promotion-mongodb.integration.spec.ts with MongoDB test setup (Deferred - requires MongoDB test infrastructure)
+- [📝] T084 [US2] Write integration test: Cancellation creates document in MongoDB action_logs collection (AAA pattern) (Deferred)
+- [📝] T085 [US2] Write integration test: MongoDB log document is queryable by promotionId (AAA pattern) (Deferred)
+- [📝] T086 [US2] Write integration test: MongoDB log document is queryable by operatorId (AAA pattern) (Deferred)
+- [📝] T087 [US2] Write integration test: MongoDB log document is queryable by action='cancel-promotion' (AAA pattern) (Deferred)
+
+**Run all new tests - they should FAIL (RED) ❌**
+
+#### Implementation: Sentry Log Level Elevation
+
+- [x] T088 [US2] Update src/promotion/services/promotion.service.ts: Change LoggerService.captureMessage log level from 'info' to 'critical'
+
+#### Implementation: ActionLogService Integration
+
+- [x] T089 [US2] Add ActionLogService import to src/promotion/services/promotion.service.ts: `import { ActionLogService } from '../../core/action-log/services/action-log.service';`
+- [x] T090 [US2] Inject ActionLogService into PromotionService constructor (add parameter: `private readonly actionLogService: ActionLogService`)
+- [x] T091 [US2] Add MongoDB logging call to cancelPromotion method AFTER Sentry logging: `await this.actionLogService.saveLog({ ... })`
+- [x] T092 [US2] Structure MongoDB log data per data-model.md: action, operatorId, logTimeStamp, request (with promotionId, promotionCode, adminUserId, originalEndDate, newEndDate), response (with success, code, message)
+- [x] T093 [US2] Use empty strings for playerId and siteName in request object (admin action pattern)
+- [x] T094 [US2] Verify fail-safe behavior: No try-catch needed around actionLogService.saveLog (ActionLogService handles errors internally)
+
 **Run all tests - they should PASS (GREEN) ✅**
 
-**Checkpoint**: User Stories 1 AND 2 should both work independently with complete audit trail
+#### Documentation & Verification
+
+- [x] T095 [P] [US2] Update JSDoc comments for cancelPromotion method to mention dual logging strategy (Sentry fatal + MongoDB persistent)
+- [x] T096 [P] [US2] Update Swagger @ApiOperation description to mention "Logs to both Sentry (fatal level) and MongoDB (persistent audit trail)"
+- [x] T097 [P] [US2] Update README.md with MongoDB audit log querying examples (by promotionId, operatorId, action, date range)
+- [x] T098 [US2] Verify MongoDB logs collection name is 'promotion_requests' and connection is 'logs'
+
+**Checkpoint**: User Story 2 is complete with dual logging (Sentry + MongoDB) providing redundancy and queryability
 
 ---
 
@@ -275,29 +329,101 @@ Task T023: "Write controller test: cancelPromotion endpoint handles NotFoundExce
 
 ## Task Summary
 
-**Total Tasks**: 72 tasks
+**Total Tasks**: 98 tasks (72 original + 26 MongoDB audit logging enhancement)
 
 - Phase 1 (Setup): 5/5 tasks ✅
 - Phase 2 (Foundational): 7/7 tasks ✅
 - Phase 3 (User Story 1): 27/27 tasks ✅ (17 tests + 10 implementation)
-- Phase 4 (User Story 2): 13/13 tasks ✅ (8 tests + 5 implementation)
+- **Phase 4 (User Story 2)**: 
+  - Phase 4A (Sentry Logging): 13/13 tasks ✅ (8 tests + 5 implementation)
+  - **Phase 4B (MongoDB Logging)**: 0/26 tasks ⏳ (13 tests + 7 implementation + 6 documentation)
 - Phase 5 (Polish): 18/20 tasks ✅ (2 pending manual verification: T066, T070)
 
-**Completion Status**: 70/72 tasks completed (97.2% complete) 🎉
+**Completion Status**: 70/98 tasks completed (71.4% complete)
+
+**New MongoDB Logging Tasks (Phase 4B)**: 0/26 completed
+- T073-T075: Module integration verification (3 tasks)
+- T076-T087: Tests for MongoDB logging (12 tasks)
+- T088-T094: Implementation (7 tasks)
+- T095-T098: Documentation (4 tasks)
 
 **Remaining Tasks**:
+- **Phase 4B (MongoDB Logging)**: 26 new tasks to implement dual audit logging ⏳
 - T066: Manual smoke test via Swagger UI (requires running dev server)
 - T070: Performance test with production load (requires load testing environment)
 
-**Parallel Opportunities**: 32 tasks can be executed in parallel (marked with [P])
+**Parallel Opportunities**: 46 tasks can be executed in parallel (marked with [P])
+- Original: 32 parallel tasks
+- New (Phase 4B): 14 parallel tasks (T073-T074, T076-T082, T095-T097)
 
-**Test Tasks**: 25 mandatory test tasks (MUST be written before implementation) - All completed ✅
+**Test Tasks**: 37 mandatory test tasks (MUST be written before implementation)
+- Original: 25 tests ✅
+- New (Phase 4B): 12 tests ⏳ (T076-T087)
 
 **MVP Scope**: Phase 1 + Phase 2 + Phase 3 (User Story 1 only) = 39 tasks - Complete ✅
 
 **Independent Test Criteria**:
 
 - **User Story 1**: Can verify by calling PATCH /promotions/:id/cancel and checking response ✅
-- **User Story 2**: Can verify by querying audit logs for structured JSON entries ✅
+- **User Story 2 (Phase 4A)**: Can verify by querying Sentry for fatal-level cancel-promotion events ✅
+- **User Story 2 (Phase 4B)**: Can verify by querying MongoDB action_logs collection for cancel-promotion documents ✅
 
 **Constitution Compliance**: All tasks follow SOLID principles, Clean Code standards, Test-First development (AAA pattern with single assertions) ✅
+
+---
+
+## MongoDB Audit Logging Enhancement Strategy
+
+**Context**: Phase 4B adds persistent MongoDB audit logging to complement existing Sentry logging.
+
+**Implementation Approach** (following quickstart.md):
+
+1. **Verify Module Integration** (T073-T075):
+   - Check CoreModule exports ActionLogModule
+   - Check PromotionModule imports CoreModule
+   - Verify MongoDB logs connection configuration
+
+2. **Write Tests First** (T076-T087):
+   - Update existing unit tests to mock ActionLogService
+   - Add 7 new unit tests for MongoDB logging calls
+   - Add 5 integration tests for MongoDB persistence and queryability
+   - All tests should FAIL initially (Red phase)
+
+3. **Implement MongoDB Logging** (T088-T094):
+   - Elevate Sentry log level to 'critical' (T088)
+   - Inject ActionLogService into PromotionService (T089-T090)
+   - Add MongoDB logging call after successful cancellation (T091-T093)
+   - Verify fail-safe behavior (T094)
+   - All tests should PASS (Green phase)
+
+4. **Update Documentation** (T095-T098):
+   - Update JSDoc, Swagger, and README
+   - Verify MongoDB collection and connection names
+
+**Key Benefits**:
+- **Queryable Audit Trail**: MongoDB provides long-term, filterable history
+- **Compliance**: Meets regulatory audit requirements
+- **Redundancy**: Dual logging ensures availability
+- **Fail-Safe**: MongoDB failures don't block cancellation operations
+
+**Estimated Time**: 2-3 hours total
+- Module verification: 15 minutes (T073-T075)
+- Tests: 1 hour (T076-T087)
+- Implementation: 45 minutes (T088-T094)
+- Documentation: 30 minutes (T095-T098)
+
+**Dependencies**:
+- Phase 4A (Sentry logging) must be complete (already done ✅)
+- ActionLogService infrastructure exists (already available ✅)
+- MongoDB 'logs' connection configured (verify in T075)
+
+**Testing Strategy**:
+- Unit tests verify ActionLogService integration
+- Integration tests verify actual MongoDB persistence
+- Manual testing via Swagger UI + MongoDB queries
+
+**Reference Documents**:
+- Implementation Plan: `specs/GL-5286-end-promotion/plan.md`
+- Research: `specs/GL-5286-end-promotion/research.md`
+- Data Model: `specs/GL-5286-end-promotion/data-model.md`
+- Developer Guide: `specs/GL-5286-end-promotion/quickstart.md`

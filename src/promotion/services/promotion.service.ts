@@ -7,6 +7,7 @@ import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionFilterDto, PromotionStatus } from '../models/promotion-filter.dto';
 import { PaginationResponse } from '../responses/pagination.response';
 import { LoggerService } from '../../core/logger/logger.service';
+import { ActionLogService } from '../../core/action-log/services/action-log.service';
 import {
   PromotionTicket,
   PromotionTicketDocument,
@@ -16,6 +17,7 @@ import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-prom
 import { roundToTwoDecimals, calculatePercentage } from '../../core/utils';
 import { PromotionPerformanceDto } from '../models/promotion-performance.dto';
 import { PROMOTION_ERROR_CODES } from '../../constants/error-codes';
+import { PROMOTION_CANCELLED } from '../../constants/api-messages';
 
 const EXPIRY_CHECK_SECONDS = 60;
 const MILLISECONDS_PER_SECOND = 1000;
@@ -31,6 +33,7 @@ export class PromotionService {
     @InjectModel(PlayerPromotion.name)
     private readonly playerPromotionModel: Model<PlayerPromotionDocument>,
     private readonly logger: LoggerService,
+    private readonly actionLogService: ActionLogService,
   ) {}
 
   /**
@@ -500,9 +503,15 @@ export class PromotionService {
 
   /**
    * Cancels a running promotion by updating its end date and claim expiration date to current timestamp
+   *
+   * **Dual Logging Strategy:**
+   * - **Sentry (fatal level)**: Real-time alerting for critical admin actions
+   * - **MongoDB (persistent)**: Long-term audit trail for compliance and queryability
+   *
    * @param promotionId - The promotion ID to cancel
    * @param adminUserId - Admin user ID performing the cancellation (for audit trail)
    * @returns The updated promotion document
+   * @throws NotFoundException if promotion is not found
    */
   async cancelPromotion(promotionId: string, adminUserId: string): Promise<PromotionDocument> {
     const now = new Date();
@@ -532,8 +541,8 @@ export class PromotionService {
       throw new NotFoundException(`Promotion with ID ${promotionId} not found`);
     }
 
-    this.logger.captureMessage('PROMOTION_CANCELLED', 'info', {
-      action: 'PROMOTION_CANCELLED',
+    this.logger.captureMessage('cancel-promotion', 'fatal', {
+      action: 'cancel-promotion',
       promotionId: promotion._id.toString(),
       promotionCode: promotion.code,
       adminUserId,
@@ -541,6 +550,27 @@ export class PromotionService {
       originalEndDate: originalEndDate.toISOString(),
       newEndDate: now.toISOString(),
       operatorId: promotion.operatorId,
+    });
+
+    await this.actionLogService.saveLog({
+      action: 'cancel-promotion',
+      operatorId: promotion.operatorId,
+      logTimeStamp: now.toISOString(),
+      request: {
+        playerId: '',
+        siteName: '',
+        operatorId: promotion.operatorId,
+        promotionId: promotion._id.toString(),
+        promotionCode: promotion.code,
+        adminUserId,
+        originalEndDate: originalEndDate.toISOString(),
+        newEndDate: now.toISOString(),
+      },
+      response: {
+        success: true,
+        code: PROMOTION_ERROR_CODES.CANCELLATION_SUCCESS.code,
+        message: PROMOTION_CANCELLED,
+      },
     });
 
     return promotion;

@@ -7,11 +7,15 @@ import { Promotion } from '../../../src/promotion/schemas/promotion.schema';
 import { PromotionTicket } from '../../../src/promotion-ticket/schemas/promotion-ticket.schema';
 import { PlayerPromotion } from '../../../src/promotion/schemas/player-promotion.schema';
 import { LoggerService } from '../../../src/core/logger/logger.service';
+import { ActionLogService } from '../../../src/core/action-log/services/action-log.service';
+import { PROMOTION_ERROR_CODES } from '../../../src/constants/error-codes';
+import { PROMOTION_CANCELLED } from '../../../src/constants/api-messages';
 
 describe('PromotionService - cancelPromotion', () => {
   let service: PromotionService;
   let promotionModel: any;
   let loggerService: any;
+  let actionLogService: any;
 
   // Mock data
   const mockPromotionId = '507f1f77bcf86cd799439011';
@@ -45,6 +49,7 @@ describe('PromotionService - cancelPromotion', () => {
   beforeEach(async () => {
     // Mock Promotion Model
     promotionModel = {
+      findById: jest.fn(),
       findByIdAndUpdate: jest.fn(),
     };
 
@@ -52,6 +57,11 @@ describe('PromotionService - cancelPromotion', () => {
     loggerService = {
       captureMessage: jest.fn(),
       error: jest.fn(),
+    };
+
+    // Mock ActionLog Service
+    actionLogService = {
+      saveLog: jest.fn().mockResolvedValue({}),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -72,6 +82,10 @@ describe('PromotionService - cancelPromotion', () => {
         {
           provide: LoggerService,
           useValue: loggerService,
+        },
+        {
+          provide: ActionLogService,
+          useValue: actionLogService,
         },
       ],
     }).compile();
@@ -94,7 +108,12 @@ describe('PromotionService - cancelPromotion', () => {
         endDate: mockNow,
         claimExpirationDate: mockNow,
       };
-      promotionModel.findByIdAndUpdate.mockResolvedValue(updatedPromotion);
+      promotionModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockPromotionDocument),
+      });
+      promotionModel.findByIdAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(updatedPromotion),
+      });
 
       // Act
       const result = await service.cancelPromotion(mockPromotionId, mockAdminUserId);
@@ -112,7 +131,12 @@ describe('PromotionService - cancelPromotion', () => {
         endDate: mockNow,
         claimExpirationDate: mockNow,
       };
-      promotionModel.findByIdAndUpdate.mockResolvedValue(updatedPromotion);
+      promotionModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockPromotionDocument),
+      });
+      promotionModel.findByIdAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(updatedPromotion),
+      });
 
       // Act
       const result = await service.cancelPromotion(mockPromotionId, mockAdminUserId);
@@ -130,7 +154,12 @@ describe('PromotionService - cancelPromotion', () => {
         endDate: mockNow,
         claimExpirationDate: mockNow,
       };
-      promotionModel.findByIdAndUpdate.mockResolvedValue(updatedPromotion);
+      promotionModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockPromotionDocument),
+      });
+      promotionModel.findByIdAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(updatedPromotion),
+      });
 
       // Act
       await service.cancelPromotion(mockPromotionId, mockAdminUserId);
@@ -157,7 +186,12 @@ describe('PromotionService - cancelPromotion', () => {
         endDate: mockNow,
         claimExpirationDate: mockNow,
       };
-      promotionModel.findByIdAndUpdate.mockResolvedValue(updatedPromotion);
+      promotionModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockPromotionDocument),
+      });
+      promotionModel.findByIdAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(updatedPromotion),
+      });
 
       // Act
       await service.cancelPromotion(mockPromotionId, mockAdminUserId);
@@ -170,7 +204,9 @@ describe('PromotionService - cancelPromotion', () => {
   describe('cancelPromotion - not found error', () => {
     it('should throw NotFoundException when promotion not found', async () => {
       // Arrange
-      promotionModel.findByIdAndUpdate.mockResolvedValue(null);
+      promotionModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
 
       // Act & Assert
       await expect(service.cancelPromotion(mockPromotionId, mockAdminUserId)).rejects.toThrow(
@@ -187,13 +223,147 @@ describe('PromotionService - cancelPromotion', () => {
         endDate: mockNow,
         claimExpirationDate: mockNow,
       };
-      promotionModel.findByIdAndUpdate.mockResolvedValue(updatedPromotion);
+      promotionModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockPromotionDocument),
+      });
+      promotionModel.findByIdAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(updatedPromotion),
+      });
 
       // Act
       const result = await service.cancelPromotion(mockPromotionId, mockAdminUserId);
 
       // Assert
       expect(result).toEqual(updatedPromotion);
+    });
+  });
+
+  // MongoDB Audit Logging Tests (NEW)
+  describe('cancelPromotion - MongoDB audit logging', () => {
+    beforeEach(() => {
+      const updatedPromotion = {
+        ...mockPromotionDocument,
+        endDate: mockNow,
+        claimExpirationDate: mockNow,
+      };
+      promotionModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockPromotionDocument),
+      });
+      promotionModel.findByIdAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(updatedPromotion),
+      });
+    });
+
+    it('should call ActionLogService.saveLog with correct audit data (T077)', async () => {
+      // Arrange
+      const saveLogSpy = jest.spyOn(actionLogService, 'saveLog');
+
+      // Act
+      await service.cancelPromotion(mockPromotionId, mockAdminUserId);
+
+      // Assert
+      expect(saveLogSpy).toHaveBeenCalledWith({
+        action: 'cancel-promotion',
+        operatorId: 'op123',
+        logTimeStamp: mockNow.toISOString(),
+        request: {
+          playerId: '',
+          siteName: '',
+          operatorId: 'op123',
+          promotionId: mockPromotionId,
+          promotionCode: 'summer-promo-2025',
+          adminUserId: mockAdminUserId,
+          originalEndDate: mockOriginalEndDate.toISOString(),
+          newEndDate: mockNow.toISOString(),
+        },
+        response: {
+          success: true,
+          code: PROMOTION_ERROR_CODES.CANCELLATION_SUCCESS.code,
+          message: PROMOTION_CANCELLED,
+        },
+      });
+    });
+
+    it('should call ActionLogService.saveLog with action=cancel-promotion (T078)', async () => {
+      // Arrange
+      const saveLogSpy = jest.spyOn(actionLogService, 'saveLog');
+
+      // Act
+      await service.cancelPromotion(mockPromotionId, mockAdminUserId);
+
+      // Assert
+      expect(saveLogSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'cancel-promotion',
+        }),
+      );
+    });
+
+    it('should call ActionLogService.saveLog with operatorId from promotion (T079)', async () => {
+      // Arrange
+      const saveLogSpy = jest.spyOn(actionLogService, 'saveLog');
+
+      // Act
+      await service.cancelPromotion(mockPromotionId, mockAdminUserId);
+
+      // Assert
+      expect(saveLogSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          operatorId: 'op123',
+        }),
+      );
+    });
+
+    it('should call ActionLogService.saveLog with request object containing all required fields (T080)', async () => {
+      // Arrange
+      const saveLogSpy = jest.spyOn(actionLogService, 'saveLog');
+
+      // Act
+      await service.cancelPromotion(mockPromotionId, mockAdminUserId);
+
+      // Assert
+      expect(saveLogSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            promotionId: mockPromotionId,
+            promotionCode: 'summer-promo-2025',
+            adminUserId: mockAdminUserId,
+            originalEndDate: mockOriginalEndDate.toISOString(),
+            newEndDate: mockNow.toISOString(),
+          }),
+        }),
+      );
+    });
+
+    it('should call ActionLogService.saveLog with response object containing success, code, and message (T081)', async () => {
+      // Arrange
+      const saveLogSpy = jest.spyOn(actionLogService, 'saveLog');
+
+      // Act
+      await service.cancelPromotion(mockPromotionId, mockAdminUserId);
+
+      // Assert
+      expect(saveLogSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          response: {
+            success: true,
+            code: PROMOTION_ERROR_CODES.CANCELLATION_SUCCESS.code,
+            message: PROMOTION_CANCELLED,
+          },
+        }),
+      );
+    });
+
+    it('should succeed even if ActionLogService.saveLog returns null (fail-safe behavior) (T082)', async () => {
+      // Arrange
+      actionLogService.saveLog.mockResolvedValue(null); // Simulate MongoDB failure
+
+      // Act
+      const result = await service.cancelPromotion(mockPromotionId, mockAdminUserId);
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(result.endDate).toEqual(mockNow);
     });
   });
 });

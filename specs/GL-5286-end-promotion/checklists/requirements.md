@@ -1,7 +1,8 @@
-# Specification Quality Checklist: Early Promotion Termination
+# Specification Quality Checklist: Early Promotion Cancellation
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning  
 **Created**: 2025-10-28  
+**Updated**: 2025-10-30 (MongoDB audit logging enhancement)  
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -51,52 +52,66 @@
 
 - SC-001: 5 seconds response time
 - SC-002: 1 minute enforcement
-- SC-003: 100% audit coverage
-- SC-004: Zero partial updates
-- SC-005: 10+ promotions in 10 seconds
-- SC-006: 100% feedback
-- SC-007: Correct prevention
-- SC-008: Immediate reflection
+- SC-003: 100% dual logging coverage (Sentry + MongoDB)
+- SC-004: MongoDB queryable within 10 seconds
+- SC-005: Query results in under 2 seconds
+- SC-006: Zero partial updates
+- SC-007: 100% feedback
+- SC-008: Correct prevention
+- SC-009: Immediate reflection
+- SC-010: Fail-safe MongoDB logging
 
-**Technology-agnostic criteria**: Success criteria describe user-facing outcomes without mentioning MongoDB, NestJS, or other implementation details.
+**Technology-agnostic criteria**: Success criteria describe user-facing and operational outcomes. Note: MongoDB is mentioned for audit logging because this is integration with existing ActionLogService infrastructure (FR-009 requirement). This is acceptable as it describes WHERE audit logs are queryable, not HOW the cancellation feature is implemented.
 
-**Acceptance scenarios**: Each user story has 3-5 Given-When-Then scenarios covering happy path and alternatives.
+**Acceptance scenarios**: Each user story has 5 Given-When-Then scenarios covering happy path, alternatives, and audit logging verification.
 
-**Edge cases identified**: 6 edge cases documented with reasonable assumptions for handling.
+**Edge cases identified**: 7 edge cases documented with reasonable assumptions for handling, including MongoDB logging failures.
 
-**Scope bounded**: "Out of Scope" section explicitly excludes 8 related features (pause/resume, partial termination, automated termination, etc.).
+**Scope bounded**: "Out of Scope" section explicitly excludes 9 related features (pause/resume, partial termination, automated termination, bulk operations, etc.).
 
-**Dependencies documented**: 10 assumptions clearly stated covering database, authorization, UI, error handling, concurrency, etc.
+**Dependencies documented**: 13 assumptions clearly stated covering database, authorization, UI, error handling, concurrency, audit infrastructure, MongoDB logs connection, fail-safe logging behavior, etc.
 
 ### Feature Readiness - PASS ✅
 
-**Clear acceptance criteria**: All 12 functional requirements map to user story acceptance scenarios. Each can be tested independently.
+**Clear acceptance criteria**: All 13 functional requirements map to user story acceptance scenarios. Each can be tested independently.
 
-**Primary flows covered**: Three prioritized user stories cover:
+**Primary flows covered**: Two prioritized user stories cover:
 
-- P1: Core termination flow (MVP)
-- P2: Audit and accountability
-- P3: Bulk operations
+- P1: Core cancellation flow (MVP)
+- P2: Dual audit logging (Sentry + MongoDB) and queryable history
 
-**Measurable outcomes**: 8 success criteria provide objective validation targets aligned with user stories.
+Note: Bulk operations (previously P3) removed from scope per user request for safety (admins cancel one-by-one).
 
-**No implementation leaks**: Specification maintains abstraction. References to MongoDB are minimal and contextual (entity storage), not prescriptive.
+**Measurable outcomes**: 10 success criteria provide objective validation targets aligned with user stories.
+
+**Implementation integration notes**: Specification references existing ActionLogService and MongoDB logs infrastructure for FR-009 requirement. This is acceptable as it describes integration points with existing audit infrastructure, not implementation details of the cancellation feature itself.
 
 ## Notes
 
-✅ **Specification is READY for next phase**: All checklist items pass. The specification is complete, clear, testable, and properly scoped.
+✅ **Specification is READY for implementation**: All checklist items pass. The enhanced specification is complete, clear, testable, and properly scoped.
+
+**Enhancement Summary (2025-10-30)**:
+
+- Added FR-009: MongoDB audit log persistence via ActionLogService
+- Added FR-010: Fail-safe MongoDB logging behavior
+- Updated User Story 2 with MongoDB queryability requirements (5 acceptance scenarios)
+- Added 3 new success criteria (SC-004, SC-005, SC-010) for audit log performance
+- Added edge case for MongoDB logging failures
+- Added 4 assumptions about MongoDB logs infrastructure
 
 **Recommended next steps**:
 
-1. Proceed to `/speckit.plan` to create implementation plan
-2. Or proceed to `/speckit.clarify` if stakeholder review reveals additional questions
+1. Proceed to `/speckit.tasks` to update task breakdown with ActionLogService integration
+2. Or proceed to `/speckit.plan` to update implementation plan
 
 **Key strengths**:
 
 - Clear prioritization with independent, testable user stories
-- Comprehensive edge case analysis
-- Well-defined success criteria with specific metrics
+- Comprehensive edge case analysis including fail-safe logging behavior
+- Well-defined success criteria with specific metrics (10 measurable outcomes)
 - Explicit scope boundaries (Out of Scope section)
-- Documented assumptions reduce ambiguity
+- Documented assumptions reduce ambiguity (13 assumptions)
+- Integration with existing audit infrastructure (ActionLogService reuse)
+- Dual logging strategy (Sentry + MongoDB) for redundancy and queryability
 
-**No issues found** - specification meets all quality standards per project constitution.
+**No issues found** - enhanced specification meets all quality standards per project constitution.

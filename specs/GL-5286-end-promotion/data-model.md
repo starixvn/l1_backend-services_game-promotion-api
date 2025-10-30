@@ -1,386 +1,607 @@
-# Phase 1: Data Model
+# Data Model: Promotion Cancellation Audit Logging
 
-**Feature**: Early Promotion Termination  
-**Date**: 2025-10-28  
-**Status**: Complete
+**Feature**: GL-5286-end-promotion  
+**Date**: 2025-10-30  
+**Purpose**: Define data structures for MongoDB audit logging of promotion cancellation events
+
+---
 
 ## Overview
 
-This document defines the data structures, entities, and relationships for the early promotion termination feature. The implementation leverages existing Promotion schema without modifications, introduces new DTOs for input validation, and defines response types for API contracts.
+This document defines the data structures used for logging promotion cancellation events to MongoDB via ActionLogService. The logging strategy reuses the existing ActionLog schema with promotion-specific data in the flexible `request` and `response` fields.
+
+**Key Design Decisions**:
+1. **Reuse Existing Schema**: No new MongoDB collections or schemas required
+2. **Flexible Structure**: `request` and `response` objects use `[key: string]: any` for extensibility
+3. **Admin Action Pattern**: Use empty strings for `playerId` and `siteName` (admin actions don't have player context)
+4. **Dual Logging**: Both Sentry (LoggerService) and MongoDB (ActionLogService) receive structured data
 
 ---
 
-## Existing Entities (No Changes Required)
+## 1. ActionLog Schema (Existing, Reused)
 
-### Promotion Entity
+### 1.1 MongoDB Collection
 
-**Collection**: `game_promotions`  
-**Schema**: `src/promotion/schemas/promotion.schema.ts`  
-**Status**: ✅ No modifications needed
+**Collection Name**: `promotion_requests`  
+**Connection**: `logs` (separate MongoDB connection for audit logs)  
+**Location**: `src/core/action-log/schemas/action-log.schema.ts`
 
-The existing Promotion schema already contains all required fields for termination:
+### 1.2 Schema Definition
 
 ```typescript
-@Schema({ timestamps: true, collection: 'game_promotions' })
-export class Promotion {
-  _id: ObjectId; // MongoDB unique identifier
-  name: string; // Promotion name
-  code: string; // Promotion code (slug)
-  operatorId: string; // Operator identifier
-  offeredSiteNames: string[]; // Sites where offered (empty = all)
-  currencyGroups: ObjectId[]; // Currency group IDs
+@Schema({ collection: 'promotion_requests', timestamps: true })
+export class ActionLog extends Document {
+  @Prop({ required: true, index: true })
+  operatorId: string;
 
-  // DATE FIELDS (Key to termination)
-  startDate: Date; // Promotion start date/time
-  endDate: Date; // Promotion end date/time ← UPDATED on termination
-  claimExpirationDate: Date; // Bonus claim expiry ← UPDATED on termination
+  @Prop({ required: true, index: true })
+  logTimeStamp: string; // ISO 8601 format
 
-  bonusItemCount: number; // Free spins count
-  offeredPlayerIds: string[]; // Eligible players (empty = all)
-  gameConfigType: number; // 2=ClassicSlot, 3=CascadingSlot
-  gameIds: number[]; // Eligible game IDs
-  betLevels: BetLevel[]; // Bet levels per currency group
-  coinValues: CoinValue[]; // Coin values per currency group
-  isGiftCode: boolean; // Gift code flag
-  minTurnoverMultiplier: number; // Minimum TO multiplier (≥2)
+  @Prop({ required: true, index: true })
+  action: string;
 
-  // Timestamps (Mongoose auto-managed)
-  createdAt: Date;
-  updatedAt: Date;
+  @Prop({ type: Object, required: true })
+  request: {
+    playerId: string;
+    siteName: string;
+    promotionId?: string;
+    [key: string]: any; // Flexible for additional fields
+  };
+
+  @Prop({ type: Object })
+  response?: {
+    claimedAmount?: number;
+    totalTurnover?: number;
+    minRequiredTurnover?: number;
+    totalWinAmount?: number;
+    progressPercentage?: number;
+    errorCode?: string;
+    errorMessage?: string;
+    errorDescription?: string;
+    [key: string]: any; // Flexible for additional fields
+  };
 }
 ```
 
-#### Calculated Fields (Not Stored)
+### 1.3 Mongoose Timestamps
 
-**Promotion Status** is derived dynamically:
+**Auto-Generated Fields**:
+- `createdAt`: Timestamp when document is created (Mongoose automatic)
+- `updatedAt`: Timestamp when document is last updated (Mongoose automatic)
 
-```typescript
-type PromotionStatus = 'not_started' | 'running' | 'ended';
+**Usage**: `{ timestamps: true }` in schema decorator enables automatic timestamp management.
 
-// Calculation logic:
-function calculateStatus(promotion: Promotion, now: Date): PromotionStatus {
-  if (now < promotion.startDate) return 'not_started';
-  if (now >= promotion.startDate && now <= promotion.endDate) return 'running';
-  return 'ended';
-}
-```
+### 1.4 Indices
 
-**Termination Impact**: When `endDate` is updated to current timestamp, status automatically becomes `'ended'` for all future queries.
+**Existing Compound Indices** (defined in schema):
+1. `{ operatorId: 1, logTimeStamp: -1 }` → Fast operator-specific queries, sorted by time
+2. `{ 'request.playerId': 1, logTimeStamp: -1 }` → Player-specific log queries
+3. `{ action: 1, logTimeStamp: -1 }` → Filter by action type, sorted by time
+4. `{ 'response.errorCode': 1, logTimeStamp: -1 }` → Error log queries
+
+**Query Patterns Supported**:
+- ✅ Find all cancellations by operatorId: Use index #1
+- ✅ Find all cancel-promotion actions: Use index #3
+- ✅ Find all cancellations in date range: Use index #3 with time filter
+- ⚠️ Find cancellation by promotionId: No dedicated index (acceptable for MVP, queries are infrequent)
 
 ---
 
-## New DTOs (Input Validation)
+## 2. Promotion Cancellation Log Structure
 
-### TerminatePromotionDto
-
-**Purpose**: Validate input for single promotion termination  
-**File**: `src/promotion/models/terminate-promotion.dto.ts`  
-**HTTP Context**: `PATCH /promotions/:id/terminate`
+### 2.1 Complete Log Document
 
 ```typescript
-import { IsString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
-
-export class TerminatePromotionDto {
-  @ApiProperty({
-    description: 'Admin user ID performing the termination',
-    example: 'admin123',
-    required: true,
-  })
-  @IsString()
-  adminUserId: string;
+{
+  // Root-level required fields
+  action: 'cancel-promotion',
+  operatorId: string, // From promotion.operatorId
+  logTimeStamp: string, // ISO 8601 timestamp (new Date().toISOString())
+  
+  // Request data (cancellation details)
+  request: {
+    playerId: '', // Empty string for admin actions
+    siteName: '', // Empty string for admin actions
+    promotionId: string, // promotion._id.toString()
+    promotionCode: string, // promotion.code
+    adminUserId: string, // Admin who performed cancellation
+    originalEndDate: string, // ISO 8601 - scheduled end date before cancellation
+    newEndDate: string, // ISO 8601 - actual end date (cancellation timestamp)
+  },
+  
+  // Response data (operation result)
+  response: {
+    success: boolean, // true for successful cancellation
+    code: string, // Error code (PR3103 for success)
+    message: string, // Human-readable message
+  },
+  
+  // Mongoose auto-generated timestamps
+  createdAt: Date, // MongoDB creates this automatically
+  updatedAt: Date, // MongoDB creates this automatically
 }
 ```
 
-**Validation Rules**:
+### 2.2 Field-by-Field Reference
 
-- `adminUserId`: Required, non-empty string
+| Field | Type | Required | Description | Example Value |
+|-------|------|----------|-------------|---------------|
+| `action` | string | Yes | Action type identifier | `'cancel-promotion'` |
+| `operatorId` | string | Yes | Operator identifier for filtering | `'op123'` |
+| `logTimeStamp` | string | Yes | ISO 8601 timestamp | `'2025-10-30T14:30:00.000Z'` |
+| `request.playerId` | string | Yes* | Player ID (empty for admin actions) | `''` |
+| `request.siteName` | string | Yes* | Site name (empty for admin actions) | `''` |
+| `request.promotionId` | string | No | Promotion ObjectId as string | `'507f1f77bcf86cd799439011'` |
+| `request.promotionCode` | string | No | Human-readable promotion code | `'summer-promo-2025'` |
+| `request.adminUserId` | string | No | Admin user identifier | `'admin123'` |
+| `request.originalEndDate` | string | No | Original scheduled end date | `'2025-12-31T23:59:59.000Z'` |
+| `request.newEndDate` | string | No | New end date (cancellation time) | `'2025-10-30T14:30:00.000Z'` |
+| `response.success` | boolean | No | Operation success flag | `true` |
+| `response.code` | string | No | Response code | `'PR3103'` |
+| `response.message` | string | No | Human-readable message | `'Promotion has been successfully cancelled'` |
 
-**Usage**:
+\* _Required by schema but can be empty string for admin actions_
 
-```typescript
-@Patch(':id/terminate')
-async terminatePromotion(
-  @Param('id') promotionId: string,      // From URL path (validated by ParseMongoIdPipe)
-  @Body() dto: TerminatePromotionDto,    // From request body
-) {
-  return this.promotionService.terminatePromotion(promotionId, dto.adminUserId);
-}
-```
-
-**Note**: No bulk termination DTO. Admins must terminate promotions one-by-one for safety.
-
----
-
-## New Response Types
-
-### 1. TerminatePromotionResponse
-
-**Purpose**: Type-safe response for single termination  
-**File**: `src/promotion/responses/terminate-promotion.response.ts`  
-**HTTP Context**: `PATCH /promotions/:id/terminate` response
-
-```typescript
-import { ApiProperty } from '@nestjs/swagger';
-
-export class TerminatePromotionResponseData {
-  @ApiProperty({
-    description: 'Terminated promotion ID',
-    example: '507f1f77bcf86cd799439011',
-  })
-  promotionId: string;
-
-  @ApiProperty({
-    description: 'Promotion code',
-    example: 'summer-promo-2025',
-  })
-  promotionCode: string;
-
-  @ApiProperty({
-    description: 'Original scheduled end date (before termination)',
-    example: '2025-12-31T23:59:59.000Z',
-  })
-  originalEndDate: string; // ISO 8601 format
-
-  @ApiProperty({
-    description: 'New end date (termination timestamp)',
-    example: '2025-10-28T14:30:00.000Z',
-  })
-  newEndDate: string; // ISO 8601 format
-
-  @ApiProperty({
-    description: 'Timestamp when termination occurred',
-    example: '2025-10-28T14:30:00.000Z',
-  })
-  terminatedAt: string; // ISO 8601 format
-
-  @ApiProperty({
-    description: 'Admin user who performed the termination',
-    example: 'admin123',
-  })
-  adminUserId: string;
-}
-
-export class TerminatePromotionResponse {
-  @ApiProperty({
-    description: 'Operation success status',
-    example: true,
-  })
-  success: boolean;
-
-  @ApiProperty({
-    description: 'Response code',
-    example: 'PR3103',
-  })
-  code: string;
-
-  @ApiProperty({
-    description: 'Human-readable message',
-    example: 'Promotion terminated successfully',
-  })
-  message: string;
-
-  @ApiProperty({
-    description: 'Termination details',
-    type: TerminatePromotionResponseData,
-  })
-  data: TerminatePromotionResponseData;
-}
-```
-
-## Audit Log Structure (Logging)
-
-**Not stored in database**. Logged via LoggerService as structured JSON.
-
-```typescript
-interface AuditLogEntry {
-  action: 'PROMOTION_TERMINATED';
-  promotionId: string;
-  promotionCode: string;
-  adminUserId: string;
-  timestamp: string; // ISO 8601 format
-  originalEndDate: string; // ISO 8601 format
-  newEndDate: string; // ISO 8601 format
-  operatorId: string; // For filtering/search
-}
-```
-
-**Example Log Output**:
+### 2.3 Example: Successful Cancellation
 
 ```json
 {
-  "action": "PROMOTION_TERMINATED",
-  "promotionId": "507f1f77bcf86cd799439011",
-  "promotionCode": "summer-promo-2025",
-  "adminUserId": "admin123",
-  "timestamp": "2025-10-28T14:30:00.000Z",
-  "originalEndDate": "2025-12-31T23:59:59.000Z",
-  "newEndDate": "2025-10-28T14:30:00.000Z",
-  "operatorId": "op123"
+  "action": "cancel-promotion",
+  "operatorId": "op123",
+  "logTimeStamp": "2025-10-30T14:30:00.000Z",
+  "request": {
+    "playerId": "",
+    "siteName": "",
+    "promotionId": "507f1f77bcf86cd799439011",
+    "promotionCode": "summer-promo-2025",
+    "adminUserId": "admin123",
+    "originalEndDate": "2025-12-31T23:59:59.000Z",
+    "newEndDate": "2025-10-30T14:30:00.000Z"
+  },
+  "response": {
+    "success": true,
+    "code": "PR3103",
+    "message": "Promotion has been successfully cancelled"
+  },
+  "createdAt": "2025-10-30T14:30:00.123Z",
+  "updatedAt": "2025-10-30T14:30:00.123Z"
+}
+```
+
+### 2.4 Example: Failed Cancellation (Promotion Not Found)
+
+```json
+{
+  "action": "PROMOTION_CANCELLED_FAILED",
+  "operatorId": "op123",
+  "logTimeStamp": "2025-10-30T14:35:00.000Z",
+  "request": {
+    "playerId": "",
+    "siteName": "",
+    "promotionId": "invalid-id-12345",
+    "promotionCode": "unknown",
+    "adminUserId": "admin123",
+    "originalEndDate": "",
+    "newEndDate": ""
+  },
+  "response": {
+    "success": false,
+    "code": "PR3100",
+    "message": "Promotion not found",
+    "errorCode": "PR3100",
+    "errorMessage": "Promotion with ID invalid-id-12345 not found"
+  },
+  "createdAt": "2025-10-30T14:35:00.456Z",
+  "updatedAt": "2025-10-30T14:35:00.456Z"
+}
+```
+
+**Note**: Error case logging is optional for MVP. Current implementation only logs successful cancellations. Error logging can be added in future enhancement.
+
+---
+
+## 3. Sentry Log Data Structure
+
+### 3.1 LoggerService.captureMessage Payload
+
+**Method Signature**:
+```typescript
+captureMessage(
+  message: string,
+  level: 'fatal' | 'critical' | 'error' | 'warning' | 'info' | 'debug',
+  context?: Record<string, any>
+): void
+```
+
+### 3.2 Cancellation Log Call
+
+```typescript
+this.logger.captureMessage(
+  'cancel-promotion',
+  'critical', // Elevated log level for admin actions
+  {
+    action: 'cancel-promotion',
+    promotionId: promotion._id.toString(),
+    promotionCode: promotion.code,
+    adminUserId: cancelDto.adminUserId,
+    timestamp: now.toISOString(),
+    originalEndDate: originalEndDate.toISOString(),
+    newEndDate: now.toISOString(),
+    operatorId: promotion.operatorId,
+  },
+);
+```
+
+### 3.3 Sentry Event Structure
+
+**Resulting Sentry Event**:
+```json
+{
+  "message": "PROMOTION_CANCELLED",
+  "level": "critical",
+  "timestamp": "2025-10-30T14:30:00.000Z",
+  "extra": {
+    "action": "cancel-promotion",
+    "promotionId": "507f1f77bcf86cd799439011",
+    "promotionCode": "summer-promo-2025",
+    "adminUserId": "admin123",
+    "timestamp": "2025-10-30T14:30:00.000Z",
+    "originalEndDate": "2025-12-31T23:59:59.000Z",
+    "newEndDate": "2025-10-30T14:30:00.000Z",
+    "operatorId": "op123"
+  },
+  "tags": {
+    "environment": "production",
+    "server_name": "game-promotion-api"
+  }
 }
 ```
 
 ---
 
-## Entity Relationships
+## 4. Query Patterns
 
-```
-┌─────────────────────────────────────────────────────┐
-│                 Promotion Entity                     │
-│  (game_promotions collection)                        │
-│                                                      │
-│  Fields affected by termination:                    │
-│  • endDate          ← Set to current timestamp      │
-│  • claimExpirationDate ← Set to current timestamp   │
-│                                                      │
-│  Calculated fields:                                 │
-│  • status           ← Auto-updates to "ended"       │
-└─────────────────────────────────────────────────────┘
-                       ▲
-                       │
-                       │ Updates
-                       │
-┌─────────────────────┴─────────────────────────────┐
-│        TerminatePromotionDto                       │
-│        (Input validation)                          │
-│                                                    │
-│  • adminUserId: string                            │
-└────────────────────────────────────────────────────┘
-                       │
-                       │ Validates
-                       ▼
-┌─────────────────────────────────────────────────────┐
-│       PromotionService.terminatePromotion()         │
-│       (Business logic)                              │
-│                                                     │
-│  1. Validate promotion exists                      │
-│  2. Validate status is "running"                   │
-│  3. Atomically update endDate & claimExpiration    │
-│  4. Log audit entry                                │
-└─────────────────────────────────────────────────────┘
-                       │
-                       │ Returns
-                       ▼
-┌─────────────────────────────────────────────────────┐
-│     TerminatePromotionResponse                      │
-│     (Output format)                                 │
-│                                                     │
-│  • success: boolean                                │
-│  • code: string (PR3103/PR3104/PR3105)            │
-│  • message: string                                 │
-│  • data: { promotionId, dates, adminUserId }      │
-└─────────────────────────────────────────────────────┘
+### 4.1 Query by Promotion ID
+
+**Use Case**: Find cancellation log for a specific promotion
+
+**MongoDB Query**:
+```javascript
+db.promotion_requests.find({
+  action: 'cancel-promotion',
+  'request.promotionId': '507f1f77bcf86cd799439011'
+}).sort({ logTimeStamp: -1 }).limit(1)
 ```
 
----
+**Expected Result**: Single document (most recent if multiple cancellations exist)
 
-## Data Flow
+**Performance**: ⚠️ No dedicated index on `request.promotionId` - acceptable for infrequent queries
 
-### Single Termination Flow
+### 4.2 Query by Operator ID
 
-```
-1. HTTP Request
-   ↓
-   PATCH /promotions/507f1f77bcf86cd799439011/terminate
-   Body: { "adminUserId": "admin123" }
+**Use Case**: Find all cancellations for a specific operator
 
-2. Input Validation (automatic via ValidationPipe)
-   ↓
-   TerminatePromotionDto validates adminUserId
-   ParseMongoIdPipe validates promotionId
-
-3. Controller Layer
-   ↓
-   PromotionController.terminatePromotion()
-   Extracts params, calls service
-
-4. Service Layer
-   ↓
-   PromotionService.terminatePromotion(promotionId, adminUserId)
-
-   a. Fetch promotion: findById(promotionId)
-   b. Validate exists: if (!promotion) throw NotFoundException
-   c. Validate status: calculate status, check === 'running'
-   d. Store original endDate for audit
-   e. Atomic update: findByIdAndUpdate with $set
-   f. Log audit entry via LoggerService
-   g. Return updated document
-
-5. Response Mapping
-   ↓
-   Map Promotion document to TerminatePromotionResponse
-   Include: promotionId, code, dates, adminUserId
-
-6. HTTP Response
-   ↓
-   Status: 200 OK
-   Body: { success, code, message, data }
+**MongoDB Query**:
+```javascript
+db.promotion_requests.find({
+  action: 'cancel-promotion',
+  operatorId: 'op123'
+}).sort({ logTimeStamp: -1 }).limit(100)
 ```
 
-**Note**: No bulk termination flow. Admins must terminate promotions individually.
+**Index Used**: `{ operatorId: 1, logTimeStamp: -1 }` - **Efficient ✅**
 
----
+### 4.3 Query by Admin User
 
-## Database Operations
+**Use Case**: Audit log for specific admin's cancellation actions
 
-### Single Termination Query
+**MongoDB Query**:
+```javascript
+db.promotion_requests.find({
+  action: 'cancel-promotion',
+  'request.adminUserId': 'admin123'
+}).sort({ logTimeStamp: -1 }).limit(100)
+```
+
+**Performance**: ⚠️ No dedicated index on `request.adminUserId` - acceptable for admin audit queries (infrequent)
+
+### 4.4 Query by Date Range
+
+**Use Case**: Compliance report for cancellations in a specific period
+
+**MongoDB Query**:
+```javascript
+db.promotion_requests.find({
+  action: 'cancel-promotion',
+  logTimeStamp: {
+    $gte: '2025-10-01T00:00:00.000Z',
+    $lte: '2025-10-31T23:59:59.999Z'
+  }
+}).sort({ logTimeStamp: -1 })
+```
+
+**Index Used**: `{ action: 1, logTimeStamp: -1 }` - **Efficient ✅**
+
+### 4.5 Query All Cancellations
+
+**Use Case**: Admin dashboard showing all promotion cancellations
+
+**MongoDB Query**:
+```javascript
+db.promotion_requests.find({
+  action: 'cancel-promotion'
+}).sort({ logTimeStamp: -1 }).limit(100)
+```
+
+**Index Used**: `{ action: 1, logTimeStamp: -1 }` - **Efficient ✅**
+
+### 4.6 ActionLogService Query Methods
+
+**Available Methods** (from `src/core/action-log/services/action-log.service.ts`):
 
 ```typescript
-// MongoDB operation
-db.game_promotions.findOneAndUpdate(
-  { _id: ObjectId('507f1f77bcf86cd799439011') },
-  {
-    $set: {
-      endDate: ISODate('2025-10-28T14:30:00.000Z'),
-      claimExpirationDate: ISODate('2025-10-28T14:30:00.000Z'),
-    },
-  },
-  { returnDocument: 'after' },
+// Query by operator
+getLogsByOperator(operatorId: string, limit = 100, skip = 0): Promise<ActionLog[]>
+
+// Query by player (not applicable for cancellations)
+getLogsByPlayer(playerId: string, limit = 100, skip = 0): Promise<ActionLog[]>
+
+// Query by action type
+getLogsByAction(action: string, limit = 100, skip = 0): Promise<ActionLog[]>
+
+// Query error logs
+getErrorLogs(limit = 100, skip = 0): Promise<ActionLog[]>
+
+// Query by date range
+getLogsByDateRange(startDate: string, endDate: string, limit = 100, skip = 0): Promise<ActionLog[]>
+```
+
+**Usage Example** (in application code):
+```typescript
+// Find all cancellations
+const cancellations = await actionLogService.getLogsByAction('cancel-promotion', 50, 0);
+
+// Find cancellations by operator
+const opCancellations = await actionLogService.getLogsByOperator('op123', 100, 0);
+
+// Find cancellations in date range
+const octCancellations = await actionLogService.getLogsByDateRange(
+  '2025-10-01T00:00:00.000Z',
+  '2025-10-31T23:59:59.999Z',
+  100,
+  0
 );
 ```
 
-**Performance**: ~5-10ms (single document update with \_id index)
-
 ---
 
-## Validation Rules Summary
+## 5. Data Flow
 
-| Field                     | Type   | Required | Validation                | Error Code              |
-| ------------------------- | ------ | -------- | ------------------------- | ----------------------- |
-| `promotionId` (URL param) | string | Yes      | Valid MongoDB ObjectId    | 400 (ValidationPipe)    |
-| `adminUserId` (body)      | string | Yes      | Non-empty string          | 400 (ValidationPipe)    |
-| Promotion exists          | -      | Yes      | findById returns document | PR3100 (not found)      |
-| Promotion status          | -      | Yes      | Must be "running"         | PR3105 (invalid status) |
-
----
-
-## State Transitions
+### 5.1 Cancellation to Audit Log Flow
 
 ```
-Promotion Status Lifecycle:
-
-NOT_STARTED ──────────────────────────────────► RUNNING ──────────────────────────────────► ENDED
-(before startDate)              (startDate reached)     (endDate reached OR terminated)
-
-Termination Effect:
-  RUNNING ──terminate()──► ENDED (immediate transition)
+1. Admin → PATCH /promotions/:id/cancel
+          ↓
+2. PromotionController.cancelPromotion()
+          ↓
+3. PromotionService.cancelPromotion()
+          ↓
+4. MongoDB Update (promotion document)
+          ↓ (success)
+5. LoggerService.captureMessage() → Sentry
+          ↓ (parallel)
+6. ActionLogService.saveLog() → MongoDB action_logs
+          ↓
+7. Return CancelPromotionResponse to Admin
 ```
 
-**Key Point**: Termination is **irreversible**. No state transition from ENDED back to RUNNING.
+### 5.2 Logging Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant Controller
+    participant Service
+    participant PromotionDB
+    participant LoggerService
+    participant ActionLogService
+    participant Sentry
+    participant LogsDB
+
+    Admin->>Controller: PATCH /promotions/:id/cancel
+    Controller->>Service: cancelPromotion(id, adminUserId)
+    
+    Service->>PromotionDB: findById(promotionId)
+    PromotionDB-->>Service: originalPromotion
+    
+    Service->>PromotionDB: findByIdAndUpdate() [atomic]
+    PromotionDB-->>Service: updatedPromotion
+    
+    par Dual Logging
+        Service->>LoggerService: captureMessage('cancel-promotion', 'fatal', context)
+        LoggerService->>Sentry: Log event (async)
+    and
+        Service->>ActionLogService: saveLog(logData)
+        ActionLogService->>LogsDB: save() [fail-safe]
+        LogsDB-->>ActionLogService: saved document
+    end
+    
+    Service-->>Controller: updatedPromotion
+    Controller-->>Admin: CancelPromotionResponse
+```
+
+### 5.3 Error Handling Flow
+
+```
+MongoDB Logs DB Unavailable
+          ↓
+ActionLogService.saveLog() throws
+          ↓
+ActionLogService catches error internally
+          ↓
+console.error('Failed to save action log...')
+          ↓
+ActionLogService.saveLog() returns null
+          ↓
+PromotionService continues (no exception)
+          ↓
+Sentry log still succeeds (fallback)
+          ↓
+Admin receives successful response
+```
 
 ---
 
-## Data Model Validation Checklist
+## 6. Data Retention & Cleanup
 
-- [x] No schema modifications required (leverages existing Promotion schema)
-- [x] DTOs defined for input validation (TerminatePromotionDto, BulkTerminatePromotionsDto)
-- [x] Response types defined for output (TerminatePromotionResponse, BulkTerminatePromotionsResponse)
-- [x] Audit log structure documented (JSON format via LoggerService)
-- [x] Entity relationships mapped (Promotion ← DTO → Service → Response)
-- [x] Data flow documented (request → validation → service → response)
-- [x] Database operations specified (findByIdAndUpdate, bulkWrite)
-- [x] Validation rules defined (MongoDB ObjectId, array size, required fields)
-- [x] State transitions documented (NOT_STARTED → RUNNING → ENDED)
-- [x] Performance characteristics estimated (<200ms single, <10s bulk)
+### 6.1 Current Policy
 
-**Status**: ✅ Data model complete. Ready for API contract generation (Phase 1 continued).
+**Retention**: Unlimited (no automatic cleanup)  
+**Cleanup Method**: Manual via `ActionLogService.deleteOldLogs(daysToKeep: number)`
+
+### 6.2 Manual Cleanup Example
+
+```typescript
+// Delete logs older than 90 days
+const deletedCount = await actionLogService.deleteOldLogs(90);
+console.log(`Deleted ${deletedCount} old action logs`);
+```
+
+**MongoDB Query** (executed by deleteOldLogs):
+```javascript
+const cutoffDate = new Date();
+cutoffDate.setDate(cutoffDate.getDate() - 90);
+
+db.promotion_requests.deleteMany({
+  logTimeStamp: { $lt: cutoffDate.toISOString() }
+})
+```
+
+### 6.3 Recommended Retention Policy
+
+**For Compliance**:
+- Financial audit logs: 7 years (industry standard)
+- Administrative actions: 3-5 years
+- Player actions: 1-2 years
+
+**Implementation Options** (future enhancement):
+1. **Scheduled Cleanup Job**: Cron job calling `deleteOldLogs()`
+2. **MongoDB TTL Index**: Automatic deletion based on `createdAt` field
+3. **External Archival**: Move old logs to cold storage (S3, Glacier)
+
+---
+
+## 7. Testing Data
+
+### 7.1 Mock Data for Unit Tests
+
+```typescript
+const mockCancellationLog: IActionLog = {
+  action: 'cancel-promotion',
+  operatorId: 'op123',
+  logTimeStamp: '2025-10-30T14:30:00.000Z',
+  request: {
+    playerId: '',
+    siteName: '',
+    promotionId: '507f1f77bcf86cd799439011',
+    promotionCode: 'summer-promo-2025',
+    adminUserId: 'admin123',
+    originalEndDate: '2025-12-31T23:59:59.000Z',
+    newEndDate: '2025-10-30T14:30:00.000Z',
+  },
+  response: {
+    success: true,
+    code: 'PR3103',
+    message: 'Promotion has been successfully cancelled',
+  },
+};
+```
+
+### 7.2 Integration Test Verification
+
+**Assertion Example**:
+```typescript
+// After cancellation, query MongoDB
+const logs = await actionLogService.getLogsByAction('cancel-promotion');
+
+expect(logs).toHaveLength(1);
+expect(logs[0].request.promotionId).toBe('507f1f77bcf86cd799439011');
+expect(logs[0].request.adminUserId).toBe('admin123');
+expect(logs[0].response.code).toBe('PR3103');
+```
+
+---
+
+## 8. Schema Evolution (Future Considerations)
+
+### 8.1 Potential Schema Enhancements
+
+**Option 1: Add adminUserId to Root Level**
+```typescript
+@Schema({ collection: 'promotion_requests', timestamps: true })
+export class ActionLog extends Document {
+  // ... existing fields
+  
+  @Prop({ index: true }) // Make optional for backward compatibility
+  adminUserId?: string; // Admin user for administrative actions
+}
+```
+
+**Benefit**: Dedicated index for admin audit queries  
+**Trade-off**: Requires schema migration for existing documents
+
+**Option 2: Add Cancellation-Specific Index**
+```typescript
+ActionLogSchema.index({ 
+  'request.promotionId': 1, 
+  logTimeStamp: -1 
+}); // Optimize promotion-specific queries
+```
+
+**Benefit**: Faster queries by promotionId  
+**Trade-off**: Increased write overhead, larger index size
+
+**Option 3: Separate ActionLog Types**
+```typescript
+@Schema({ discriminatorKey: 'actionType' })
+export class ActionLog extends Document {
+  // Base fields
+}
+
+@Schema()
+export class AdminActionLog extends ActionLog {
+  adminUserId: string;
+  // Admin-specific fields
+}
+
+@Schema()
+export class PlayerActionLog extends ActionLog {
+  playerId: string;
+  siteName: string;
+  // Player-specific fields
+}
+```
+
+**Benefit**: Type-safe, dedicated fields for each action type  
+**Trade-off**: Significant complexity, requires refactoring
+
+**Recommendation**: Keep current schema for MVP. Evaluate enhancements based on usage patterns after 3-6 months.
+
+---
+
+## Summary
+
+**Data Model Status**: ✅ Complete and ready for implementation
+
+**Key Takeaways**:
+1. Reuses existing ActionLog schema (no migrations required)
+2. Flexible structure supports all cancellation audit requirements
+3. Query patterns leverage existing indices (performant)
+4. Fail-safe design ensures business operation continuity
+5. Dual logging (Sentry + MongoDB) provides redundancy
+6. Clear field mappings and examples for implementation
+
+**Next Steps**:
+1. Review quickstart.md for implementation guide
+2. Update tasks.md with specific implementation tasks
+3. Begin implementation following defined data structures

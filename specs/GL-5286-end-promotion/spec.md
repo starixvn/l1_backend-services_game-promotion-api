@@ -1,9 +1,10 @@
-# Feature Specification: Early Promotion Termination
+# Feature Specification: Early Promotion Cancellation
 
 **Feature Branch**: `GL-5286-end-promotion`  
 **Created**: 2025-10-28  
-**Status**: Draft  
-**Input**: User description: "Allow Admin to End or Stop a Promotion Event Midway"
+**Updated**: 2025-10-30 (Added MongoDB audit logging via ActionLogService)  
+**Status**: Enhanced  
+**Input**: User description: "Allow Admin to End or Stop a Promotion Event Midway" + "Add audit log for cancelPromotion, need to reuse action-log.service.ts"
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -37,22 +38,25 @@ As an Admin User, I want to immediately end a running promotion event before its
 
 ### User Story 2 - Audit Trail and History (Priority: P2)
 
-As an Admin User, I want to see a clear record of when and why a promotion was terminated early, so that I can maintain accountability and review past administrative actions.
+As an Admin User, I want to see a clear record of when and why a promotion was cancelled early, so that I can maintain accountability and review past administrative actions.
 
 **Why this priority**: Accountability and compliance require tracking administrative actions. This enables:
 
 - Audit compliance for financial and regulatory reviews
 - Troubleshooting and understanding past decisions
 - Training new administrators on proper procedures
-- Dispute resolution if players complain about terminated promotions
+- Dispute resolution if players complain about cancelled promotions
+- Queryable audit history stored in MongoDB for long-term retention and analysis
 
-**Independent Test**: After terminating a promotion early, Admin can view the promotion's audit log showing the termination timestamp, admin user who performed the action, and the reason (if captured).
+**Independent Test**: After cancelling a promotion early, Admin can query the MongoDB action_logs collection and find the cancellation record with complete details (admin ID, timestamp, promotion ID, original end date, new end date).
 
 **Acceptance Scenarios**:
 
-1. **Given** an Admin terminates a promotion, **When** the termination is recorded, **Then** the system logs the admin user ID, timestamp, and action type ("Early Termination")
-2. **Given** a promotion was terminated early, **When** Admin views the promotion audit history, **Then** the log shows who terminated it, when, and the original scheduled end date for comparison
-3. **Given** multiple promotions exist, **When** Admin filters for "Early Terminated" promotions, **Then** the system displays all promotions that ended before their scheduled end date
+1. **Given** an Admin cancels a promotion, **When** the cancellation is recorded, **Then** the system logs to both Sentry (via LoggerService) and MongoDB (via ActionLogService) with admin user ID, timestamp, action type ("cancel-promotion"), promotion details, and original/new end dates
+2. **Given** a promotion was cancelled early, **When** Admin queries the action logs by promotionId, **Then** the MongoDB log shows who cancelled it, when, the original scheduled end date, and the new end date for comparison
+3. **Given** multiple promotions exist, **When** Admin queries action logs by action type "cancel-promotion", **Then** the system returns all cancellation events with complete audit information
+4. **Given** an Admin queries audit logs by date range, **When** filtering for cancellation events within a specific period, **Then** the system returns all matching cancellation logs sorted by timestamp
+5. **Given** a cancellation audit log exists, **When** reviewing the log entry, **Then** it contains all required fields: promotionId, promotionCode, adminUserId, timestamp, originalEndDate, newEndDate, operatorId, action type
 
 ### Edge Cases
 
@@ -70,8 +74,11 @@ As an Admin User, I want to see a clear record of when and why a promotion was t
 - What happens to scheduled jobs or automated processes that reference the promotion?
   - **Assumption**: Any background jobs should respect the updated end date and claim expiration date. Notification systems should handle early termination gracefully.
 
-- Should there be role-based restrictions on who can terminate promotions?
-  - **Assumption**: Only users with "Admin" or "Promotion Manager" roles should have access to terminate promotions. Standard users and read-only roles should not see this option.
+- Should there be role-based restrictions on who can cancel promotions?
+  - **Assumption**: Only users with "Admin" or "Promotion Manager" roles should have access to cancel promotions. Standard users and read-only roles should not see this option.
+
+- What happens if MongoDB logging (ActionLogService.saveLog) fails during cancellation?
+  - **Assumption**: The promotion cancellation should proceed successfully and the failure should be logged to console. Sentry logging (LoggerService) should still work. MongoDB logging is best-effort and should not block the critical business operation.
 
 ## Requirements _(mandatory)_
 
@@ -84,10 +91,12 @@ As an Admin User, I want to see a clear record of when and why a promotion was t
 - **FR-005**: System MUST update the promotion's Claim Expiration Date field to the current date and time upon confirmation
 - **FR-006**: System MUST change the promotion's status to "Completed" upon confirmation
 - **FR-007**: System MUST prevent players from claiming or using bonus items after the updated Claim Expiration Date
-- **FR-008**: System MUST log the termination action with timestamp, admin user ID, and action type for audit purposes
-- **FR-009**: System MUST display a success message to the Admin after successful termination
-- **FR-010**: System MUST display an error message if termination fails, without partially updating the promotion
-- **FR-011**: System MUST disable or hide the "End Promotion" action for promotions with status "Not Started", "Ended", or "Completed"
+- **FR-008**: System MUST log the cancellation action to Sentry (via LoggerService.captureMessage) with structured JSON containing timestamp, admin user ID, action type, promotion details, and original/new end dates
+- **FR-009**: System MUST persist the cancellation action to MongoDB action_logs collection (via ActionLogService.saveLog) with all audit details for long-term retention and queryability
+- **FR-010**: System MUST handle MongoDB logging failures gracefully without disrupting the cancellation operation (fail-safe logging)
+- **FR-011**: System MUST display a success message to the Admin after successful cancellation
+- **FR-012**: System MUST display an error message if cancellation fails, without partially updating the promotion
+- **FR-013**: System MUST disable or hide the "End Promotion" action for promotions with status "Not Started", "Ended", or "Completed"
 
 ### Non-Functional Requirements (Constitution Compliance)
 
@@ -116,25 +125,42 @@ As an Admin User, I want to see a clear record of when and why a promotion was t
   - `role`: User role (must be "Admin" or "Promotion Manager")
   - `permissions`: User permissions array
 
-- **Audit Log Entry**: Record of the termination action. Key attributes:
+- **Audit Log Entry (Sentry)**: Record of the cancellation action sent to Sentry via LoggerService. Key attributes:
+  - `action`: "cancel-promotion"
   - `promotionId`: Reference to the promotion
+  - `promotionCode`: Promotion code
   - `adminUserId`: Admin who performed the action
-  - `actionType`: "Early Termination"
-  - `timestamp`: When the action occurred
+  - `timestamp`: When the action occurred (ISO 8601 format)
   - `originalEndDate`: Original scheduled end date for comparison
   - `newEndDate`: Updated end date (current timestamp)
+  - `operatorId`: Operator identifier for filtering
+
+- **Action Log Entry (MongoDB)**: Persistent record stored in MongoDB action_logs collection via ActionLogService. Key attributes:
+  - `action`: "cancel-promotion"
+  - `operatorId`: Operator identifier
+  - `logTimeStamp`: When the action occurred (ISO 8601 string format)
+  - `request`: Object containing cancellation details
+    - `promotionId`: Reference to the promotion
+    - `promotionCode`: Promotion code
+    - `adminUserId`: Admin who performed the action
+    - `originalEndDate`: Original scheduled end date
+    - `newEndDate`: Updated end date (cancellation timestamp)
+  - `response`: Object containing operation result (success/error)
 
 ## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
-- **SC-001**: Admins can successfully terminate a running promotion and see status change to "Completed" within 5 seconds of confirmation
-- **SC-002**: System prevents players from claiming bonus items within 1 minute of promotion termination (claim expiration enforced)
-- **SC-003**: 100% of promotion termination actions are logged with complete audit information (admin ID, timestamp, promotion ID)
-- **SC-004**: Zero partial updates occur (all fields update atomically or none update on error)
-- **SC-005**: Admin receives clear confirmation feedback (success or failure) for 100% of termination attempts
-- **SC-006**: System correctly prevents termination attempts on non-running promotions (not started, already ended)
-- **SC-007**: Promotion list/detail views reflect terminated status immediately after refresh (no stale data)
+- **SC-001**: Admins can successfully cancel a running promotion and see status change to "Completed" within 5 seconds of confirmation
+- **SC-002**: System prevents players from claiming bonus items within 1 minute of promotion cancellation (claim expiration enforced)
+- **SC-003**: 100% of promotion cancellation actions are logged to both Sentry and MongoDB with complete audit information (admin ID, timestamp, promotion ID, original/new end dates)
+- **SC-004**: MongoDB audit logs are queryable within 10 seconds of cancellation action completion
+- **SC-005**: Admins can retrieve cancellation audit logs from MongoDB by promotionId, operatorId, adminUserId, action type, or date range with results returned in under 2 seconds
+- **SC-006**: Zero partial updates occur (all fields update atomically or none update on error)
+- **SC-007**: Admin receives clear confirmation feedback (success or failure) for 100% of cancellation attempts
+- **SC-008**: System correctly prevents cancellation attempts on non-running promotions (not started, already ended)
+- **SC-009**: Promotion list/detail views reflect cancelled status immediately after refresh (no stale data)
+- **SC-010**: MongoDB logging failures do not prevent successful promotion cancellation (fail-safe behavior)
 
 ## Assumptions
 
@@ -145,9 +171,12 @@ As an Admin User, I want to see a clear record of when and why a promotion was t
 5. **UI Framework**: There is an existing admin dashboard/UI where promotions are listed and can be selected
 6. **Error Handling**: Existing standardized error code system (PR31XX for promotion operations) will be extended for termination-specific errors
 7. **Player Impact**: In-progress game rounds complete normally; only new bonus item claims are blocked after termination
-8. **Audit Infrastructure**: System has existing audit logging infrastructure that can be extended for termination events
-9. **Time Zones**: All timestamps are stored in UTC and the current date/time for termination uses server UTC time
-10. **Concurrent Access**: If multiple admins attempt to terminate the same promotion simultaneously, last-write-wins or optimistic locking prevents conflicts
+8. **Audit Infrastructure**: System has existing audit logging infrastructure (LoggerService for Sentry, ActionLogService for MongoDB) that can be extended for cancellation events
+9. **MongoDB Logs Database**: System has a separate MongoDB connection named 'logs' for the action_logs collection with write permissions
+10. **ActionLog Schema**: The action_logs collection follows the existing ActionLog schema with action, operatorId, logTimeStamp, request, and response fields
+11. **Fail-Safe Logging**: MongoDB logging failures (ActionLogService.saveLog) are caught and logged to console without disrupting the main cancellation operation
+12. **Time Zones**: All timestamps are stored in UTC and the current date/time for cancellation uses server UTC time
+13. **Concurrent Access**: If multiple admins attempt to cancel the same promotion simultaneously, last-write-wins or optimistic locking prevents conflicts
 
 ## Out of Scope
 

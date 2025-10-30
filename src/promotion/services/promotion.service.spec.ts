@@ -10,6 +10,7 @@ import { UpdatePromotionDto } from '../models/update-promotion.dto';
 import { PromotionStatus } from '../models/promotion-filter.dto';
 import { NotFoundException } from '@nestjs/common';
 import { LoggerService } from '../../core/logger/logger.service';
+import { ActionLogService } from '../../core/action-log/services/action-log.service';
 import { PromotionPerformanceDto } from '../models/promotion-performance.dto';
 
 // Mock data
@@ -175,6 +176,13 @@ describe('PromotionService', () => {
           provide: LoggerService,
           useValue: {
             error: jest.fn(),
+            captureMessage: jest.fn(),
+          },
+        },
+        {
+          provide: ActionLogService,
+          useValue: {
+            saveLog: jest.fn().mockResolvedValue({}),
           },
         },
       ],

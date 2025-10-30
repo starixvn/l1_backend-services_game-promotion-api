@@ -402,3 +402,78 @@ All API responses follow this standardized format:
   "message": "string"
 }
 ```
+
+## MongoDB Audit Logs
+
+The promotion cancellation feature uses dual logging strategy:
+- **Sentry (fatal level)**: Real-time alerting for critical admin actions
+- **MongoDB (persistent)**: Long-term audit trail stored in `promotion_requests` collection
+
+### Querying Audit Logs
+
+#### By Promotion ID
+```javascript
+db.promotion_requests.find({
+  action: 'cancel-promotion',
+  'request.promotionId': '507f1f77bcf86cd799439011'
+}).sort({ logTimeStamp: -1 });
+```
+
+#### By Operator ID
+```javascript
+db.promotion_requests.find({
+  action: 'cancel-promotion',
+  operatorId: 'op123'
+}).sort({ logTimeStamp: -1 });
+```
+
+#### By Action Type
+```javascript
+db.promotion_requests.find({
+  action: 'cancel-promotion'
+}).sort({ logTimeStamp: -1 });
+```
+
+#### By Admin User ID
+```javascript
+db.promotion_requests.find({
+  action: 'cancel-promotion',
+  'request.adminUserId': 'admin123'
+}).sort({ logTimeStamp: -1 });
+```
+
+#### By Date Range
+```javascript
+db.promotion_requests.find({
+  action: 'cancel-promotion',
+  logTimeStamp: {
+    $gte: '2025-01-01T00:00:00.000Z',
+    $lte: '2025-12-31T23:59:59.999Z'
+  }
+}).sort({ logTimeStamp: -1 });
+```
+
+### Audit Log Structure
+
+```json
+{
+  "action": "cancel-promotion",
+  "operatorId": "op123",
+  "logTimeStamp": "2025-10-30T14:30:00.000Z",
+  "request": {
+    "playerId": "",
+    "siteName": "",
+    "operatorId": "op123",
+    "promotionId": "507f1f77bcf86cd799439011",
+    "promotionCode": "summer-promo-2025",
+    "adminUserId": "admin123",
+    "originalEndDate": "2025-12-31T23:59:59.000Z",
+    "newEndDate": "2025-10-30T14:30:00.000Z"
+  },
+  "response": {
+    "success": true,
+    "code": "PR3103",
+    "message": "Promotion has been successfully cancelled"
+  }
+}
+```

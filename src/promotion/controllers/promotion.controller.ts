@@ -329,7 +329,8 @@ export class PromotionController {
   @ApiOperation({
     summary: 'Cancel a running promotion',
     description:
-      'Immediately terminates a running promotion by updating its end date and claim expiration date to the current timestamp. This operation is irreversible.',
+      'Immediately terminates a running promotion by updating its end date and claim expiration date to the current timestamp. This operation is irreversible. ' +
+      'Logs to both Sentry (fatal level for real-time alerting) and MongoDB (persistent audit trail for compliance and queryability).',
   })
   @ApiParam(PROMOTION_ID_PARAM)
   @ApiResponse({
