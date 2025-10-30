@@ -163,6 +163,9 @@ export class Promotion {
   })
   @Prop({ type: Number, default: 2, required: true })
   minTurnoverMultiplier: number;
+
+  @Prop({ type: Number, default: 1, required: true })
+  maxRedemptionTimes: number;
 }
 
 export const PromotionSchema = SchemaFactory.createForClass(Promotion);

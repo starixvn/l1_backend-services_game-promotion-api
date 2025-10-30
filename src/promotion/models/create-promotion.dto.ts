@@ -180,4 +180,9 @@ export class CreatePromotionDto {
   @Type(() => Number)
   @IsOptional()
   minTurnoverMultiplier?: number;
+
+  @ApiProperty({
+    description: 'Maximum number of times a promotion can be redeemed',
+  })
+  maxRedemptionTimes: number;
 }

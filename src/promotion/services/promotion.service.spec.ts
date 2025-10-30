@@ -208,6 +208,7 @@ describe('PromotionService', () => {
         isGiftCode: false,
         minTurnoverMultiplier: 2,
         claimExpirationDate: futureDate,
+        maxRedemptionTimes: 4,
       };
 
       const result = await service.createPromotion(createPromotionDto);
@@ -228,6 +229,7 @@ describe('PromotionService', () => {
         isGiftCode: false,
         minTurnoverMultiplier: 2,
         claimExpirationDate: futureDate,
+        maxRedemptionTimes: -1,
       };
 
       const expectedPromotion = {
