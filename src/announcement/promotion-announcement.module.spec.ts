@@ -5,6 +5,7 @@ import * as request from 'supertest';
 import { PromotionAnnouncement } from './schemas/promotion-announcement.schema';
 import { PromotionAnnouncementModule } from './promotion-announcement.module';
 import { PromotionTicket } from '../promotion-ticket/schemas/promotion-ticket.schema';
+import { ActionLog } from '../core/action-log/schemas/action-log.schema';
 
 const mockDate = new Date();
 const futureDate = new Date(mockDate.getTime() + 86400000);
@@ -80,6 +81,13 @@ describe('PromotionAnnouncementModule (Integration)', () => {
       }),
     };
 
+    const MockActionLogModel = {
+      save: jest.fn().mockResolvedValue({}),
+      find: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [PromotionAnnouncementModule],
     })
@@ -91,6 +99,8 @@ describe('PromotionAnnouncementModule (Integration)', () => {
       .useValue(MockPromotionTicketModel)
       .overrideProvider(getModelToken('PlayerPromotion'))
       .useValue(MockPlayerPromotionModel)
+      .overrideProvider(getModelToken(ActionLog.name, 'logs'))
+      .useValue(MockActionLogModel)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -101,7 +111,9 @@ describe('PromotionAnnouncementModule (Integration)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   describe('/promotion-announcements (GET)', () => {
