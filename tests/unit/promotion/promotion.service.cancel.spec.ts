@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { NotFoundException } from '@nestjs/common';
-import { PromotionService } from '../../../src/promotion/services/promotion.service';
+import {
+  PromotionService,
+  CANCEL_PROMOTION_ACTION,
+} from '../../../src/promotion/services/promotion.service';
 import { Promotion } from '../../../src/promotion/schemas/promotion.schema';
 import { PromotionTicket } from '../../../src/promotion-ticket/schemas/promotion-ticket.schema';
 import { PlayerPromotion } from '../../../src/promotion/schemas/player-promotion.schema';
@@ -263,7 +266,7 @@ describe('PromotionService - cancelPromotion', () => {
 
       // Assert
       expect(saveLogSpy).toHaveBeenCalledWith({
-        action: 'cancel-promotion',
+        action: CANCEL_PROMOTION_ACTION,
         operatorId: 'op123',
         logTimeStamp: mockNow.toISOString(),
         request: {
@@ -294,7 +297,7 @@ describe('PromotionService - cancelPromotion', () => {
       // Assert
       expect(saveLogSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          action: 'cancel-promotion',
+          action: CANCEL_PROMOTION_ACTION,
         }),
       );
     });

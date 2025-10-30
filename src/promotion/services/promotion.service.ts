@@ -23,6 +23,8 @@ const EXPIRY_CHECK_SECONDS = 60;
 const MILLISECONDS_PER_SECOND = 1000;
 const DEFAULT_PAGE_SIZE = 10;
 
+export const CANCEL_PROMOTION_ACTION = 'cancel-promotion';
+
 @Injectable()
 export class PromotionService {
   constructor(
@@ -541,8 +543,8 @@ export class PromotionService {
       throw new NotFoundException(`Promotion with ID ${promotionId} not found`);
     }
 
-    this.logger.captureMessage('cancel-promotion', 'fatal', {
-      action: 'cancel-promotion',
+    this.logger.captureMessage(CANCEL_PROMOTION_ACTION, 'fatal', {
+      action: CANCEL_PROMOTION_ACTION,
       promotionId: promotion._id.toString(),
       promotionCode: promotion.code,
       adminUserId,
@@ -553,7 +555,7 @@ export class PromotionService {
     });
 
     await this.actionLogService.saveLog({
-      action: 'cancel-promotion',
+      action: CANCEL_PROMOTION_ACTION,
       operatorId: promotion.operatorId,
       logTimeStamp: now.toISOString(),
       request: {
