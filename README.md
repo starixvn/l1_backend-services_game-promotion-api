@@ -119,6 +119,7 @@ This interactive UI allows you to:
 - `GET /promotions/:id`: Get promotion by ID
 - `POST /promotions`: Create a new promotion
 - `PUT /promotions/:id`: Update a promotion
+- `PATCH /promotions/:id/cancel`: Cancel a running promotion (immediately terminates by updating end date and claim expiration to current timestamp)
 - `DELETE /promotions/:id`: Delete a promotion
 - `GET /promotions/admin/test`: Test endpoint
 
@@ -369,6 +370,9 @@ This project uses a standardized error code system for consistent API responses 
 - `PR3100`: Promotion not found
 - `PR3101`: Promotion has expired
 - `PR3102`: Promotion is not active
+- `PR3103`: Promotion cancelled successfully
+- `PR3104`: Promotion cancellation failed
+- `PR3105`: Invalid promotion status for cancellation (must be running)
 
 #### Announcement (AN32XX)
 

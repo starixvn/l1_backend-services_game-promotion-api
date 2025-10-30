@@ -12,6 +12,7 @@ classDiagram
         +POST /api/promotion/create
         +PUT /api/promotion/update
         +GET /api/promotion/{id}
+        +PATCH /api/promotion/{id}/cancel
     }
 
     class PromotionQueryRequest {
@@ -229,6 +230,54 @@ Content-Type: application/json
     "minTurnoverMultiplier": 2.0
 }
 ```
+
+#### Cancel Promotion
+
+```http
+PATCH /promotions/:id/cancel
+Content-Type: application/json
+
+{
+    "adminUserId": "admin123"
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "code": "PR3103",
+  "message": "Promotion has been successfully cancelled",
+  "data": {
+    "promotionId": "65f1a2b3c4d5e6f7g8h9i0j1",
+    "promotionCode": "vip-classic-free-spins",
+    "originalEndDate": "2024-06-30T23:59:59.000Z",
+    "newEndDate": "2024-06-20T14:30:00.000Z",
+    "cancelledAt": "2024-06-20T14:30:00.000Z",
+    "adminUserId": "admin123"
+  }
+}
+```
+
+**Purpose**: Immediately terminates a running promotion by updating its end date and claim expiration date to the current timestamp. This operation is irreversible and creates an audit log entry.
+
+**Request Body**:
+- **adminUserId** (required): Admin user ID performing the cancellation for audit trail
+
+**Response Data**:
+- **promotionId**: Cancelled promotion ID
+- **promotionCode**: Promotion code
+- **originalEndDate**: Original scheduled end date
+- **newEndDate**: New end date (cancellation timestamp)
+- **cancelledAt**: Timestamp when cancellation occurred
+- **adminUserId**: Admin user who performed cancellation
+
+**Error Codes**:
+- `PR3100` (404): Promotion not found
+- `PR3103` (200): Cancellation successful
+- `PR3104` (500): Cancellation failed
+- `PR3105` (400): Invalid promotion status for cancellation
 
 #### Player Promotion Response
 

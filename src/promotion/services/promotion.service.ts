@@ -507,7 +507,6 @@ export class PromotionService {
   async cancelPromotion(promotionId: string, adminUserId: string): Promise<PromotionDocument> {
     const now = new Date();
 
-    // Fetch original promotion to capture original end date for audit trail
     const originalPromotion = await this.promotionModel.findById(promotionId).exec();
 
     if (!originalPromotion) {
@@ -516,7 +515,6 @@ export class PromotionService {
 
     const originalEndDate = originalPromotion.endDate;
 
-    // Update promotion dates
     const promotion = await this.promotionModel
       .findByIdAndUpdate(
         promotionId,
@@ -534,7 +532,6 @@ export class PromotionService {
       throw new NotFoundException(`Promotion with ID ${promotionId} not found`);
     }
 
-    // Audit logging with original and new end dates
     this.logger.captureMessage('PROMOTION_CANCELLED', 'info', {
       action: 'PROMOTION_CANCELLED',
       promotionId: promotion._id.toString(),
