@@ -325,7 +325,7 @@ export class PromotionTicketService {
     playerPromotionId: MongooseSchema.Types.ObjectId,
   ): Promise<UpdatePromotionTicketResponse> {
     try {
-      const updatedTicket = await this.promotionTicketModel.updateMany(
+      const updatedTickets = await this.promotionTicketModel.updateMany(
         this.buildPlayerPromotionQuery({
           playerId,
           operatorId,
@@ -344,7 +344,7 @@ export class PromotionTicketService {
         },
       );
 
-      if (!updatedTicket) {
+      if (!updatedTickets.modifiedCount) {
         return {
           success: false,
           ...PROMOTION_TICKET_ERROR_CODES.UPDATE_FAILED,

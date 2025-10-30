@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { PlayerPromotionService } from './player-promotion.service';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
+import { PlayerFinishedPromotion } from '../schemas/player-finished-promotion.schema';
 import { Promotion } from '../schemas/promotion.schema';
 import { PlayerDto } from '../models';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
@@ -140,12 +141,28 @@ describe('PlayerPromotionService', () => {
       exec: jest.fn(),
     };
 
+    const mockPlayerFinishedPromotionModelValue = {
+      findOne: jest.fn().mockReturnThis(),
+      find: jest.fn().mockReturnThis(),
+      findById: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockReturnThis(),
+      exec: jest.fn(),
+      create: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+      sort: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PlayerPromotionService,
         {
           provide: getModelToken(PlayerPromotion.name),
           useValue: mockPlayerPromotionModelValue,
+        },
+        {
+          provide: getModelToken(PlayerFinishedPromotion.name),
+          useValue: mockPlayerFinishedPromotionModelValue,
         },
         {
           provide: getModelToken(Promotion.name),

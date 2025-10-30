@@ -13,7 +13,10 @@ import { Promotion, PromotionDocument } from '../schemas/promotion.schema';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
 import { PlayerPromotionStateResponse } from '../responses';
 import { PlayerPromotionStateExportDto } from '../models/player-promotion-state-export.dto';
-
+import {
+  PlayerFinishedPromotion,
+  PlayerFinishedPromotionDocument,
+} from '../schemas/player-finished-promotion.schema';
 interface AggregationResult {
   totalCount: number;
   baseTotalWinAmount: number;
@@ -54,6 +57,8 @@ export class PlayerPromotionService {
   constructor(
     @InjectModel(PlayerPromotion.name)
     private readonly playerPromotionModel: Model<PlayerPromotionDocument>,
+    @InjectModel(PlayerFinishedPromotion.name)
+    private readonly playerFinishedPromotionModel: Model<PlayerFinishedPromotionDocument>,
     @InjectModel(Promotion.name)
     private readonly promotionModel: Model<PromotionDocument>,
     private readonly loggerService: LoggerService,
@@ -375,13 +380,32 @@ export class PlayerPromotionService {
       .exec();
 
     // Filter out promotions that have been claimed before
-    return promotions.filter(
+    const unclaimedPromotions = promotions.filter(
       promotion =>
         !claimedPromotions?.some(
           claimedPromotion =>
             claimedPromotion.promotionCode.toString() === promotion.code.toString(),
         ),
     );
+
+    const eligiblePromotions: PromotionDocument[] = [];
+
+    for (const promotion of unclaimedPromotions) {
+      const redeemedCount = await this.getPromotionRedeemedCount(
+        playerId,
+        operatorId,
+        siteName,
+        promotion._id.toString(),
+      );
+      if (
+        redeemedCount === 0 ||
+        redeemedCount < promotion.maxRedemptionTimes ||
+        promotion.maxRedemptionTimes === -1
+      ) {
+        eligiblePromotions.push(promotion);
+      }
+    }
+    return eligiblePromotions;
   }
 
   /**
@@ -954,6 +978,17 @@ export class PlayerPromotionService {
         return this.createErrorResponse(PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE);
       }
 
+      const redeemedCount = await this.getPromotionRedeemedCount(
+        playerId,
+        operatorId,
+        siteName,
+        promotion._id,
+      );
+
+      if (redeemedCount >= promotion.maxRedemptionTimes && promotion.maxRedemptionTimes !== -1) {
+        return this.createErrorResponse(PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE);
+      }
+
       // Claim the promotion
       const playerPromotion = await this.assignPromotionToPlayer(
         playerId,
@@ -1053,5 +1088,34 @@ export class PlayerPromotionService {
       .exec();
 
     return !!claimedPromotion;
+  }
+
+  /**
+   * Get maximum redemption count for a specific player promotion
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteName Site name
+   * @param promotionId Promotion ID
+   * @returns Maximum redemption count
+   */
+  async getPromotionRedeemedCount(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<number> {
+    const result = await this.playerFinishedPromotionModel
+      .findOne({
+        playerId,
+        operatorId,
+        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
+        promotionId,
+      })
+      .sort({ redemptionCount: -1 })
+      .select('redemptionCount')
+      .lean()
+      .exec();
+
+    return result?.redemptionCount ?? 0;
   }
 }

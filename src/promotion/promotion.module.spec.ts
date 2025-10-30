@@ -5,6 +5,7 @@ import * as request from 'supertest';
 import { PromotionModule } from './promotion.module';
 import { Promotion } from './schemas/promotion.schema';
 import { PlayerPromotion } from './schemas/player-promotion.schema';
+import { PlayerFinishedPromotion } from './schemas/player-finished-promotion.schema';
 import { PromotionTicket } from '../promotion-ticket/schemas/promotion-ticket.schema';
 // Used in query parameters: /promotions?status=running
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -210,6 +211,36 @@ describe('PromotionModule (Integration)', () => {
       }),
     };
 
+    // Mock for the PlayerFinishedPromotion model (required by the module)
+    const mockPlayerFinishedPromotionModel = {
+      find: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+      }),
+      findOne: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+        sort: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            lean: jest.fn().mockReturnValue({
+              exec: jest.fn().mockResolvedValue(null),
+            }),
+          }),
+        }),
+      }),
+      create: jest.fn().mockResolvedValue({}),
+      findOneAndUpdate: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      }),
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [PromotionModule],
     })
@@ -217,6 +248,8 @@ describe('PromotionModule (Integration)', () => {
       .useValue(MockPromotionModel)
       .overrideProvider(getModelToken(PlayerPromotion.name))
       .useValue(mockPlayerPromotionModel)
+      .overrideProvider(getModelToken(PlayerFinishedPromotion.name))
+      .useValue(mockPlayerFinishedPromotionModel)
       .overrideProvider(getModelToken(PromotionTicket.name))
       .useValue(mockPromotionTicketModel)
       .compile();
@@ -295,6 +328,7 @@ describe('PromotionModule (Integration)', () => {
         gameIds: [1001],
         isGiftCode: false,
         minTurnoverMultiplier: 2,
+        maxRedemptionTimes: 1,
       };
 
       // Skip validation of the response body as it's causing issues

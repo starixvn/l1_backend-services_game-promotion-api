@@ -956,19 +956,11 @@ describe('PromotionTicketService', () => {
 
   describe('markTicketAsClaimed', () => {
     it('should successfully mark ticket as claimed', async () => {
-      // Arrange
-      const mockUpdatedTicket = {
-        _id: 'ticket-id-123',
-        playerId: 'player123',
-        operatorId: 'operator456',
-        siteName: 'site1',
-        promotionId: 'promo789',
-        isClaimed: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      mockPromotionTicketModel.updateMany = jest.fn().mockResolvedValue(mockUpdatedTicket);
+      mockPromotionTicketModel.updateMany = jest.fn().mockResolvedValue({
+        modifiedCount: 1,
+        matchedCount: 1,
+        acknowledged: true,
+      });
 
       const expectedResult: UpdatePromotionTicketResponse = {
         success: true,
@@ -1023,7 +1015,11 @@ describe('PromotionTicketService', () => {
 
     it('should return failure response when ticket is not found', async () => {
       // Arrange
-      mockPromotionTicketModel.updateMany = jest.fn().mockResolvedValue(null);
+      mockPromotionTicketModel.updateMany = jest.fn().mockResolvedValue({
+        modifiedCount: 0,
+        matchedCount: 0,
+        acknowledged: true,
+      });
 
       const expectedResult: UpdatePromotionTicketResponse = {
         success: false,

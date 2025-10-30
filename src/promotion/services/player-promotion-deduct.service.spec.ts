@@ -3,6 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { PlayerPromotionService } from './player-promotion.service';
 import { PlayerPromotion, PlayerPromotionDocument } from '../schemas/player-promotion.schema';
+import { PlayerFinishedPromotion } from '../schemas/player-finished-promotion.schema';
 import { Promotion } from '../schemas/promotion.schema';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { DeductBonusItemResponse } from '../responses/deduct-bonus-item.response';
@@ -41,12 +42,28 @@ describe('PlayerPromotionService - deductBonusItem', () => {
       findById: jest.fn(),
     };
 
+    const mockPlayerFinishedPromotionModelValue = {
+      findOne: jest.fn().mockReturnThis(),
+      find: jest.fn().mockReturnThis(),
+      findById: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockReturnThis(),
+      exec: jest.fn(),
+      create: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+      sort: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PlayerPromotionService,
         {
           provide: getModelToken(PlayerPromotion.name),
           useValue: mockPlayerPromotionModelValue,
+        },
+        {
+          provide: getModelToken(PlayerFinishedPromotion.name),
+          useValue: mockPlayerFinishedPromotionModelValue,
         },
         {
           provide: getModelToken(Promotion.name),

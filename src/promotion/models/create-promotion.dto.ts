@@ -184,5 +184,8 @@ export class CreatePromotionDto {
   @ApiProperty({
     description: 'Maximum number of times a promotion can be redeemed',
   })
+  @IsNumber()
+  @Type(() => Number)
+  @IsNotEmpty()
   maxRedemptionTimes: number;
 }

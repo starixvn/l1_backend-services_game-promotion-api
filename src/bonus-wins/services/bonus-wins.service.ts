@@ -459,7 +459,6 @@ export class BonusWinsService {
         totalTurnover: playerFinishedPromotion.totalTurnover,
         minRequiredTurnover: playerFinishedPromotion.minRequiredTurnover,
         totalWinAmount: playerFinishedPromotion.totalWinAmount,
-        errorCode: PLAYER_PROMOTION_ERROR_CODES.BONUS_WIN_CLAIM_SUCCESS.code,
       };
     } catch (error) {
       this.loggerService.error('Error in claimBonusWins', error.stack, {
@@ -491,7 +490,7 @@ export class BonusWinsService {
     playerFinishedPromotion?: PlayerFinishedPromotionDocument;
   }> {
     try {
-      const maxRedemptionCount = await this.getMaxRedemptionCount(
+      const maxRedemptionCount = await this.playerPromotionService.getPromotionRedeemedCount(
         playerId,
         operatorId,
         siteName,
@@ -747,34 +746,5 @@ export class BonusWinsService {
       totalWinAmount: 0,
       errorCode: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
     };
-  }
-
-  /**
-   * Get maximum redemption count for a specific player promotion
-   * @param playerId Player ID
-   * @param operatorId Operator ID
-   * @param siteName Site name
-   * @param promotionId Promotion ID
-   * @returns Maximum redemption count
-   */
-  async getMaxRedemptionCount(
-    playerId: string,
-    operatorId: string,
-    siteName: string,
-    promotionId: string,
-  ): Promise<number> {
-    const result = await this.playerFinishedPromotionModel
-      .findOne({
-        playerId,
-        operatorId,
-        siteName: { $regex: new RegExp(`^${siteName}$`, 'i') },
-        promotionId,
-      })
-      .sort({ redemptionCount: -1 })
-      .select('redemptionCount')
-      .lean()
-      .exec();
-
-    return result?.redemptionCount ?? 0;
   }
 }
