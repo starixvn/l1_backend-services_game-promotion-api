@@ -843,6 +843,7 @@ describe('BonusWinsService', () => {
       const mockPlayerId = 'player123';
       const mockOperatorId = 'op123';
       const mockSiteId = 'site123';
+      const mockSiteName = 'siteName123';
       const mockCurrency = 'USD';
       const mockAdminUserId = 'admin123';
       const mockGameTypeId = 9999;
@@ -881,6 +882,7 @@ describe('BonusWinsService', () => {
           mockPlayerId,
           mockOperatorId,
           mockSiteId,
+          mockSiteName,
           mockCurrency,
           mockAdminUserId,
           mockGameTypeId,
@@ -890,7 +892,7 @@ describe('BonusWinsService', () => {
         expect((service as any).claimBonusWins).toHaveBeenCalledWith(
           mockPlayerId,
           mockOperatorId,
-          mockSiteId,
+          mockSiteName,
           mockPromotionId,
         );
 
@@ -914,6 +916,7 @@ describe('BonusWinsService', () => {
             playerId: mockPlayerId,
             operatorId: mockOperatorId,
             siteId: mockSiteId,
+            siteName: mockSiteName,
             promotionId: mockPromotionId,
             currency: mockCurrency,
             claimedAmount: mockClaimResult.claimedAmount,
@@ -929,6 +932,7 @@ describe('BonusWinsService', () => {
           playerId: mockPlayerId,
           operatorId: mockOperatorId,
           siteId: mockSiteId,
+          siteName: mockSiteName,
           promotionId: mockPromotionId,
           currency: mockCurrency,
           claimedAmount: mockClaimResult.claimedAmount,
@@ -951,6 +955,7 @@ describe('BonusWinsService', () => {
           mockPlayerId,
           mockOperatorId,
           mockSiteId,
+          mockSiteName,
           mockCurrency,
           mockAdminUserId,
           mockGameTypeId,
@@ -981,6 +986,7 @@ describe('BonusWinsService', () => {
           mockPlayerId,
           mockOperatorId,
           mockSiteId,
+          mockSiteName,
           mockCurrency,
           mockAdminUserId,
           mockGameTypeId,
@@ -1004,6 +1010,7 @@ describe('BonusWinsService', () => {
           mockPlayerId,
           mockOperatorId,
           mockSiteId,
+          mockSiteName,
           mockCurrency,
           mockAdminUserId,
           mockGameTypeId,

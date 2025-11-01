@@ -569,6 +569,7 @@ export class BonusWinsService {
     playerId: string,
     operatorId: string,
     siteId: string,
+    siteName: string,
     currency: string,
     adminUserId: string,
     gameTypeId: number,
@@ -577,7 +578,7 @@ export class BonusWinsService {
 
     try {
       // First, perform the standard claim bonus wins logic
-      const claimResult = await this.claimBonusWins(playerId, operatorId, siteId, promotionId);
+      const claimResult = await this.claimBonusWins(playerId, operatorId, siteName, promotionId);
 
       if (claimResult.errorCode) {
         // Claim failed, return error response
@@ -616,6 +617,7 @@ export class BonusWinsService {
         playerId,
         operatorId,
         siteId,
+        siteName,
         promotionId,
         currency,
         claimedAmount,

@@ -97,6 +97,7 @@ export class BonusWinsController {
       manualClaimDto.playerId,
       manualClaimDto.operatorId,
       manualClaimDto.siteId,
+      manualClaimDto.siteName,
       manualClaimDto.currency,
       manualClaimDto.adminUserId,
       manualClaimDto.gameTypeId,
