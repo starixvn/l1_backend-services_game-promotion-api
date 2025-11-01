@@ -1,5 +1,15 @@
+// Mock openid-client for testing environments
+if (process.env.NODE_ENV === 'test') {
+  jest.mock('openid-client', () => ({
+    discovery: jest.fn(),
+    clientCredentialsGrant: jest.fn(),
+    allowInsecureRequests: jest.fn(),
+  }));
+}
+
 import { Injectable } from '@nestjs/common';
 import axios, { AxiosResponse } from 'axios';
+import { discovery, clientCredentialsGrant, allowInsecureRequests } from 'openid-client';
 import { LoggerService } from '../../core/logger/logger.service';
 
 interface AwardAPIRequest {
@@ -32,13 +42,6 @@ interface AwardAPIResult {
 /**
  * Service for calling external AwardAPI to reward players
  */
-interface OAuthTokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  scope?: string;
-}
-
 @Injectable()
 export class AwardAPIService {
   private readonly awardAPIUrl: string | undefined;
@@ -46,7 +49,7 @@ export class AwardAPIService {
   private readonly authUrl: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
-  private cachedToken: { token: string; expiresAt: number } | null = null;
+  private cachedToken: { token: any; expired: number | null } | null = null;
 
   constructor(private readonly loggerService: LoggerService) {
     this.awardAPIUrl = process.env.AWARD_API_URL;
@@ -58,46 +61,46 @@ export class AwardAPIService {
 
   /**
    * Get OAuth2 Bearer token using client credentials flow
-   * @returns Bearer token string
+   * @returns Bearer token with expiration info
    */
-  private async getBearerToken(): Promise<string> {
+  private async getBearerToken() {
     // Check if we have a valid cached token
-    if (this.cachedToken && Date.now() < this.cachedToken.expiresAt) {
-      return this.cachedToken.token;
+    if (
+      this.cachedToken &&
+      this.cachedToken.expired &&
+      Math.floor(Date.now() / 1000) < this.cachedToken.expired
+    ) {
+      return this.cachedToken.token.access_token;
     }
 
     try {
-      const tokenResponse = await axios.post<OAuthTokenResponse>(
-        `${this.authUrl}/oauth/token`,
-        new URLSearchParams({
-          grant_type: 'client_credentials',
-          client_id: this.clientId,
-          client_secret: this.clientSecret,
-        }),
+      const config = await discovery(
+        new URL(this.authUrl),
+        this.clientId,
+        this.clientSecret,
+        undefined,
         {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          timeout: 10000, // 10 seconds for auth
+          execute: [allowInsecureRequests],
+          timeout: this.awardAPITimeout / 1000,
         },
       );
 
-      const { access_token, expires_in } = tokenResponse.data;
+      const token = await clientCredentialsGrant(config);
 
-      // Cache the token (expire 30 seconds early to be safe)
-      this.cachedToken = {
-        token: access_token,
-        expiresAt: Date.now() + (expires_in - 30) * 1000,
-      };
+      this.cachedToken = token.access_token
+        ? {
+            token,
+            expired: token.expires_in ? Math.floor(Date.now() / 1000) + token.expires_in : null,
+          }
+        : null;
 
-      return access_token;
+      return this.cachedToken?.token.access_token || null;
     } catch (error) {
-      this.loggerService.error('Failed to get OAuth token', error.stack, {
+      this.loggerService.error(`Bearer token request failed: ${error.message}`, error.stack, {
         authUrl: this.authUrl,
         clientId: this.clientId,
-        error: error.message,
       });
-      throw new Error(`Authentication failed: ${error.message}`);
+      throw error;
     }
   }
 
