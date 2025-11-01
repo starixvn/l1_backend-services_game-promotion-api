@@ -15,6 +15,7 @@ import {
   PromotionTicketDocument,
 } from '../../promotion-ticket/schemas/promotion-ticket.schema';
 import { BonusWinsService } from './bonus-wins.service';
+import { AwardAPIService } from './award-api.service';
 
 describe('BonusWinsService', () => {
   let service: BonusWinsService;
@@ -23,6 +24,7 @@ describe('BonusWinsService', () => {
   let promotionTicketModel: jest.Mocked<Model<PromotionTicketDocument>>;
   let playerPromotionService: jest.Mocked<PlayerPromotionService>;
   let promotionTicketService: jest.Mocked<PromotionTicketService>;
+  let awardAPIService: jest.Mocked<AwardAPIService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -49,11 +51,18 @@ describe('BonusWinsService', () => {
           },
         },
         {
+          provide: AwardAPIService,
+          useValue: {
+            awardPlayer: jest.fn(),
+          },
+        },
+        {
           provide: LoggerService,
           useValue: {
             error: jest.fn(),
             log: jest.fn(),
             warn: jest.fn(),
+            captureMessage: jest.fn(),
           },
         },
         {
@@ -77,6 +86,7 @@ describe('BonusWinsService', () => {
     promotionTicketModel = module.get(getModelToken(PromotionTicket.name));
     playerPromotionService = module.get(PlayerPromotionService);
     promotionTicketService = module.get(PromotionTicketService);
+    awardAPIService = module.get(AwardAPIService);
   });
 
   describe('getTOProgress', () => {
@@ -825,6 +835,191 @@ describe('BonusWinsService', () => {
         expect(result.remainingTO).toBeGreaterThan(0);
         expect(result.remainingTO).toBeLessThan(0.01);
         expect(result.canClaim).toBe(false);
+      });
+    });
+
+    describe('manualClaimBonusWins', () => {
+      const mockPromotionId = 'promo123';
+      const mockPlayerId = 'player123';
+      const mockOperatorId = 'op123';
+      const mockSiteId = 'site123';
+      const mockCurrency = 'USD';
+      const mockAdminUserId = 'admin123';
+      const mockGameTypeId = 9999;
+
+      const mockClaimResult = {
+        claimedAmount: 25.99,
+        totalTurnover: 100.0,
+        minRequiredTurnover: 100.0,
+        totalWinAmount: 25.99,
+      };
+
+      const mockAwardResult = {
+        success: true,
+        message: 'Award processed successfully',
+        transactionId: 'TXN123456',
+        errorCode: 0,
+      };
+
+      beforeEach(() => {
+        // Reset mocks
+        jest.clearAllMocks();
+
+        // Mock successful claim
+        (service as any).claimBonusWins = jest.fn().mockResolvedValue(mockClaimResult);
+
+        // Mock successful award
+        awardAPIService.awardPlayer.mockResolvedValue(mockAwardResult);
+
+        // Mock logger
+        (service as any).loggerService.captureMessage = jest.fn();
+      });
+
+      it('should successfully process manual claim with AwardAPI call', async () => {
+        const result = await service.manualClaimBonusWins(
+          mockPromotionId,
+          mockPlayerId,
+          mockOperatorId,
+          mockSiteId,
+          mockCurrency,
+          mockAdminUserId,
+          mockGameTypeId,
+        );
+
+        // Verify claim was called
+        expect((service as any).claimBonusWins).toHaveBeenCalledWith(
+          mockPlayerId,
+          mockOperatorId,
+          mockSiteId,
+          mockPromotionId,
+        );
+
+        // Verify AwardAPI was called with correct parameters
+        expect(awardAPIService.awardPlayer).toHaveBeenCalledWith({
+          playerId: mockPlayerId,
+          amount: mockClaimResult.claimedAmount,
+          promotionId: mockPromotionId,
+          currency: mockCurrency,
+          siteId: mockSiteId,
+          gameTypeId: mockGameTypeId,
+        });
+
+        // Verify logging was called
+        expect((service as any).loggerService.captureMessage).toHaveBeenCalledWith(
+          'manual-claim-bonus-wins',
+          'fatal',
+          expect.objectContaining({
+            action: 'manual-claim-bonus-wins',
+            adminUserId: mockAdminUserId,
+            playerId: mockPlayerId,
+            operatorId: mockOperatorId,
+            siteId: mockSiteId,
+            promotionId: mockPromotionId,
+            currency: mockCurrency,
+            claimedAmount: mockClaimResult.claimedAmount,
+            awardAPISuccess: mockAwardResult.success,
+            awardAPITransactionId: mockAwardResult.transactionId,
+          }),
+        );
+
+        // Verify response structure
+        expect(result).toEqual({
+          success: true,
+          adminUserId: mockAdminUserId,
+          playerId: mockPlayerId,
+          operatorId: mockOperatorId,
+          siteId: mockSiteId,
+          promotionId: mockPromotionId,
+          currency: mockCurrency,
+          claimedAmount: mockClaimResult.claimedAmount,
+          totalTurnover: mockClaimResult.totalTurnover,
+          minRequiredTurnover: mockClaimResult.minRequiredTurnover,
+          totalWinAmount: mockClaimResult.totalWinAmount,
+          processedAt: expect.any(String),
+          awardAPIResult: mockAwardResult,
+          errorCode: 'SB3031', // MANUAL_CLAIM_SUCCESS
+          errorMessage: undefined,
+        });
+      });
+
+      it('should return error when claim fails and not call AwardAPI', async () => {
+        const claimError = { errorCode: 'SB3005', errorMessage: 'TO requirement not met' };
+        (service as any).claimBonusWins = jest.fn().mockResolvedValue(claimError);
+
+        const result = await service.manualClaimBonusWins(
+          mockPromotionId,
+          mockPlayerId,
+          mockOperatorId,
+          mockSiteId,
+          mockCurrency,
+          mockAdminUserId,
+          mockGameTypeId,
+        );
+
+        // Verify claim was called but AwardAPI was not
+        expect((service as any).claimBonusWins).toHaveBeenCalled();
+        expect(awardAPIService.awardPlayer).not.toHaveBeenCalled();
+        expect((service as any).loggerService.captureMessage).not.toHaveBeenCalled();
+
+        // Verify error response
+        expect(result.success).toBe(false);
+        expect(result.errorCode).toBe(claimError.errorCode);
+        expect(result.errorMessage).toBe(claimError.errorMessage);
+      });
+
+      it('should handle AwardAPI failure with proper error code', async () => {
+        const failedAwardResult = {
+          success: false,
+          message: 'AwardAPI error',
+          transactionId: undefined,
+          errorCode: 1001,
+        };
+        awardAPIService.awardPlayer.mockResolvedValue(failedAwardResult);
+
+        const result = await service.manualClaimBonusWins(
+          mockPromotionId,
+          mockPlayerId,
+          mockOperatorId,
+          mockSiteId,
+          mockCurrency,
+          mockAdminUserId,
+          mockGameTypeId,
+        );
+
+        // Verify response indicates AwardAPI failure
+        expect(result.success).toBe(false);
+        expect(result.errorCode).toBe('SB3033'); // MANUAL_CLAIM_AWARD_API_FAILED
+        expect(result.errorMessage).toBe('AwardAPI error');
+      });
+
+      it('should handle unexpected errors with proper error handling', async () => {
+        const error = new Error('Unexpected error');
+        (service as any).claimBonusWins = jest.fn().mockRejectedValue(error);
+
+        // Mock error logging
+        (service as any).loggerService.error = jest.fn();
+
+        const result = await service.manualClaimBonusWins(
+          mockPromotionId,
+          mockPlayerId,
+          mockOperatorId,
+          mockSiteId,
+          mockCurrency,
+          mockAdminUserId,
+          mockGameTypeId,
+        );
+
+        // Verify error logging
+        expect((service as any).loggerService.error).toHaveBeenCalledWith(
+          'Error in manualClaimBonusWins',
+          error.stack,
+          expect.any(Object),
+        );
+
+        // Verify error response
+        expect(result.success).toBe(false);
+        expect(result.errorCode).toBe('SB3032'); // MANUAL_CLAIM_FAILED
+        expect(result.errorMessage).toContain('Unexpected error');
       });
     });
   });

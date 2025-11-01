@@ -9,6 +9,8 @@ import { CalculateTORequirementResponse } from '../../promotion/responses/calcul
 import { ClaimBonusWinsResponse } from '../../promotion/responses/claim-bonus-wins.response';
 import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
 import { UpdateTotalWinResponse } from '../../promotion/responses/update-total-win.response';
+import { ManualClaimBonusWinsResponse } from '../../promotion/responses/manual-claim-bonus-wins.response';
+import { AwardAPIService } from './award-api.service';
 import {
   PlayerPromotion,
   PlayerPromotionDocument,
@@ -31,6 +33,7 @@ export class BonusWinsService {
     private readonly playerPromotionService: PlayerPromotionService,
     @Inject(forwardRef(() => PromotionTicketService))
     private readonly promotionTicketService: PromotionTicketService,
+    private readonly awardAPIService: AwardAPIService,
   ) {}
 
   /**
@@ -548,6 +551,125 @@ export class BonusWinsService {
     totalWinAmount: number,
   ): boolean {
     return minRequiredTurnover > 0 && totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
+  }
+
+  /**
+   * Manually claim bonus wins for a player (admin-triggered)
+   * This method performs the standard claim process and then calls AwardAPI to reward the player
+   * @param promotionId Promotion ID
+   * @param playerId Player ID
+   * @param operatorId Operator ID
+   * @param siteId Site ID
+   * @param currency Currency code
+   * @param adminUserId Admin user performing the manual claim
+   * @returns Manual claim bonus wins response
+   */
+  async manualClaimBonusWins(
+    promotionId: string,
+    playerId: string,
+    operatorId: string,
+    siteId: string,
+    currency: string,
+    adminUserId: string,
+    gameTypeId: number,
+  ): Promise<ManualClaimBonusWinsResponse> {
+    const processedAt = new Date().toISOString();
+
+    try {
+      // First, perform the standard claim bonus wins logic
+      const claimResult = await this.claimBonusWins(playerId, operatorId, siteId, promotionId);
+
+      if (claimResult.errorCode) {
+        // Claim failed, return error response
+        return {
+          success: false,
+          claimedAmount: 0,
+          totalTurnover: 0,
+          minRequiredTurnover: 0,
+          totalWinAmount: 0,
+          currency,
+          awardAPIResult: {
+            success: false,
+            message: 'Claim failed, AwardAPI not called',
+          },
+          adminUserId,
+          processedAt,
+          errorCode: claimResult.errorCode,
+          errorMessage: claimResult.errorMessage || 'Claim bonus wins failed',
+        };
+      }
+
+      // Claim successful, now call AwardAPI to reward the player
+      const awardResult = await this.awardAPIService.awardPlayer({
+        playerId,
+        amount: claimResult.claimedAmount,
+        promotionId,
+        currency,
+        siteId,
+        gameTypeId,
+      });
+
+      const { claimedAmount, totalTurnover, minRequiredTurnover, totalWinAmount } = claimResult;
+
+      const baseData = {
+        adminUserId,
+        playerId,
+        operatorId,
+        siteId,
+        promotionId,
+        currency,
+        claimedAmount,
+        totalTurnover,
+        minRequiredTurnover,
+        totalWinAmount,
+        processedAt,
+      };
+
+      this.loggerService.captureMessage('manual-claim-bonus-wins', 'fatal', {
+        action: 'manual-claim-bonus-wins',
+        ...baseData,
+        awardAPISuccess: awardResult.success,
+        awardAPITransactionId: awardResult.transactionId,
+      });
+
+      return {
+        success: awardResult.success,
+        ...baseData,
+        awardAPIResult: awardResult,
+        errorCode: awardResult.success
+          ? PLAYER_PROMOTION_ERROR_CODES.MANUAL_CLAIM_SUCCESS.code
+          : PLAYER_PROMOTION_ERROR_CODES.MANUAL_CLAIM_AWARD_API_FAILED.code,
+        errorMessage: awardResult.success ? undefined : awardResult.message,
+      };
+    } catch (error) {
+      this.loggerService.error('Error in manualClaimBonusWins', error.stack, {
+        promotionId,
+        playerId,
+        operatorId,
+        siteId,
+        currency,
+        adminUserId,
+        processedAt,
+        error: error.message,
+      });
+
+      return {
+        success: false,
+        claimedAmount: 0,
+        totalTurnover: 0,
+        minRequiredTurnover: 0,
+        totalWinAmount: 0,
+        currency,
+        awardAPIResult: {
+          success: false,
+          message: `Unexpected error: ${error.message}`,
+        },
+        adminUserId,
+        processedAt,
+        errorCode: PLAYER_PROMOTION_ERROR_CODES.MANUAL_CLAIM_FAILED.code,
+        errorMessage: `Manual claim failed: ${error.message}`,
+      };
+    }
   }
 
   /**

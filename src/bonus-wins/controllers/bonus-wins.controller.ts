@@ -77,4 +77,41 @@ export class BonusWinsController {
   ): Promise<Responses.GetTOProgressResponse> {
     return this.bonusWinsService.completePromotion(completeDto);
   }
+
+  @Post('manual-claim-bonus-wins')
+  @ApiOperation({
+    summary: 'Manually claim bonus wins and award player (Admin Only)',
+    description:
+      'Admin-triggered bonus claim that performs claim logic and calls AwardAPI to reward player. Includes full audit logging.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Manual claim result with AwardAPI response',
+    type: Responses.ManualClaimBonusWinsResponse,
+  })
+  async manualClaimBonusWins(
+    @Body() manualClaimDto: Models.ManualClaimBonusWinsDto,
+  ): Promise<Responses.ManualClaimBonusWinsResponse> {
+    const result = await this.bonusWinsService.manualClaimBonusWins(
+      manualClaimDto.promotionId,
+      manualClaimDto.playerId,
+      manualClaimDto.operatorId,
+      manualClaimDto.siteId,
+      manualClaimDto.currency,
+      manualClaimDto.adminUserId,
+      manualClaimDto.gameTypeId,
+    );
+
+    if (result.success) {
+      await this.bonusWinsService.completePromotion({
+        operatorId: manualClaimDto.operatorId,
+        siteName: manualClaimDto.siteName,
+        playerId: manualClaimDto.playerId,
+        promotionId: manualClaimDto.promotionId,
+        currencyGroup: manualClaimDto.currencyGroup,
+      });
+    }
+
+    return result;
+  }
 }

@@ -7,6 +7,7 @@ import {
 import { Promotion, PromotionSchema } from '../promotion/schemas/promotion.schema';
 import { BonusWinsController } from './controllers/bonus-wins.controller';
 import { BonusWinsService } from './services/bonus-wins.service';
+import { AwardAPIService } from './services/award-api.service';
 import { CoreModule } from '../core/core.module';
 import { PromotionModule } from '../promotion/promotion.module';
 import { PromotionTicketModule } from '../promotion-ticket/promotion-ticket.module';
@@ -22,7 +23,7 @@ import { PromotionTicketModule } from '../promotion-ticket/promotion-ticket.modu
     forwardRef(() => PromotionTicketModule),
   ],
   controllers: [BonusWinsController],
-  providers: [BonusWinsService],
+  providers: [BonusWinsService, AwardAPIService],
   exports: [BonusWinsService],
 })
 export class BonusWinsModule {}

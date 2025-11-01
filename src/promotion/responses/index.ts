@@ -2,6 +2,7 @@ export * from './assignment-response';
 export * from './calculate-to-requirement.response';
 export * from './claim-bonus-wins.response';
 export * from './deduct-bonus-item.response';
+export * from './manual-claim-bonus-wins.response';
 export * from './eligible-promotion.response';
 export * from './get-to-progress.response';
 export * from './index';

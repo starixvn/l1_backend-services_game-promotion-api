@@ -109,6 +109,22 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
   PROMOTION_CANCELLED: {
     code: 'SB3030',
   },
+  // Manual Claim Bonus Wins - Specific Error Codes (SB3031-SB3035)
+  MANUAL_CLAIM_SUCCESS: {
+    code: 'SB3031',
+  },
+  MANUAL_CLAIM_FAILED: {
+    code: 'SB3032',
+  },
+  MANUAL_CLAIM_AWARD_API_FAILED: {
+    code: 'SB3033',
+  },
+  MANUAL_CLAIM_INVALID_CURRENCY: {
+    code: 'SB3034',
+  },
+  MANUAL_CLAIM_ALREADY_CLAIMED: {
+    code: 'SB3035',
+  },
 } as const;
 
 // Promotion Error Codes (PR31XX) - Ready for future use
