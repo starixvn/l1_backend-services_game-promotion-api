@@ -45,7 +45,7 @@ export class AwardAPIService {
   constructor(private readonly loggerService: LoggerService) {
     this.awardAPIUrl = process.env.AWARD_API_URL;
     this.awardAPITimeout = parseInt(process.env.AWARD_API_TIMEOUT || '30000');
-    this.authUrl = process.env.AWARD_AUTH_URL || 'http://l2-auth-api-local2-service:5000';
+    this.authUrl = process.env.AWARD_AUTH_URL || 'https://l2-auth.lumigame.com/';
     this.clientId = process.env.AWARD_CLIENT_ID || 'game-server';
     // Note: Client secret can contain special characters like @ or &
     // When setting in .env file or environment, ensure it's properly quoted if needed:
@@ -232,7 +232,6 @@ export class AwardAPIService {
         {
           timeout: this.awardAPITimeout,
           headers: {
-            'Content-Type': 'application/json',
             Authorization: `Bearer ${bearerToken}`,
           },
         },
