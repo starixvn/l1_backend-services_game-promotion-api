@@ -904,6 +904,7 @@ describe('BonusWinsService', () => {
           currency: mockCurrency,
           siteId: mockSiteId,
           gameTypeId: mockGameTypeId,
+          operatorId: mockOperatorId,
         });
 
         // Verify logging was called
@@ -925,23 +926,11 @@ describe('BonusWinsService', () => {
           }),
         );
 
-        // Verify response structure
+        // Verify response structure (simplified - only success, claimedAmount, errorCode, errorMessage)
         expect(result).toEqual({
           success: true,
-          adminUserId: mockAdminUserId,
-          playerId: mockPlayerId,
-          operatorId: mockOperatorId,
-          siteId: mockSiteId,
-          siteName: mockSiteName,
-          promotionId: mockPromotionId,
-          currency: mockCurrency,
           claimedAmount: mockClaimResult.claimedAmount,
-          totalTurnover: mockClaimResult.totalTurnover,
-          minRequiredTurnover: mockClaimResult.minRequiredTurnover,
-          totalWinAmount: mockClaimResult.totalWinAmount,
-          processedAt: expect.any(String),
-          awardAPIResult: mockAwardResult,
-          errorCode: 'SB3031', // MANUAL_CLAIM_SUCCESS
+          errorCode: undefined,
           errorMessage: undefined,
         });
       });
@@ -966,10 +955,13 @@ describe('BonusWinsService', () => {
         expect(awardAPIService.awardPlayer).not.toHaveBeenCalled();
         expect((service as any).loggerService.captureMessage).not.toHaveBeenCalled();
 
-        // Verify error response
-        expect(result.success).toBe(false);
-        expect(result.errorCode).toBe(claimError.errorCode);
-        expect(result.errorMessage).toBe(claimError.errorMessage);
+        // Verify error response (simplified response)
+        expect(result).toEqual({
+          success: false,
+          claimedAmount: 0,
+          errorCode: claimError.errorCode,
+          errorMessage: claimError.errorMessage,
+        });
       });
 
       it('should handle AwardAPI failure with proper error code', async () => {
@@ -992,10 +984,14 @@ describe('BonusWinsService', () => {
           mockGameTypeId,
         );
 
-        // Verify response indicates AwardAPI failure
-        expect(result.success).toBe(false);
-        expect(result.errorCode).toBe('SB3033'); // MANUAL_CLAIM_AWARD_API_FAILED
-        expect(result.errorMessage).toBe('AwardAPI error');
+        // Verify response indicates AwardAPI failure (simplified response)
+        // Claim succeeded but AwardAPI failed, so claimedAmount is from claimResult
+        expect(result).toEqual({
+          success: false,
+          claimedAmount: mockClaimResult.claimedAmount,
+          errorCode: 'SB3033', // MANUAL_CLAIM_AWARD_API_FAILED
+          errorMessage: 'AwardAPI error',
+        });
       });
 
       it('should handle unexpected errors with proper error handling', async () => {
@@ -1023,10 +1019,13 @@ describe('BonusWinsService', () => {
           expect.any(Object),
         );
 
-        // Verify error response
-        expect(result.success).toBe(false);
-        expect(result.errorCode).toBe('SB3032'); // MANUAL_CLAIM_FAILED
-        expect(result.errorMessage).toContain('Unexpected error');
+        // Verify error response (simplified response)
+        expect(result).toEqual({
+          success: false,
+          claimedAmount: 0,
+          errorCode: 'SB3032', // MANUAL_CLAIM_FAILED
+          errorMessage: expect.stringContaining('Unexpected error'),
+        });
       });
     });
   });

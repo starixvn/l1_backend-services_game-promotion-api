@@ -577,30 +577,17 @@ export class BonusWinsService {
     const processedAt = new Date().toISOString();
 
     try {
-      // First, perform the standard claim bonus wins logic
       const claimResult = await this.claimBonusWins(playerId, operatorId, siteName, promotionId);
 
       if (claimResult.errorCode) {
-        // Claim failed, return error response
         return {
           success: false,
           claimedAmount: 0,
-          totalTurnover: 0,
-          minRequiredTurnover: 0,
-          totalWinAmount: 0,
-          currency,
-          awardAPIResult: {
-            success: false,
-            message: 'Claim failed, AwardAPI not called',
-          },
-          adminUserId,
-          processedAt,
           errorCode: claimResult.errorCode,
           errorMessage: claimResult.errorMessage || 'Claim bonus wins failed',
         };
       }
 
-      // Claim successful, now call AwardAPI to reward the player
       const awardResult = await this.awardAPIService.awardPlayer({
         playerId,
         amount: claimResult.claimedAmount,
@@ -608,11 +595,13 @@ export class BonusWinsService {
         currency,
         siteId,
         gameTypeId,
+        operatorId,
       });
 
-      const { claimedAmount, totalTurnover, minRequiredTurnover, totalWinAmount } = claimResult;
+      const { claimedAmount } = claimResult;
 
-      const baseData = {
+      this.loggerService.captureMessage('manual-claim-bonus-wins', 'fatal', {
+        action: 'manual-claim-bonus-wins',
         adminUserId,
         playerId,
         operatorId,
@@ -621,25 +610,15 @@ export class BonusWinsService {
         promotionId,
         currency,
         claimedAmount,
-        totalTurnover,
-        minRequiredTurnover,
-        totalWinAmount,
-        processedAt,
-      };
-
-      this.loggerService.captureMessage('manual-claim-bonus-wins', 'fatal', {
-        action: 'manual-claim-bonus-wins',
-        ...baseData,
         awardAPISuccess: awardResult.success,
         awardAPITransactionId: awardResult.transactionId,
       });
 
       return {
         success: awardResult.success,
-        ...baseData,
-        awardAPIResult: awardResult,
+        claimedAmount,
         errorCode: awardResult.success
-          ? PLAYER_PROMOTION_ERROR_CODES.MANUAL_CLAIM_SUCCESS.code
+          ? undefined
           : PLAYER_PROMOTION_ERROR_CODES.MANUAL_CLAIM_AWARD_API_FAILED.code,
         errorMessage: awardResult.success ? undefined : awardResult.message,
       };
@@ -658,16 +637,6 @@ export class BonusWinsService {
       return {
         success: false,
         claimedAmount: 0,
-        totalTurnover: 0,
-        minRequiredTurnover: 0,
-        totalWinAmount: 0,
-        currency,
-        awardAPIResult: {
-          success: false,
-          message: `Unexpected error: ${error.message}`,
-        },
-        adminUserId,
-        processedAt,
         errorCode: PLAYER_PROMOTION_ERROR_CODES.MANUAL_CLAIM_FAILED.code,
         errorMessage: `Manual claim failed: ${error.message}`,
       };
