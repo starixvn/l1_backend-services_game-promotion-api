@@ -234,7 +234,6 @@ export class AwardAPIService {
         {
           timeout: this.awardAPITimeout,
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
             Authorization: `Bearer ${bearerToken}`,
           },
         },
