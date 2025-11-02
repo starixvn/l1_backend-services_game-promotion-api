@@ -75,14 +75,13 @@ export class AwardAPIService {
       amount: Number(amount.toFixed(4)),
       promotionId,
       currency,
-      awardType: awardType ?? 1, // Default to 1 if not provided
+      awardType: awardType ?? 1,
     };
 
     try {
-      // Send JSON payload - axios automatically serializes objects to JSON
       const response: AxiosResponse<AwardAPIResponse> = await axios.post(
         this.awardAPIUrl,
-        awardRequest, // JSON object - axios will serialize automatically
+        awardRequest,
         {
           timeout: this.awardAPITimeout,
           headers: this.httpHeaders,
@@ -90,19 +89,15 @@ export class AwardAPIService {
       );
 
       const awardAPIResponse = response.data;
-      // Status 200 and errorCode 0 mean successful
       const isSuccess = response.status === 200 && awardAPIResponse.result.errorCode === 0;
-      const awardResult: AwardAPIResult = {
-        success: isSuccess,
-        message:
-          awardAPIResponse.result.errorDescription ||
-          awardAPIResponse.result.errorMessage ||
-          undefined,
-        transactionId: awardAPIResponse.result.seq,
-        errorCode: awardAPIResponse.result.errorCode,
-      };
 
-      return awardResult;
+      const { errorDescription, errorCode } = awardAPIResponse.result;
+
+      return {
+        success: isSuccess,
+        message: errorDescription || undefined,
+        errorCode: errorCode,
+      } as AwardAPIResult;
     } catch (error) {
       this.loggerService.error('AwardAPI call failed', error.stack, {
         url: this.awardAPIUrl,

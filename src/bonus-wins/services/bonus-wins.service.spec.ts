@@ -916,13 +916,13 @@ describe('BonusWinsService', () => {
             adminUserId: mockAdminUserId,
             playerId: mockPlayerId,
             operatorId: mockOperatorId,
-            siteId: mockSiteId,
             siteName: mockSiteName,
             promotionId: mockPromotionId,
             currency: mockCurrency,
             claimedAmount: mockClaimResult.claimedAmount,
+            gameTypeId: mockGameTypeId,
             awardAPISuccess: mockAwardResult.success,
-            awardAPITransactionId: mockAwardResult.transactionId,
+            awardAPIErrorCode: mockAwardResult.errorCode,
           }),
         );
 

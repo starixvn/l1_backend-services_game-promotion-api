@@ -574,8 +574,6 @@ export class BonusWinsService {
     adminUserId: string,
     gameTypeId: number,
   ): Promise<ManualClaimBonusWinsResponse> {
-    const processedAt = new Date().toISOString();
-
     try {
       const claimResult = await this.claimBonusWins(playerId, operatorId, siteName, promotionId);
 
@@ -605,13 +603,13 @@ export class BonusWinsService {
         adminUserId,
         playerId,
         operatorId,
-        siteId,
         siteName,
         promotionId,
         currency,
         claimedAmount,
+        gameTypeId,
         awardAPISuccess: awardResult.success,
-        awardAPITransactionId: awardResult.transactionId,
+        awardAPIErrorCode: awardResult.errorCode,
       });
 
       return {
@@ -630,7 +628,6 @@ export class BonusWinsService {
         siteId,
         currency,
         adminUserId,
-        processedAt,
         error: error.message,
       });
 
