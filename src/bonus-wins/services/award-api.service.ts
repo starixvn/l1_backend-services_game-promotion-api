@@ -180,13 +180,50 @@ export class AwardAPIService {
       SiteId: requestData.siteId,
     };
 
+    let bearerToken: string | null = null;
     try {
       // Get Bearer token for authentication
-      const bearerToken = await this.getBearerToken();
+      bearerToken = await this.getBearerToken();
+
+      // Log bearer token information for debugging (without exposing full token)
+      const bearerTokenInfo = bearerToken
+        ? {
+            tokenLength: bearerToken.length,
+            tokenStartsWith: bearerToken.substring(0, 10),
+            tokenEndsWith: bearerToken.substring(Math.max(0, bearerToken.length - 10)),
+            isNull: false,
+            isEmpty: bearerToken.trim().length === 0,
+          }
+        : {
+            isNull: true,
+            isEmpty: true,
+            error: 'Bearer token is null or undefined',
+          };
+
+      this.loggerService.log('Bearer token retrieved for AwardAPI call', false, {
+        ...bearerTokenInfo,
+        authUrl: this.authUrl,
+        clientId: this.clientId,
+      });
+
+      // Validate bearer token before making the request
+      if (!bearerToken || bearerToken.trim().length === 0) {
+        const error = new Error('Bearer token is missing or empty');
+        this.loggerService.error('Cannot call AwardAPI without valid bearer token', error.stack, {
+          request: awardRequest,
+          bearerTokenInfo,
+        });
+        return {
+          success: false,
+          message: 'Authentication failed: Bearer token is missing or empty',
+        };
+      }
 
       this.loggerService.captureMessage('Calling AwardAPI', 'fatal', {
         url: this.awardAPIUrl,
         request: awardRequest,
+        bearerTokenLength: bearerToken.length,
+        bearerTokenPreview: `${bearerToken.substring(0, 10)}...${bearerToken.substring(bearerToken.length - 10)}`,
       });
 
       const response: AxiosResponse<AwardAPIResponse> = await axios.post(
@@ -196,7 +233,7 @@ export class AwardAPIService {
           timeout: this.awardAPITimeout,
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `bearer ${bearerToken}`,
+            Authorization: `Bearer ${bearerToken}`,
           },
         },
       );
@@ -217,13 +254,30 @@ export class AwardAPIService {
 
       return awardResult;
     } catch (error) {
-      this.loggerService.error('AwardAPI call failed', error.stack, {
+      // Enhanced error logging for 400 errors
+      const errorDetails: any = {
         url: this.awardAPIUrl,
         request: awardRequest,
         error: error.message,
-        response: error.response?.data,
         statusCode: error.response?.status,
-      });
+        responseHeaders: error.response?.headers,
+        responseData: error.response?.data,
+      };
+
+      // Add bearer token info if available (from the try block scope)
+      if (error.response?.status === 400) {
+        errorDetails.hint =
+          '400 Bad Request - Check if bearer token is valid, request format is correct, and all required fields are present';
+        errorDetails.bearerTokenUsed = bearerToken
+          ? {
+              length: bearerToken.length,
+              startsWith: bearerToken.substring(0, 10),
+              endsWith: bearerToken.substring(Math.max(0, bearerToken.length - 10)),
+            }
+          : 'Bearer token was null or undefined';
+      }
+
+      this.loggerService.error('AwardAPI call failed', error.stack, errorDetails);
 
       return {
         success: false,
