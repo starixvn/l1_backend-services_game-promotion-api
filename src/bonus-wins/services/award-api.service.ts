@@ -1,15 +1,6 @@
-// Mock openid-client for testing environments
-if (process.env.NODE_ENV === 'test') {
-  jest.mock('openid-client', () => ({
-    discovery: jest.fn(),
-    clientCredentialsGrant: jest.fn(),
-    allowInsecureRequests: jest.fn(),
-  }));
-}
-
 import { Injectable } from '@nestjs/common';
 import axios, { AxiosResponse } from 'axios';
-import { discovery, clientCredentialsGrant, allowInsecureRequests } from 'openid-client';
+import { Issuer, custom } from 'openid-client';
 import { LoggerService } from '../../core/logger/logger.service';
 
 interface AwardAPIRequest {
@@ -74,23 +65,31 @@ export class AwardAPIService {
     }
 
     try {
-      const config = await discovery(
-        new URL(this.authUrl),
-        this.clientId,
-        this.clientSecret,
-        undefined,
-        {
-          execute: [allowInsecureRequests],
-          timeout: this.awardAPITimeout / 1000,
-        },
-      );
+      // Set HTTP options globally to allow insecure requests (for development/testing)
+      custom.setHttpOptionsDefaults({
+        timeout: this.awardAPITimeout,
+        rejectUnauthorized: false,
+      } as any);
 
-      const token = await clientCredentialsGrant(config);
+      // Discover the issuer
+      const issuer = await Issuer.discover(this.authUrl);
 
-      this.cachedToken = token.access_token
+      // Create a client with client credentials
+      const client = new issuer.Client({
+        client_id: this.clientId,
+        client_secret: this.clientSecret,
+        token_endpoint_auth_method: 'client_secret_post',
+      });
+
+      // Request token using client credentials grant
+      const tokenSet = await client.grant({
+        grant_type: 'client_credentials',
+      });
+
+      this.cachedToken = tokenSet.access_token
         ? {
-            token,
-            expired: token.expires_in ? Math.floor(Date.now() / 1000) + token.expires_in : null,
+            token: tokenSet,
+            expired: tokenSet.expires_at || null,
           }
         : null;
 

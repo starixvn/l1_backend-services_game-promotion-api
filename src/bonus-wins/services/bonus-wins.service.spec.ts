@@ -1,10 +1,3 @@
-// Mock openid-client completely - must be at the top before any imports
-jest.mock('openid-client', () => ({
-  discovery: jest.fn(),
-  clientCredentialsGrant: jest.fn(),
-  allowInsecureRequests: jest.fn(),
-}));
-
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Model } from 'mongoose';
@@ -23,7 +16,6 @@ import {
 } from '../../promotion-ticket/schemas/promotion-ticket.schema';
 import { BonusWinsService } from './bonus-wins.service';
 import { AwardAPIService } from './award-api.service';
-import { discovery, clientCredentialsGrant } from 'openid-client';
 
 describe('BonusWinsService', () => {
   let service: BonusWinsService;
@@ -882,23 +874,6 @@ describe('BonusWinsService', () => {
 
         // Mock logger
         (service as any).loggerService.captureMessage = jest.fn();
-
-        // Mock openid-client functions
-        const mockToken = {
-          access_token: 'mock-access-token',
-          token_type: 'bearer' as const,
-          expires_in: 3600,
-          claims: () => ({}),
-          expiresIn: () => 3600,
-        };
-
-        (discovery as jest.MockedFunction<typeof discovery>).mockResolvedValue({
-          token_endpoint: 'http://mock-auth/token',
-        } as any);
-
-        (
-          clientCredentialsGrant as jest.MockedFunction<typeof clientCredentialsGrant>
-        ).mockResolvedValue(mockToken as any);
       });
 
       it('should successfully process manual claim with AwardAPI call', async () => {
