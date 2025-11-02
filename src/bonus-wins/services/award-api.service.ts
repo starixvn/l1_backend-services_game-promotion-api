@@ -226,12 +226,15 @@ export class AwardAPIService {
         bearerTokenPreview: `${bearerToken.substring(0, 10)}...${bearerToken.substring(bearerToken.length - 10)}`,
       });
 
+      // Try passing object directly - axios may serialize it automatically with Content-Type header
+      // If this doesn't work (server returns error), we'll need to use querystring.stringify()
       const response: AxiosResponse<AwardAPIResponse> = await axios.post(
         this.awardAPIUrl,
-        awardRequest,
+        awardRequest, // Pass object directly - axios should serialize with Content-Type header
         {
           timeout: this.awardAPITimeout,
           headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
             Authorization: `Bearer ${bearerToken}`,
           },
         },
