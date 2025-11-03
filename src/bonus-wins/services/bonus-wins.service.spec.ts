@@ -894,6 +894,7 @@ describe('BonusWinsService', () => {
           mockOperatorId,
           mockSiteName,
           mockPromotionId,
+          true,
         );
 
         // Verify AwardAPI was called with correct parameters
