@@ -125,14 +125,13 @@ describe('AwardAPIService', () => {
 
       mockedAxios.post.mockResolvedValue(mockResponse);
 
-      const { ...requestWithoutAwardType } = mockRequestData;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { awardType, ...requestWithoutAwardType } = mockRequestData;
       const result = await service.awardPlayer(requestWithoutAwardType);
 
       expect(mockedAxios.post).toHaveBeenCalledWith(
         mockAwardAPIUrl,
-        expect.objectContaining({
-          awardType: 1,
-        }),
+        expect.objectContaining({ awardType: 1 }),
         expect.any(Object),
       );
 
