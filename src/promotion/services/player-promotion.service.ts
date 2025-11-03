@@ -23,6 +23,9 @@ interface AggregationResult {
 
 interface AggregationDocument {
   playerId: string;
+  currencyGroup: string;
+  siteId: string;
+  gameId: number;
   playerName: string;
   currency: string;
   calculatedStatus: string;
@@ -736,6 +739,9 @@ export class PlayerPromotionService {
           currency: {
             $ifNull: [{ $arrayElemAt: ['$playerInfo.currency', 0] }, ''],
           },
+          siteId: {
+            $ifNull: [{ $arrayElemAt: ['$playerInfo.siteId', 0] }, ''],
+          },
         },
       },
       ...(playerSearch
@@ -846,7 +852,10 @@ export class PlayerPromotionService {
    */
   private mapAggregationResultToResponse(doc: AggregationDocument): PlayerPromotionStateResponse {
     return {
-      id: doc.playerId,
+      playerId: doc.playerId,
+      currencyGroup: doc.currencyGroup,
+      siteId: doc.siteId,
+      gameId: doc.gameId,
       username: doc.playerName,
       status: doc.calculatedStatus,
       siteName: doc.siteName,

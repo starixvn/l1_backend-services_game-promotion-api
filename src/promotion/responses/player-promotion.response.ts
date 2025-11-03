@@ -9,12 +9,6 @@ export class PlayerPromotionResponse extends BaseApiResponse {
 
 export class PlayerPromotionStateResponse {
   @ApiProperty({
-    description: 'Player ID',
-    example: 'JohnDoe123',
-  })
-  id: string;
-
-  @ApiProperty({
     description: 'Player username',
     example: 'JohnDoe123',
   })
@@ -103,6 +97,29 @@ export class PlayerPromotionStateResponse {
     example: 100,
   })
   remainingBonusItems: number;
+
+  @ApiProperty({
+    description: 'Bet level',
+    example: 0.1,
+  })
+  playerId: string;
+  @ApiProperty({
+    description: 'Currency group',
+    example: '60d21b4667d0d01ce67a7e3c',
+  })
+  currencyGroup: string;
+
+  @ApiProperty({
+    description: 'Site ID',
+    example: 1,
+  })
+  siteId: string;
+
+  @ApiProperty({
+    description: 'Game ID',
+    example: 1,
+  })
+  gameId: number;
 }
 
 export class PlayersResponse {

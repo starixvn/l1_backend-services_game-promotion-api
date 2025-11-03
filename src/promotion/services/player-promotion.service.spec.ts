@@ -627,7 +627,10 @@ describe('PlayerPromotionService', () => {
     ];
 
     const mockPlayerStateResponse: PlayerPromotionStateResponse = {
-      id: 'player123',
+      playerId: 'player123',
+      currencyGroup: 'USD',
+      siteId: 'site123',
+      gameId: 1,
       username: 'Test Player',
       status: 'Active',
       siteName: 'Site 1',
@@ -828,7 +831,10 @@ describe('PlayerPromotionService', () => {
     };
 
     const mockPlayerStateResponse: PlayerPromotionStateResponse = {
-      id: 'player123',
+      playerId: 'player123',
+      currencyGroup: 'USD',
+      siteId: 'site123',
+      gameId: 1,
       username: 'Test Player',
       status: 'Active',
       siteName: 'Site 1',
