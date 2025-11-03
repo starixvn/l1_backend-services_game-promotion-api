@@ -278,7 +278,7 @@ export class BonusWinsService {
     operatorId: string,
     siteName: string,
     promotionId: string,
-    isManualClaim: boolean = false,
+    isManualClaim = false,
   ): Promise<GetTOProgressResponse> {
     try {
       const playerPromotion = await this.findByPromotion(
@@ -372,7 +372,7 @@ export class BonusWinsService {
     operatorId: string,
     siteName: string,
     promotionId: string,
-    isManualClaim: boolean = false,
+    isManualClaim = false,
   ): Promise<ClaimBonusWinsResponse> {
     try {
       const toRequirementResult = await this.getTOProgress(

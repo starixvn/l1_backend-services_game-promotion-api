@@ -92,7 +92,7 @@ export class BonusWinsController {
   async manualClaimBonusWins(
     @Body() manualClaimDto: Models.ManualClaimBonusWinsDto,
   ): Promise<Responses.ManualClaimBonusWinsResponse> {
-    const result = await this.bonusWinsService.manualClaimBonusWins(
+    return this.bonusWinsService.manualClaimBonusWins(
       manualClaimDto.promotionId,
       manualClaimDto.playerId,
       manualClaimDto.operatorId,
@@ -102,7 +102,5 @@ export class BonusWinsController {
       manualClaimDto.adminUserId,
       manualClaimDto.gameTypeId,
     );
-
-    return result;
   }
 }
