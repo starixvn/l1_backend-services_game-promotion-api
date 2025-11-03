@@ -103,16 +103,6 @@ export class BonusWinsController {
       manualClaimDto.gameTypeId,
     );
 
-    if (result.success) {
-      await this.bonusWinsService.completePromotion({
-        operatorId: manualClaimDto.operatorId,
-        siteName: manualClaimDto.siteName,
-        playerId: manualClaimDto.playerId,
-        promotionId: manualClaimDto.promotionId,
-        currencyGroup: manualClaimDto.currencyGroup,
-      });
-    }
-
     return result;
   }
 }

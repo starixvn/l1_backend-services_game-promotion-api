@@ -278,6 +278,7 @@ export class BonusWinsService {
     operatorId: string,
     siteName: string,
     promotionId: string,
+    isManualClaim: boolean = false,
   ): Promise<GetTOProgressResponse> {
     try {
       const playerPromotion = await this.findByPromotion(
@@ -307,7 +308,7 @@ export class BonusWinsService {
         .lean()
         .exec();
 
-      if (promotion && promotion.claimExpirationDate < new Date()) {
+      if (promotion && promotion.claimExpirationDate < new Date() && !isManualClaim) {
         return {
           totalTurnover: 0,
           minRequiredTurnover: 0,
@@ -371,6 +372,7 @@ export class BonusWinsService {
     operatorId: string,
     siteName: string,
     promotionId: string,
+    isManualClaim: boolean = false,
   ): Promise<ClaimBonusWinsResponse> {
     try {
       const toRequirementResult = await this.getTOProgress(
@@ -378,6 +380,7 @@ export class BonusWinsService {
         operatorId,
         siteName,
         promotionId,
+        isManualClaim,
       );
 
       if (toRequirementResult.errorCode) {
@@ -575,7 +578,13 @@ export class BonusWinsService {
     gameTypeId: number,
   ): Promise<ManualClaimBonusWinsResponse> {
     try {
-      const claimResult = await this.claimBonusWins(playerId, operatorId, siteName, promotionId);
+      const claimResult = await this.claimBonusWins(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        true,
+      );
 
       if (claimResult.errorCode) {
         return {
