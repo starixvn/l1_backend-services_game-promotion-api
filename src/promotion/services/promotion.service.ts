@@ -439,6 +439,18 @@ export class PromotionService {
         },
       },
       {
+        $unionWith: {
+          coll: 'game_player_finished_promotions',
+          pipeline: [
+            {
+              $match: {
+                promotionId: new Types.ObjectId(promotionId),
+              },
+            },
+          ],
+        },
+      },
+      {
         $group: {
           _id: null,
           bonusWin: { $sum: '$baseTotalWinAmount' },
@@ -477,8 +489,10 @@ export class PromotionService {
       totalTurnover: roundToTwoDecimals(totalTurnover),
       minRequiredTurnover: roundToTwoDecimals(minRequiredTurnover),
       uniquePlayers,
-      avgBonusPerPlayer: roundToTwoDecimals(bonusWin / uniquePlayers),
-      avgTurnoverPerPlayer: roundToTwoDecimals(totalTurnover / uniquePlayers),
+      avgBonusPerPlayer: roundToTwoDecimals(uniquePlayers > 0 ? bonusWin / uniquePlayers : 0),
+      avgTurnoverPerPlayer: roundToTwoDecimals(
+        uniquePlayers > 0 ? totalTurnover / uniquePlayers : 0,
+      ),
       dailyStats: [],
     };
   }

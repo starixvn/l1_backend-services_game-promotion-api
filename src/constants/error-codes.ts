@@ -127,6 +127,12 @@ export const PLAYER_PROMOTION_ERROR_CODES = {
   MOVING_TO_FINISHED_PROMOTION_FAILED: {
     code: 'SB3036',
   },
+  DELETE_PLAYER_PROMOTION_FAILED: {
+    code: 'SB3037',
+  },
+  MARK_TICKET_AS_CLAIMED_FAILED: {
+    code: 'SB3038',
+  },
 } as const;
 
 // Promotion Error Codes (PR31XX) - Ready for future use

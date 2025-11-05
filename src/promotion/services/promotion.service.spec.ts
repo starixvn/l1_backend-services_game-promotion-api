@@ -790,6 +790,18 @@ describe('PromotionService', () => {
           },
         },
         {
+          $unionWith: {
+            coll: 'game_player_finished_promotions',
+            pipeline: [
+              {
+                $match: {
+                  promotionId: new Types.ObjectId(mockPromotionPerformanceDto.promotionId),
+                },
+              },
+            ],
+          },
+        },
+        {
           $group: {
             _id: null,
             bonusWin: { $sum: '$baseTotalWinAmount' },

@@ -509,7 +509,7 @@ export class BonusWinsService {
         return { errorCode: PLAYER_PROMOTION_ERROR_CODES.MOVING_TO_FINISHED_PROMOTION_FAILED.code };
       }
 
-      await Promise.all([
+      const [deleteResult, markTicketResult] = await Promise.all([
         this.playerPromotionModel.deleteOne({ _id: playerPromotion._id }),
         this.promotionTicketService.markTicketAsClaimed(
           playerId,
@@ -519,6 +519,12 @@ export class BonusWinsService {
           playerPromotion._id,
         ),
       ]);
+      if (!deleteResult.deletedCount) {
+        return { errorCode: PLAYER_PROMOTION_ERROR_CODES.DELETE_PLAYER_PROMOTION_FAILED.code };
+      }
+      if (!markTicketResult.success) {
+        return { errorCode: PLAYER_PROMOTION_ERROR_CODES.MARK_TICKET_AS_CLAIMED_FAILED.code };
+      }
 
       return { playerFinishedPromotion };
     } catch (error) {
@@ -734,7 +740,39 @@ export class BonusWinsService {
     );
 
     if (result) {
-      return this.getTOProgress(playerId, operatorId, siteName, promotionId);
+      const toProgressResult = await this.getTOProgress(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+      );
+
+      if (toProgressResult.totalWinAmount === 0) {
+        const processBonusClaimResult = await this.processBonusClaim(
+          playerId,
+          operatorId,
+          siteName,
+          promotionId,
+          result,
+        );
+        if (processBonusClaimResult.errorCode) {
+          this.loggerService.error(
+            'Failed to move the promotion to the finished state when totalWinAmount is 0',
+            undefined,
+            {
+              method: 'completePromotion',
+              service: 'BonusWinsService',
+              playerId,
+              operatorId,
+              siteName,
+              promotionId,
+              error: processBonusClaimResult.errorCode,
+            },
+          );
+        }
+      }
+
+      return toProgressResult;
     }
 
     return {
