@@ -353,6 +353,7 @@ describe('PlayerPromotionController', () => {
 
     const mockPlayerStateResponse: PlayerPromotionStateResponse = {
       playerId: 'player123',
+      playerPromotionId: 'playerPromotion123',
       currencyGroup: 'USD',
       siteId: 'site123',
       gameId: 1,
@@ -449,6 +450,7 @@ describe('PlayerPromotionController', () => {
 
     const mockPlayerStateResponse: PlayerPromotionStateResponse = {
       playerId: 'player123',
+      playerPromotionId: 'playerPromotion123',
       currencyGroup: 'USD',
       siteId: 'site123',
       gameId: 1,

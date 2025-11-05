@@ -120,6 +120,12 @@ export class PlayerPromotionStateResponse {
     example: 1,
   })
   gameId: number;
+
+  @ApiProperty({
+    description: 'Player promotion ID',
+    example: '1234567890',
+  })
+  playerPromotionId: string;
 }
 
 export class PlayersResponse {

@@ -25,7 +25,9 @@ interface AggregationResult {
 }
 
 interface AggregationDocument {
+  _id: string;
   playerId: string;
+  playerPromotionId: string;
   currencyGroup: string;
   siteId: string;
   gameId: number;
@@ -748,6 +750,25 @@ export class PlayerPromotionService {
         },
       },
       {
+        $unionWith: {
+          coll: 'game_player_finished_promotions',
+          pipeline: [
+            {
+              $match: {
+                promotionId: new Types.ObjectId(promotionId),
+                ...(startDate &&
+                  endDate && {
+                    createdAt: {
+                      $gte: new Date(startDate),
+                      $lte: new Date(endDate),
+                    },
+                  }),
+              },
+            },
+          ],
+        },
+      },
+      {
         $lookup: {
           from: 'user_silos',
           localField: 'playerId',
@@ -877,6 +898,7 @@ export class PlayerPromotionService {
   private mapAggregationResultToResponse(doc: AggregationDocument): PlayerPromotionStateResponse {
     return {
       playerId: doc.playerId,
+      playerPromotionId: doc.playerPromotionId || doc._id,
       currencyGroup: doc.currencyGroup,
       siteId: doc.siteId,
       gameId: doc.gameId,
