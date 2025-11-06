@@ -391,6 +391,7 @@ export class BonusWinsService {
 
       if (toRequirementResult.errorCode) {
         return {
+          playerFinishedPromotionId: '',
           claimedAmount: 0,
           totalTurnover: 0,
           minRequiredTurnover: 0,
@@ -407,6 +408,7 @@ export class BonusWinsService {
       );
       if (!playerPromotion) {
         return {
+          playerFinishedPromotionId: '',
           claimedAmount: 0,
           totalTurnover: 0,
           minRequiredTurnover: 0,
@@ -426,6 +428,7 @@ export class BonusWinsService {
 
       if (!toRequirementResult.canClaim) {
         return {
+          playerFinishedPromotionId: '',
           claimedAmount: 0,
           totalTurnover: 0,
           minRequiredTurnover: 0,
@@ -436,6 +439,7 @@ export class BonusWinsService {
 
       if (!isClaimable) {
         return {
+          playerFinishedPromotionId: '',
           claimedAmount: 0,
           totalTurnover: 0,
           minRequiredTurnover: 0,
@@ -447,6 +451,7 @@ export class BonusWinsService {
         await this.processBonusClaim(playerId, operatorId, siteName, promotionId, playerPromotion);
       if (finishedPromotionErrorCode || !playerFinishedPromotion) {
         return {
+          playerFinishedPromotionId: '',
           claimedAmount: 0,
           totalTurnover: 0,
           minRequiredTurnover: 0,
@@ -455,6 +460,7 @@ export class BonusWinsService {
         };
       }
       return {
+        playerFinishedPromotionId: playerFinishedPromotion._id,
         claimedAmount: playerFinishedPromotion.totalWinAmount,
         totalTurnover: playerFinishedPromotion.totalTurnover,
         minRequiredTurnover: playerFinishedPromotion.minRequiredTurnover,
@@ -470,6 +476,7 @@ export class BonusWinsService {
       });
 
       return {
+        playerFinishedPromotionId: '',
         claimedAmount: 0,
         totalTurnover: 0,
         minRequiredTurnover: 0,
@@ -497,33 +504,34 @@ export class BonusWinsService {
         promotionId,
       );
 
-      const playerFinishedPromotion = await this.playerFinishedPromotionModel.create({
-        ...playerPromotion,
-        bonusClaimed: true,
-        claimedAt: new Date(),
-        redemptionCount: maxRedemptionCount + 1,
-        playerPromotionId: playerPromotion._id,
-      });
+      const playerFinishedPromotion = await this.playerFinishedPromotionModel.findOneAndUpdate(
+        {
+          playerPromotionId: playerPromotion._id,
+        },
+        {
+          $set: {
+            ...playerPromotion,
+          },
+          $setOnInsert: {
+            seq: null,
+            bonusClaimed: true,
+            redemptionCount: maxRedemptionCount + 1,
+            claimedAt: new Date(),
+          },
+        },
+        {
+          upsert: true,
+          new: true,
+        },
+      );
 
       if (!playerFinishedPromotion) {
         return { errorCode: PLAYER_PROMOTION_ERROR_CODES.MOVING_TO_FINISHED_PROMOTION_FAILED.code };
       }
 
-      const [deleteResult, markTicketResult] = await Promise.all([
-        this.playerPromotionModel.deleteOne({ _id: playerPromotion._id }),
-        this.promotionTicketService.markTicketAsClaimed(
-          playerId,
-          operatorId,
-          siteName,
-          promotionId,
-          playerPromotion._id,
-        ),
-      ]);
+      const deleteResult = await this.playerPromotionModel.deleteOne({ _id: playerPromotion._id });
       if (!deleteResult.deletedCount) {
         return { errorCode: PLAYER_PROMOTION_ERROR_CODES.DELETE_PLAYER_PROMOTION_FAILED.code };
-      }
-      if (!markTicketResult.success) {
-        return { errorCode: PLAYER_PROMOTION_ERROR_CODES.MARK_TICKET_AS_CLAIMED_FAILED.code };
       }
 
       return { playerFinishedPromotion };

@@ -17,9 +17,6 @@ export class PromotionTicket {
   @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
   playerPromotionId: MongooseSchema.Types.ObjectId;
 
-  @Prop({ type: Boolean, required: true, default: false })
-  isClaimed: boolean;
-
   @Prop({ required: true })
   promotionId: string;
 

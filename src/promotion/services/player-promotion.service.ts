@@ -17,6 +17,7 @@ import {
   PlayerFinishedPromotion,
   PlayerFinishedPromotionDocument,
 } from '../schemas/player-finished-promotion.schema';
+import { UpdatePlayerFinishedPromotionDto } from '../models/update-player-finished-promotion.dto';
 interface AggregationResult {
   totalCount: number;
   baseTotalWinAmount: number;
@@ -393,17 +394,14 @@ export class PlayerPromotionService {
     const eligiblePromotions: PromotionDocument[] = [];
 
     for (const promotion of unclaimedPromotions) {
+      promotion.maxRedemptionTimes = promotion.maxRedemptionTimes ?? 1;
       const redeemedCount = await this.getPromotionRedeemedCount(
         playerId,
         operatorId,
         siteName,
         promotion._id.toString(),
       );
-      if (
-        redeemedCount === 0 ||
-        redeemedCount < promotion.maxRedemptionTimes ||
-        promotion.maxRedemptionTimes === -1
-      ) {
+      if (redeemedCount < promotion.maxRedemptionTimes || promotion.maxRedemptionTimes === -1) {
         eligiblePromotions.push(promotion);
       }
     }
@@ -1139,5 +1137,25 @@ export class PlayerPromotionService {
       .exec();
 
     return result?.redemptionCount ?? 0;
+  }
+
+  /**
+   * Update a player finished promotion
+   * @param playerFinishedPromotionId Player finished promotion ID
+   * @param updateData Update data
+   * @returns void
+   */
+  async updatePlayerFinishedPromotion(updateData: UpdatePlayerFinishedPromotionDto): Promise<void> {
+    try {
+      const { playerFinishedPromotionId, seq } = updateData;
+      await this.playerFinishedPromotionModel
+        .updateOne({ _id: playerFinishedPromotionId }, { $set: { seq } })
+        .exec();
+    } catch (error) {
+      this.loggerService.error('Error in updatePlayerFinishedPromotion', error.stack, {
+        updateData,
+        error: error.message,
+      });
+    }
   }
 }

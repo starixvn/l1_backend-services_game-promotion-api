@@ -17,6 +17,9 @@ export class PlayerFinishedPromotion extends BasePlayerPromotion {
 
   @Prop({ type: Date, required: true })
   claimedAt: Date;
+
+  @Prop({ type: String, default: null })
+  seq: string;
 }
 
 export const PlayerFinishedPromotionSchema = SchemaFactory.createForClass(PlayerFinishedPromotion);

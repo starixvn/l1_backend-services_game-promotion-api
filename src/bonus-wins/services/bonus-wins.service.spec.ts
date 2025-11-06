@@ -596,11 +596,6 @@ describe('BonusWinsService', () => {
         } as any);
 
         playerPromotionModel.deleteOne.mockResolvedValue({ deletedCount: 1 } as any);
-        promotionTicketService.markTicketAsClaimed.mockResolvedValue({
-          success: true,
-          code: 'ST2001',
-          message: 'Update successful',
-        });
 
         // Mock the getMaxRedemptionCount method
         playerFinishedPromotionModel.findOne.mockReturnValue({
@@ -742,11 +737,6 @@ describe('BonusWinsService', () => {
         } as any);
 
         playerPromotionModel.deleteOne.mockResolvedValue({ deletedCount: 1 } as any);
-        promotionTicketService.markTicketAsClaimed.mockResolvedValue({
-          success: true,
-          code: 'ST2001',
-          message: 'Update successful',
-        });
 
         // Mock the getMaxRedemptionCount method
         playerFinishedPromotionModel.findOne.mockReturnValue({
@@ -839,11 +829,6 @@ describe('BonusWinsService', () => {
         } as any);
 
         playerPromotionModel.deleteOne.mockResolvedValue({ deletedCount: 1 } as any);
-        promotionTicketService.markTicketAsClaimed.mockResolvedValue({
-          success: true,
-          code: 'ST2001',
-          message: 'Update successful',
-        });
 
         // Mock the getMaxRedemptionCount method
         playerFinishedPromotionModel.findOne.mockReturnValue({

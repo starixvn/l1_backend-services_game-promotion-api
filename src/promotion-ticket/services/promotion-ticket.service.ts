@@ -313,66 +313,6 @@ export class PromotionTicketService {
   }
 
   /**
-   * Mark a promotion ticket as claimed
-   * @param updateTicketDto Ticket update data
-   * @returns Success or failure response
-   */
-  async markTicketAsClaimed(
-    playerId: string,
-    operatorId: string,
-    siteName: string,
-    promotionId: string,
-    playerPromotionId: MongooseSchema.Types.ObjectId,
-  ): Promise<UpdatePromotionTicketResponse> {
-    try {
-      const updatedTickets = await this.promotionTicketModel.updateMany(
-        this.buildPlayerPromotionQuery({
-          playerId,
-          operatorId,
-          siteName,
-          promotionId,
-          playerPromotionId,
-        }),
-        {
-          $set: {
-            isClaimed: true,
-          },
-        },
-        {
-          new: true,
-          lean: true,
-        },
-      );
-
-      if (!updatedTickets.modifiedCount) {
-        return {
-          success: false,
-          ...PROMOTION_TICKET_ERROR_CODES.UPDATE_FAILED,
-        };
-      }
-      return {
-        success: true,
-        ...PROMOTION_TICKET_ERROR_CODES.UPDATE_SUCCESS,
-      };
-    } catch (error) {
-      this.loggerService.error('Error in markTicketAsClaimed', error.stack, {
-        method: 'markTicketAsClaimed',
-        service: 'PromotionTicketService',
-        playerId,
-        operatorId,
-        siteName,
-        promotionId,
-        error: error.message,
-      });
-
-      return {
-        success: false,
-        ...PROMOTION_TICKET_ERROR_CODES.UPDATE_FAILED,
-      };
-    }
-  }
-
-  /**
    * Update bonus wins and trigger TO requirement calculation if needed
    * @param context Player promotion context
    */
@@ -429,9 +369,6 @@ export class PromotionTicketService {
             { playerPromotionId: { $eq: context.playerPromotionId } },
             { playerPromotionId: { $exists: false } },
           ],
-        },
-        {
-          $or: [{ isClaimed: { $eq: false } }, { isClaimed: { $exists: false } }],
         },
       ],
     };

@@ -246,6 +246,7 @@ describe('BonusWinsController', () => {
         promotionId: 'promo1',
       };
       const response: ClaimBonusWinsResponse = {
+        playerFinishedPromotionId: '65f1a2b3c4d5e6f7g8h9i0j1',
         claimedAmount: 25.0,
         totalTurnover: 100.0,
         minRequiredTurnover: 100.0,
@@ -269,6 +270,7 @@ describe('BonusWinsController', () => {
         promotionId: 'promo2',
       };
       const response: ClaimBonusWinsResponse = {
+        playerFinishedPromotionId: '',
         claimedAmount: 0,
         totalTurnover: 0,
         minRequiredTurnover: 0,
@@ -288,6 +290,7 @@ describe('BonusWinsController', () => {
         promotionId: 'promo3',
       };
       const response: ClaimBonusWinsResponse = {
+        playerFinishedPromotionId: '',
         claimedAmount: 0,
         totalTurnover: 0,
         minRequiredTurnover: 0,

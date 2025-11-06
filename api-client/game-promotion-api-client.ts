@@ -14,6 +14,7 @@ import {
   UpdatePromotionTicketDto,
   UpdateTotalTurnoverDto,
   UpdateTotalWinDto,
+  UpdatePlayerFinishedPromotionDto,
 } from './dtos';
 import { TotalWinDto } from './dtos/total-win.dto';
 import {
@@ -270,6 +271,16 @@ export class GamePromotionApiClient {
       totalWinDto,
     );
     return response.data;
+  }
+
+  /**
+   * Update a player finished promotion
+   */
+  async updatePlayerFinishedPromotion(updateDto: UpdatePlayerFinishedPromotionDto): Promise<void> {
+    await this.httpClient.post(
+      '/player-promotions/update-player-finished-promotion',
+      updateDto,
+    );
   }
 
   // ===== UTILITY METHODS =====

@@ -14,3 +14,4 @@ export * from './total-win.dto';
 export * from './update-promotion-ticket.dto';
 export * from './update-total-turnover.dto';
 export * from './update-total-win.dto';
+export * from './update-player-finished-promotion.dto';

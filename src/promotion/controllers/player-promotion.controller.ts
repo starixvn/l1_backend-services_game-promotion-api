@@ -6,6 +6,7 @@ import * as Responses from '../responses';
 import { PLAYER_PROMOTION_ERROR_CODES } from '../../constants/error-codes';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
 import { PlayerPromotionStateExportDto } from '../models/player-promotion-state-export.dto';
+import { UpdatePlayerFinishedPromotionDto } from '../models/update-player-finished-promotion.dto';
 
 @ApiTags('player-promotions')
 @Controller('player-promotions')
@@ -158,5 +159,17 @@ export class PlayerPromotionController {
     }
 
     return promotion;
+  }
+
+  @Post('update-player-finished-promotion')
+  @ApiOperation({ summary: 'Update a player finished promotion' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Player finished promotion updated successfully',
+  })
+  async updatePlayerFinishedPromotion(
+    @Body() updateDto: UpdatePlayerFinishedPromotionDto,
+  ): Promise<void> {
+    this.playerPromotionService.updatePlayerFinishedPromotion(updateDto);
   }
 }
