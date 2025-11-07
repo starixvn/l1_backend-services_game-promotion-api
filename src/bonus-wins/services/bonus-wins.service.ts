@@ -511,12 +511,12 @@ export class BonusWinsService {
         {
           $set: {
             ...playerPromotion,
+            bonusClaimed: true,
+            claimedAt: new Date(),
           },
           $setOnInsert: {
             seq: null,
-            bonusClaimed: true,
             redemptionCount: maxRedemptionCount + 1,
-            claimedAt: new Date(),
           },
         },
         {
