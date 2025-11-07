@@ -602,7 +602,7 @@ export class BonusWinsService {
       totalTurnover,
       minRequiredTurnover,
       totalWinAmount,
-      roundToFourDecimals(actualWinAmount.totalWinAmount),
+      actualWinAmount.totalWinAmount,
     );
 
     if (!canClaim) {
@@ -646,7 +646,7 @@ export class BonusWinsService {
       minRequiredTurnover > 0 &&
       totalTurnover >= minRequiredTurnover &&
       totalWinAmount > 0 &&
-      totalWinAmount === actualWinAmount
+      roundToFourDecimals(totalWinAmount) === roundToFourDecimals(actualWinAmount)
     );
   }
 
