@@ -503,14 +503,15 @@ export class BonusWinsService {
         siteName,
         promotionId,
       );
+      const { _id, ...restPromotionFields } = playerPromotion;
 
       const playerFinishedPromotion = await this.playerFinishedPromotionModel.findOneAndUpdate(
         {
-          playerPromotionId: playerPromotion._id,
+          playerPromotionId: _id,
         },
         {
           $set: {
-            ...playerPromotion,
+            ...restPromotionFields,
             bonusClaimed: true,
             claimedAt: new Date(),
           },
@@ -529,7 +530,7 @@ export class BonusWinsService {
         return { errorCode: PLAYER_PROMOTION_ERROR_CODES.MOVING_TO_FINISHED_PROMOTION_FAILED.code };
       }
 
-      const deleteResult = await this.playerPromotionModel.deleteOne({ _id: playerPromotion._id });
+      const deleteResult = await this.playerPromotionModel.deleteOne({ _id });
       if (!deleteResult.deletedCount) {
         return { errorCode: PLAYER_PROMOTION_ERROR_CODES.DELETE_PLAYER_PROMOTION_FAILED.code };
       }

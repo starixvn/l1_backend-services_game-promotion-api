@@ -161,7 +161,16 @@ export class PromotionTicketService {
   async getPromotionTickets(
     params: GetPromotionTicketsDto,
   ): Promise<GetPromotionTicketsPlayerResponse> {
-    const { promotionId, playerId, roundId, startDate, endDate, pageIndex, pageSize } = params;
+    const {
+      promotionId,
+      playerPromotionId,
+      playerId,
+      roundId,
+      startDate,
+      endDate,
+      pageIndex,
+      pageSize,
+    } = params;
 
     try {
       const query: any = {
@@ -172,6 +181,9 @@ export class PromotionTicketService {
           $lte: new Date(endDate),
         },
       };
+      if (playerPromotionId) {
+        query.playerPromotionId = playerPromotionId;
+      }
       if (roundId) {
         query.$expr = {
           $regexMatch: {

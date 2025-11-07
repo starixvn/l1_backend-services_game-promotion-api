@@ -131,6 +131,7 @@ describe('PromotionTicketController', () => {
     const queryDto: GetPromotionTicketsDto = {
       playerId: 'player123',
       promotionId: 'promo789',
+      playerPromotionId: 'player-promotion-id-123',
       startDate: new Date('2024-01-01'),
       endDate: new Date('2024-01-31'),
       pageIndex: 1,
@@ -245,6 +246,7 @@ describe('PromotionTicketController', () => {
       expect(mockPromotionTicketService.getPromotionTickets).toHaveBeenCalledWith({
         playerId: 'player123',
         promotionId: 'promo789',
+        playerPromotionId: 'player-promotion-id-123',
         startDate: new Date('2024-01-01'),
         endDate: new Date('2024-01-31'),
         pageIndex: 1,
@@ -298,6 +300,7 @@ describe('PromotionTicketController', () => {
     const queryDto: GetPromotionTicketsDto = {
       playerId: 'player123',
       promotionId: 'promo789',
+      playerPromotionId: 'player-promotion-id-123',
       startDate: new Date('2024-01-01'),
       endDate: new Date('2024-01-31'),
       pageIndex: 1,
@@ -378,6 +381,7 @@ describe('PromotionTicketController', () => {
       expect(mockPromotionTicketService.exportPromotionTickets).toHaveBeenCalledWith({
         playerId: 'player123',
         promotionId: 'promo789',
+        playerPromotionId: 'player-promotion-id-123',
         startDate: new Date('2024-01-01'),
         endDate: new Date('2024-01-31'),
         pageIndex: 1,
@@ -389,6 +393,7 @@ describe('PromotionTicketController', () => {
       // Arrange
       const queryWithDateRange: GetPromotionTicketsDto = {
         playerId: 'player123',
+        playerPromotionId: 'player-promotion-id-123',
         promotionId: 'promo789',
         startDate: new Date('2024-01-15'),
         endDate: new Date('2024-01-20'),

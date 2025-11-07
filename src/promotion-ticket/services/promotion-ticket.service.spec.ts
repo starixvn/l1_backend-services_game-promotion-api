@@ -825,6 +825,7 @@ describe('PromotionTicketService', () => {
     const getPromotionTicketsDto: GetPromotionTicketsDto = {
       playerId: 'player123',
       promotionId: 'promo789',
+      playerPromotionId: 'player-promotion-id-123',
       startDate: new Date('2024-01-01'),
       endDate: new Date('2024-01-31'),
       pageIndex: 1,
@@ -895,6 +896,7 @@ describe('PromotionTicketService', () => {
     const exportDto: GetPromotionTicketsDto = {
       playerId: 'player123',
       promotionId: 'promo789',
+      playerPromotionId: 'player-promotion-id-123',
       startDate: new Date('2024-01-01'),
       endDate: new Date('2024-01-31'),
       pageIndex: 1,

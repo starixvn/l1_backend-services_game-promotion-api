@@ -11,6 +11,11 @@ export class GetPromotionTicketsDto {
   @IsString()
   promotionId: string;
 
+  @ApiProperty({ description: 'Player promotion identifier' })
+  @IsString()
+  @IsOptional()
+  playerPromotionId?: string;
+
   @ApiProperty({ description: 'Round identifier' })
   @IsString()
   @IsOptional()
