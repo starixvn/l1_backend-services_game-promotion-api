@@ -1,6 +1,6 @@
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { LoggerService } from '../../core/logger/logger.service';
 import { GetTOProgressResponse } from '../../promotion/responses/get-to-progress.response';
 import {
@@ -110,6 +110,7 @@ describe('BonusWinsService', () => {
   describe('getTOProgress', () => {
     it('should return progress percentage rounded to 2 decimal places', async () => {
       const mockPlayerPromotion = {
+        _id: new Types.ObjectId(),
         playerId: 'player1',
         operatorId: 'op1',
         siteName: 'site1',
@@ -158,6 +159,7 @@ describe('BonusWinsService', () => {
 
     it('should return 100% progress when minRequiredTurnover is 0', async () => {
       const mockPlayerPromotion = {
+        _id: new Types.ObjectId(),
         playerId: 'player2',
         operatorId: 'op2',
         siteName: 'site2',
@@ -181,6 +183,10 @@ describe('BonusWinsService', () => {
             .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
+      promotionTicketService.calculateTotalWin.mockResolvedValue({
+        totalWinAmount: 25,
+        baseTotalWinAmount: 25,
+      });
 
       const result: GetTOProgressResponse = await service.getTOProgress(
         'player2',
@@ -196,6 +202,7 @@ describe('BonusWinsService', () => {
 
     it('should handle complex decimal rounding correctly', async () => {
       const mockPlayerPromotion = {
+        _id: new Types.ObjectId(),
         playerId: 'player3',
         operatorId: 'op3',
         siteName: 'site3',
@@ -219,6 +226,10 @@ describe('BonusWinsService', () => {
             .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
+      promotionTicketService.calculateTotalWin.mockResolvedValue({
+        totalWinAmount: 15,
+        baseTotalWinAmount: 15,
+      });
 
       const result: GetTOProgressResponse = await service.getTOProgress(
         'player3',
@@ -235,6 +246,7 @@ describe('BonusWinsService', () => {
 
     it('should return exactly 100% when turnover meets requirement', async () => {
       const mockPlayerPromotion = {
+        _id: new Types.ObjectId(),
         playerId: 'player4',
         operatorId: 'op4',
         siteName: 'site4',
@@ -258,6 +270,10 @@ describe('BonusWinsService', () => {
             .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
+      promotionTicketService.calculateTotalWin.mockResolvedValue({
+        totalWinAmount: 20,
+        baseTotalWinAmount: 20,
+      });
 
       const result: GetTOProgressResponse = await service.getTOProgress(
         'player4',
@@ -273,6 +289,7 @@ describe('BonusWinsService', () => {
 
     it('should cap progress at 100% when turnover exceeds requirement', async () => {
       const mockPlayerPromotion = {
+        _id: new Types.ObjectId(),
         playerId: 'player5',
         operatorId: 'op5',
         siteName: 'site5',
@@ -296,6 +313,10 @@ describe('BonusWinsService', () => {
             .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
+      promotionTicketService.calculateTotalWin.mockResolvedValue({
+        totalWinAmount: 30,
+        baseTotalWinAmount: 30,
+      });
 
       const result: GetTOProgressResponse = await service.getTOProgress(
         'player5',
@@ -311,6 +332,7 @@ describe('BonusWinsService', () => {
 
     it('should handle edge case with very small percentages', async () => {
       const mockPlayerPromotion = {
+        _id: new Types.ObjectId(),
         playerId: 'player6',
         operatorId: 'op6',
         siteName: 'site6',
@@ -334,6 +356,10 @@ describe('BonusWinsService', () => {
             .mockResolvedValue({ claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
         }),
       } as any);
+      promotionTicketService.calculateTotalWin.mockResolvedValue({
+        totalWinAmount: 50,
+        baseTotalWinAmount: 50,
+      });
 
       const result: GetTOProgressResponse = await service.getTOProgress(
         'player6',
@@ -479,6 +505,7 @@ describe('BonusWinsService', () => {
         // Scenario: totalTurnover is 99.99999993 which is very close to required 100
         // Without proper rounding, this might cause issues
         const mockPlayerPromotion = {
+          _id: new Types.ObjectId(),
           playerId: 'player_fp1',
           operatorId: 'op_fp1',
           siteName: 'site_fp1',
@@ -552,6 +579,7 @@ describe('BonusWinsService', () => {
           errorCode: undefined,
         });
         const mockPlayerPromotion = {
+          _id: new Types.ObjectId(),
           playerId: 'player_fp2',
           operatorId: 'op_fp2',
           siteName: 'site_fp2',
@@ -622,6 +650,7 @@ describe('BonusWinsService', () => {
       it('should handle very small floating point number .000000000003', async () => {
         // Scenario: Very tiny turnover amount
         const mockPlayerPromotion = {
+          _id: new Types.ObjectId(),
           playerId: 'player_fp3',
           operatorId: 'op_fp3',
           siteName: 'site_fp3',
@@ -695,6 +724,7 @@ describe('BonusWinsService', () => {
           errorCode: undefined,
         });
         const mockPlayerPromotion = {
+          _id: new Types.ObjectId(),
           playerId: 'player_fp4',
           operatorId: 'op_fp4',
           siteName: 'site_fp4',
@@ -787,6 +817,7 @@ describe('BonusWinsService', () => {
           errorCode: undefined,
         });
         const mockPlayerPromotion = {
+          _id: new Types.ObjectId(),
           playerId: 'player_fp5',
           operatorId: 'op_fp5',
           siteName: 'site_fp5',
@@ -859,6 +890,7 @@ describe('BonusWinsService', () => {
         // minRequiredTurnover = 100.00000005, totalTurnover = 50
         // remainingTO = 100.00000005 - 50 = 50.00000005 (should not round automatically)
         const mockPlayerPromotion = {
+          _id: new Types.ObjectId(),
           playerId: 'player_fp6',
           operatorId: 'op_fp6',
           siteName: 'site_fp6',
@@ -882,6 +914,10 @@ describe('BonusWinsService', () => {
             }),
           }),
         } as any);
+        promotionTicketService.calculateTotalWin.mockResolvedValue({
+          totalWinAmount: 50,
+          baseTotalWinAmount: 50,
+        });
 
         const result = await service.getTOProgress('player_fp6', 'op_fp6', 'site_fp6', 'promo_fp6');
 
@@ -894,6 +930,7 @@ describe('BonusWinsService', () => {
         // totalTurnover = 99.99999993, minRequiredTurnover = 100
         // Progress = (99.99999993 / 100) * 100 = 99.99999993% -> rounds to 100.00%
         const mockPlayerPromotion = {
+          _id: new Types.ObjectId(),
           playerId: 'player_fp7',
           operatorId: 'op_fp7',
           siteName: 'site_fp7',
@@ -917,6 +954,10 @@ describe('BonusWinsService', () => {
             }),
           }),
         } as any);
+        promotionTicketService.calculateTotalWin.mockResolvedValue({
+          totalWinAmount: 50,
+          baseTotalWinAmount: 50,
+        });
 
         const result = await service.getTOProgress('player_fp7', 'op_fp7', 'site_fp7', 'promo_fp7');
 
@@ -931,6 +972,7 @@ describe('BonusWinsService', () => {
         // minRequiredTurnover = 100, totalTurnover = 99.99999999
         // remainingTO = 0.00000001 (very small number)
         const mockPlayerPromotion = {
+          _id: new Types.ObjectId(),
           playerId: 'player_fp8',
           operatorId: 'op_fp8',
           siteName: 'site_fp8',
@@ -954,6 +996,10 @@ describe('BonusWinsService', () => {
             }),
           }),
         } as any);
+        promotionTicketService.calculateTotalWin.mockResolvedValue({
+          totalWinAmount: 50,
+          baseTotalWinAmount: 50,
+        });
 
         const result = await service.getTOProgress('player_fp8', 'op_fp8', 'site_fp8', 'promo_fp8');
 
@@ -976,8 +1022,8 @@ describe('BonusWinsService', () => {
 
       const mockClaimResult = {
         claimedAmount: 25.99,
-        totalTurnover: 100.0,
-        minRequiredTurnover: 100.0,
+        totalTurnover: 100,
+        minRequiredTurnover: 100,
         totalWinAmount: 25.99,
       };
 

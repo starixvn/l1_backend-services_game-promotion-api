@@ -325,8 +325,20 @@ export class BonusWinsService {
           errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIMING_EXPIRED.code,
         };
       }
+      const actualWinAmount = await this.promotionTicketService.calculateTotalWin({
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        playerPromotionId: playerPromotion._id,
+      });
 
-      const canClaim = this.canClaimBonusWins(totalTurnover, minRequiredTurnover, totalWinAmount);
+      const canClaim = this.canClaimBonusWins(
+        totalTurnover,
+        minRequiredTurnover,
+        totalWinAmount,
+        actualWinAmount.totalWinAmount,
+      );
 
       // Calculate progress percentage (0-100) rounded to 2 decimal places
       // If no TO required (minRequiredTurnover = 0), show 100% progress
@@ -424,6 +436,7 @@ export class BonusWinsService {
         promotionId,
         toRequirementResult.totalTurnover,
         playerPromotion._id,
+        toRequirementResult.totalWinAmount,
       );
 
       if (!toRequirementResult.canClaim) {
@@ -555,6 +568,7 @@ export class BonusWinsService {
     promotionId: string,
     totalTurnover: number,
     playerPromotionId: MongooseSchema.Types.ObjectId,
+    totalWinAmount: number,
   ): Promise<boolean> {
     const promotion = await this.promotionModel.findById(promotionId).lean().exec();
 
@@ -587,6 +601,7 @@ export class BonusWinsService {
     const canClaim = this.canClaimBonusWins(
       totalTurnover,
       minRequiredTurnover,
+      totalWinAmount,
       roundToFourDecimals(actualWinAmount.totalWinAmount),
     );
 
@@ -625,8 +640,14 @@ export class BonusWinsService {
     totalTurnover: number,
     minRequiredTurnover: number,
     totalWinAmount: number,
+    actualWinAmount: number,
   ): boolean {
-    return minRequiredTurnover > 0 && totalTurnover >= minRequiredTurnover && totalWinAmount > 0;
+    return (
+      minRequiredTurnover > 0 &&
+      totalTurnover >= minRequiredTurnover &&
+      totalWinAmount > 0 &&
+      totalWinAmount === actualWinAmount
+    );
   }
 
   /**
