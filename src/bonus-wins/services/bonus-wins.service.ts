@@ -404,6 +404,7 @@ export class BonusWinsService {
       if (toRequirementResult.errorCode) {
         return {
           playerFinishedPromotionId: '',
+          playerPromotionId: '',
           claimedAmount: 0,
           totalTurnover: 0,
           minRequiredTurnover: 0,
@@ -421,6 +422,7 @@ export class BonusWinsService {
       if (!playerPromotion) {
         return {
           playerFinishedPromotionId: '',
+          playerPromotionId: '',
           claimedAmount: 0,
           totalTurnover: 0,
           minRequiredTurnover: 0,
@@ -442,6 +444,7 @@ export class BonusWinsService {
       if (!toRequirementResult.canClaim) {
         return {
           playerFinishedPromotionId: '',
+          playerPromotionId: '',
           claimedAmount: 0,
           totalTurnover: 0,
           minRequiredTurnover: 0,
@@ -453,6 +456,7 @@ export class BonusWinsService {
       if (!isClaimable) {
         return {
           playerFinishedPromotionId: '',
+          playerPromotionId: '',
           claimedAmount: 0,
           totalTurnover: 0,
           minRequiredTurnover: 0,
@@ -465,6 +469,7 @@ export class BonusWinsService {
       if (finishedPromotionErrorCode || !playerFinishedPromotion) {
         return {
           playerFinishedPromotionId: '',
+          playerPromotionId: '',
           claimedAmount: 0,
           totalTurnover: 0,
           minRequiredTurnover: 0,
@@ -474,6 +479,7 @@ export class BonusWinsService {
       }
       return {
         playerFinishedPromotionId: playerFinishedPromotion._id,
+        playerPromotionId: playerPromotion._id,
         claimedAmount: playerFinishedPromotion.totalWinAmount,
         totalTurnover: playerFinishedPromotion.totalTurnover,
         minRequiredTurnover: playerFinishedPromotion.minRequiredTurnover,
@@ -490,6 +496,7 @@ export class BonusWinsService {
 
       return {
         playerFinishedPromotionId: '',
+        playerPromotionId: '',
         claimedAmount: 0,
         totalTurnover: 0,
         minRequiredTurnover: 0,
