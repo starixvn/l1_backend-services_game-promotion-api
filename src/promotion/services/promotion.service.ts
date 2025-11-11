@@ -526,14 +526,21 @@ export class PromotionService {
 
     const originalEndDate = originalPromotion.endDate;
 
+    // Prepare update object
+    const updateFields: any = {
+      claimExpirationDate: now,
+    };
+
+    // Only update endDate if it's greater than now
+    if (originalEndDate > now) {
+      updateFields.endDate = now;
+    }
+
     const promotion = await this.promotionModel
       .findByIdAndUpdate(
         promotionId,
         {
-          $set: {
-            endDate: now,
-            claimExpirationDate: now,
-          },
+          $set: updateFields,
         },
         { new: true, runValidators: false },
       )
