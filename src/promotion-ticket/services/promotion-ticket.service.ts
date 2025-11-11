@@ -182,7 +182,14 @@ export class PromotionTicketService {
         },
       };
       if (playerPromotionId) {
-        query.playerPromotionId = playerPromotionId;
+        query.$and = [
+          {
+            $or: [
+              { playerPromotionId: { $eq: playerPromotionId } },
+              { playerPromotionId: { $exists: false } },
+            ],
+          },
+        ];
       }
       if (roundId) {
         query.$expr = {
@@ -270,7 +277,14 @@ export class PromotionTicketService {
         },
       };
       if (playerPromotionId) {
-        query.playerPromotionId = playerPromotionId;
+        query.$and = [
+          {
+            $or: [
+              { playerPromotionId: { $eq: playerPromotionId } },
+              { playerPromotionId: { $exists: false } },
+            ],
+          },
+        ];
       }
 
       if (roundId) {
