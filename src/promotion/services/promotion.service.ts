@@ -259,6 +259,7 @@ export class PromotionService {
               in: {
                 gameId: '$$game.gameId',
                 name: '$$game.name',
+                displayName: '$$game.displayName',
               },
             },
           },

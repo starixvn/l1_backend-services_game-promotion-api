@@ -632,8 +632,17 @@ export class PlayerPromotionService {
   async getPlayerPromotionState(
     query: PlayerPromotionStateDto,
   ): Promise<Responses.PlayersResponse> {
-    const { promotionId, player, startDate, endDate, status, pageIndex, pageSize, currencies } =
-      query;
+    const {
+      promotionId,
+      player,
+      startDate,
+      endDate,
+      status,
+      pageIndex,
+      pageSize,
+      currencies,
+      gameIds,
+    } = query;
     const promotion = await this.getPromotionById(promotionId);
     if (!promotion) {
       throw new Error(PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code);
@@ -647,6 +656,7 @@ export class PlayerPromotionService {
       status,
       playerSearch: player,
       currencies,
+      gameIds,
     };
     const countTotalPipeline = this.buildCompleteAggregationPipeline(commonParams);
     const totals = await this.getTotalCountAndAmounts(countTotalPipeline);
@@ -679,7 +689,7 @@ export class PlayerPromotionService {
   async getPlayerPromotionStateExport(
     query: PlayerPromotionStateExportDto,
   ): Promise<Responses.PlayersExportResponse> {
-    const { promotionId, player, startDate, endDate, status, currencies } = query;
+    const { promotionId, player, startDate, endDate, status, currencies, gameIds } = query;
     const promotion = await this.getPromotionById(promotionId);
     if (!promotion) {
       throw new Error(PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code);
@@ -694,6 +704,7 @@ export class PlayerPromotionService {
       status,
       playerSearch: player,
       currencies,
+      gameIds,
     });
 
     // Execute aggregation
@@ -718,6 +729,7 @@ export class PlayerPromotionService {
     status?: string;
     playerSearch?: string;
     currencies?: string;
+    gameIds?: string;
     pageIndex?: number;
     pageSize?: number;
   }): PipelineStage[] {
@@ -729,11 +741,12 @@ export class PlayerPromotionService {
       status,
       playerSearch,
       currencies,
+      gameIds,
       pageIndex,
       pageSize,
     } = options;
     const currenciesArray = currencies?.split(',');
-
+    const gameIdsArray = gameIds?.split(',').map(Number);
     const pipeline: PipelineStage[] = [
       {
         $match: {
@@ -804,6 +817,15 @@ export class PlayerPromotionService {
             {
               $match: {
                 currency: { $in: currenciesArray },
+              },
+            },
+          ]
+        : []),
+      ...(gameIds && gameIds.length > 0
+        ? [
+            {
+              $match: {
+                $or: [{ gameId: { $in: gameIdsArray } }, { gameId: null }],
               },
             },
           ]

@@ -55,13 +55,22 @@ export class PlayerPromotionStateDto {
   status?: string;
 
   @ApiProperty({
-    description: 'Currencies to search for (optional)',
+    description: 'Currencies to search',
     example: 'USD,EUR',
     required: false,
   })
   @IsOptional()
   @IsString()
   currencies?: string;
+
+  @ApiProperty({
+    description: 'Game IDs to search',
+    example: '123,456',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  gameIds?: string;
 
   @ApiProperty({
     description: 'Page index (starts from 1)',
