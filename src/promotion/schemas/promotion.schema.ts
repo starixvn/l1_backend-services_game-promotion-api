@@ -164,6 +164,11 @@ export class Promotion {
   @Prop({ type: Number, default: 2, required: true })
   minTurnoverMultiplier: number;
 
+  @ApiProperty({
+    description: 'Maximum number of times a player can redeem this promotion',
+    example: 1,
+    minimum: -1, // -1 means unlimited
+  })
   @Prop({ type: Number, default: 1, required: true })
   maxRedemptionTimes: number;
 }

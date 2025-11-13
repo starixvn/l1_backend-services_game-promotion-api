@@ -8,7 +8,7 @@ export class ClaimBonusWinsResponse {
   playerFinishedPromotionId: string;
 
   @ApiProperty({
-    description: 'Player finished promotion ID',
+    description: 'Player promotion ID',
     example: '65f1a2b3c4d5e6f7g8h9i0j1',
   })
   playerPromotionId: string;

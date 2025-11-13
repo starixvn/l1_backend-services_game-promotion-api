@@ -170,6 +170,6 @@ export class PlayerPromotionController {
   async updatePlayerFinishedPromotion(
     @Body() updateDto: UpdatePlayerFinishedPromotionDto,
   ): Promise<void> {
-    this.playerPromotionService.updatePlayerFinishedPromotion(updateDto);
+    return this.playerPromotionService.updatePlayerFinishedPromotion(updateDto);
   }
 }
