@@ -7,6 +7,8 @@ import {
   ValidateNested,
   IsEnum,
   IsBoolean,
+  Min,
+  IsInt,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { Types } from 'mongoose';
@@ -176,10 +178,12 @@ export class UpdatePromotionDto {
   @IsOptional()
   minTurnoverMultiplier?: number;
   @ApiPropertyOptional({
-    description: 'Maximum number of times a promotion can be redeemed',
+    description: 'Maximum number of times a promotion can be redeemed. Use -1 for unlimited.',
+    example: 3,
   })
-  @IsNumber()
-  @Type(() => Number)
   @IsOptional()
+  @IsInt()
+  @Min(-1)
+  @Type(() => Number)
   maxRedemptionTimes?: number;
 }
