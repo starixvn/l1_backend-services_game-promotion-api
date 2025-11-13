@@ -175,4 +175,11 @@ export class UpdatePromotionDto {
   @Type(() => Number)
   @IsOptional()
   minTurnoverMultiplier?: number;
+  @ApiPropertyOptional({
+    description: 'Maximum number of times a promotion can be redeemed',
+  })
+  @IsNumber()
+  @Type(() => Number)
+  @IsOptional()
+  maxRedemptionTimes?: number;
 }
