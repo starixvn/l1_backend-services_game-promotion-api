@@ -36,8 +36,8 @@ export class PlayerPromotionController {
   async checkEligibility(
     @Body() playerDto: Models.PlayerDto,
   ): Promise<Responses.EligiblePromotionsResponse> {
-    const promotions = await this.playerPromotionService.hasAvailablePromotions(playerDto);
-    return { promotions };
+    const promotion = await this.playerPromotionService.hasAvailablePromotions(playerDto);
+    return { promotion: promotion || null };
   }
 
   @Post('deduct-bonus-item')

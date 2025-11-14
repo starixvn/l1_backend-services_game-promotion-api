@@ -21,6 +21,12 @@ export class EligiblePromotion {
   code: string;
 
   @ApiProperty({
+    description: 'Game IDs',
+    example: [1, 2, 3],
+  })
+  gameIds: number[];
+
+  @ApiProperty({
     description: 'Number of free spins per player',
     example: 50,
   })
@@ -56,5 +62,5 @@ export class EligiblePromotionsResponse {
     description: 'List of eligible promotions',
     type: [EligiblePromotion],
   })
-  promotions: EligiblePromotion[];
+  promotion: EligiblePromotion | null;
 }

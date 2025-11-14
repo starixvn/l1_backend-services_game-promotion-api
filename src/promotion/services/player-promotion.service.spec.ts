@@ -35,6 +35,7 @@ describe('PlayerPromotionService', () => {
   let service: PlayerPromotionService;
   let playerPromotionModel: any;
   let promotionModel: any;
+  let playerFinishedPromotionModel: any;
 
   const now = new Date();
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
@@ -178,6 +179,7 @@ describe('PlayerPromotionService', () => {
     service = module.get<PlayerPromotionService>(PlayerPromotionService);
     playerPromotionModel = module.get(getModelToken(PlayerPromotion.name));
     promotionModel = module.get(getModelToken(Promotion.name));
+    playerFinishedPromotionModel = module.get(getModelToken(PlayerFinishedPromotion.name));
 
     // Clear mocks before each test
     jest.clearAllMocks();
@@ -208,18 +210,30 @@ describe('PlayerPromotionService', () => {
         }),
       });
 
+      // Mock getPromotionRedeemedCount to return 0 (not redeemed yet)
+      // This is called by filterUnclaimedPromotions to check redemption count
+      playerFinishedPromotionModel.findOne.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            lean: jest.fn().mockReturnValue({
+              exec: jest.fn().mockResolvedValue(null),
+            }),
+          }),
+        }),
+      } as any);
+
       // Act
       const result = await service.hasAvailablePromotions(playerDto);
 
       // Assert
-      expect(result.length).toBe(2);
-      expect(result[0]._id).toBe('promo1');
-      expect(result[1]._id).toBe('promo2');
+      expect(result).not.toBeNull();
+      expect(result?._id).toBe('promo1');
+      expect(result?.gameIds).toContain(1001);
       expect(playerPromotionModel.find).toHaveBeenCalled();
       expect(promotionModel.find).toHaveBeenCalled();
     });
 
-    it('should return empty array when player has an active promotion', async () => {
+    it('should return null when player has an active promotion', async () => {
       // Arrange
       const playerDto: PlayerDto = {
         playerId: 'player1',
@@ -240,7 +254,7 @@ describe('PlayerPromotionService', () => {
       const result = await service.hasAvailablePromotions(playerDto);
 
       // Assert
-      expect(result.length).toBe(0);
+      expect(result).toBeNull();
       expect(playerPromotionModel.find).toHaveBeenCalled();
     });
   });

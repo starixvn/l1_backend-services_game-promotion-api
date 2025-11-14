@@ -7,7 +7,10 @@ import { RollbackBonusItemDto } from '../models/rollback-bonus-item.dto';
 import { PlayerPromotionStateDto } from '../models/player-promotion-state.dto';
 import { PlayerPromotionStateExportDto } from '../models/player-promotion-state-export.dto';
 import { DeductBonusItemResponse, RollbackResponse } from '../responses/deduct-bonus-item.response';
-import { EligiblePromotionsResponse } from '../responses/eligible-promotion.response';
+import {
+  EligiblePromotion,
+  EligiblePromotionsResponse,
+} from '../responses/eligible-promotion.response';
 import { PlayerPromotionResponse } from '../responses/player-promotion.response';
 import {
   PlayersResponse,
@@ -124,23 +127,21 @@ describe('PlayerPromotionController', () => {
 
     it('should return eligible promotions', async () => {
       // Arrange
-      const expectedResponse: EligiblePromotionsResponse = {
-        promotions: [
-          {
-            _id: 'promotion1',
-            name: 'Test Promotion',
-            code: 'TEST123',
-            bonusItemCount: 5,
-            currencyGroup: 'USD' as any,
-            isGiftCode: false,
-            startDate: new Date(),
-            endDate: new Date(),
-          },
-        ],
+      const mockPromotion: EligiblePromotion = {
+        _id: 'promotion1',
+        name: 'Test Promotion',
+        code: 'TEST123',
+        bonusItemCount: 5,
+        gameIds: [1],
+        currencyGroup: 'USD' as any,
+        isGiftCode: false,
+        startDate: new Date(),
+        endDate: new Date(),
       };
-      mockPlayerPromotionService.hasAvailablePromotions.mockResolvedValue(
-        expectedResponse.promotions,
-      );
+      const expectedResponse: EligiblePromotionsResponse = {
+        promotion: mockPromotion,
+      };
+      mockPlayerPromotionService.hasAvailablePromotions.mockResolvedValue(mockPromotion);
 
       // Act
       const actualResult = await controller.checkEligibility(inputDto);
@@ -150,16 +151,16 @@ describe('PlayerPromotionController', () => {
       expect(actualResult).toEqual(expectedResponse);
     });
 
-    it('should return empty promotions array when no eligible promotions', async () => {
+    it('should return null when no eligible promotions', async () => {
       // Arrange
-      mockPlayerPromotionService.hasAvailablePromotions.mockResolvedValue([]);
+      mockPlayerPromotionService.hasAvailablePromotions.mockResolvedValue(null);
 
       // Act
       const actualResult = await controller.checkEligibility(inputDto);
 
       // Assert
       expect(mockPlayerPromotionService.hasAvailablePromotions).toHaveBeenCalledWith(inputDto);
-      expect(actualResult).toEqual({ promotions: [] });
+      expect(actualResult).toEqual({ promotion: null });
     });
   });
 
