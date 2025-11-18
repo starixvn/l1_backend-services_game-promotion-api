@@ -552,6 +552,16 @@ export class BonusWinsService {
 
       const deleteResult = await this.playerPromotionModel.deleteOne({ _id });
       if (!deleteResult.deletedCount) {
+        this.loggerService.error(
+          'Error in processBonusClaim: delete player promotion failed',
+          undefined,
+          {
+            playerId,
+            operatorId,
+            siteName,
+            promotionId,
+          },
+        );
         return { errorCode: PLAYER_PROMOTION_ERROR_CODES.DELETE_PLAYER_PROMOTION_FAILED.code };
       }
 
