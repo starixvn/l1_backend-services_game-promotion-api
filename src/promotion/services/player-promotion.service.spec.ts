@@ -138,6 +138,7 @@ describe('PlayerPromotionService', () => {
       findOne: jest.fn().mockReturnThis(),
       find: jest.fn().mockReturnThis(),
       findById: jest.fn().mockReturnThis(),
+      sort: jest.fn().mockReturnThis(),
       lean: jest.fn().mockReturnThis(),
       exec: jest.fn(),
     };
@@ -203,11 +204,19 @@ describe('PlayerPromotionService', () => {
         }),
       });
 
-      // Mock getRunningPromotions
-      promotionModel.find.mockReturnValue({
+      // Mock promotionModel.find to support both:
+      // 1. findExistingPromotion (via hasCurrentPromotion): .find().lean().exec() (no sort)
+      // 2. getRunningPromotions: .find().sort().lean().exec() (with sort)
+      const mockLeanExecForHasAvailable = {
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue(mockPromotions),
         }),
+      };
+      promotionModel.find.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+        sort: jest.fn().mockReturnValue(mockLeanExecForHasAvailable),
       });
 
       // Mock getPromotionRedeemedCount to return 0 (not redeemed yet)
@@ -227,13 +236,13 @@ describe('PlayerPromotionService', () => {
 
       // Assert
       expect(result).not.toBeNull();
-      expect(result?._id).toBe('promo1');
-      expect(result?.gameIds).toContain(1001);
+      expect(result[0]._id).toBe('promo1');
+      expect(result[0].gameIds).toContain(1001);
       expect(playerPromotionModel.find).toHaveBeenCalled();
       expect(promotionModel.find).toHaveBeenCalled();
     });
 
-    it('should return null when player has an active promotion', async () => {
+    it('should return [] when player has an active promotion', async () => {
       // Arrange
       const playerDto: PlayerDto = {
         playerId: 'player1',
@@ -250,11 +259,24 @@ describe('PlayerPromotionService', () => {
         }),
       });
 
+      // Mock promotionModel.find for findExistingPromotion (via hasCurrentPromotion)
+      // This is called when checking if player has current promotion
+      promotionModel.find.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPromotions),
+        }),
+        sort: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+
       // Act
       const result = await service.hasAvailablePromotions(playerDto);
 
       // Assert
-      expect(result).toBeNull();
+      expect(result).toEqual([]);
       expect(playerPromotionModel.find).toHaveBeenCalled();
     });
   });
@@ -357,10 +379,17 @@ describe('PlayerPromotionService', () => {
       });
 
       // Mock promotionModel.find for findExistingPromotion
+      // Supports both .find().lean().exec() and .find().sort().lean().exec()
+      const mockLeanExecForExisting = {
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPromotions),
+        }),
+      };
       promotionModel.find.mockReturnValue({
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue(mockPromotions),
         }),
+        sort: jest.fn().mockReturnValue(mockLeanExecForExisting),
       });
 
       const result = await service.claimPromotion(playerDto);
@@ -384,7 +413,7 @@ describe('PlayerPromotionService', () => {
       expect(playerPromotionModel.find).toHaveBeenCalled();
     });
 
-    it('should claim and return new promotion if player has none but has available ones', async () => {
+    it('should claim and return new promotions if player has none but has available ones', async () => {
       // Mock findExistingPromotion to return null
       playerPromotionModel.find.mockReturnValue({
         lean: jest.fn().mockReturnValue({
@@ -392,11 +421,19 @@ describe('PlayerPromotionService', () => {
         }),
       });
 
-      // Mock getRunningPromotions
-      promotionModel.find.mockReturnValue({
+      // Mock promotionModel.find to support both:
+      // 1. findExistingPromotion: .find().lean().exec() (no sort)
+      // 2. getRunningPromotions: .find().sort().lean().exec() (with sort)
+      const mockLeanExecForNew = {
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue(mockPromotions),
         }),
+      };
+      promotionModel.find.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+        sort: jest.fn().mockReturnValue(mockLeanExecForNew),
       });
 
       jest.spyOn(service, 'assignPromotionToPlayer').mockResolvedValue({
@@ -430,7 +467,7 @@ describe('PlayerPromotionService', () => {
       );
     });
 
-    it('should return null if player has no promotion and no available promotions', async () => {
+    it('should return empty array if player has no promotion and no available promotions', async () => {
       // Mock findExistingPromotion to return null
       playerPromotionModel.find.mockReturnValue({
         lean: jest.fn().mockReturnValue({
@@ -438,11 +475,19 @@ describe('PlayerPromotionService', () => {
         }),
       });
 
-      // Mock getRunningPromotions to return empty array
+      // Mock promotionModel.find to support both:
+      // 1. findExistingPromotion: .find().lean().exec() (no sort)
+      // 2. getRunningPromotions: .find().sort().lean().exec() (with sort)
+      const mockLeanExec = {
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+      };
       promotionModel.find.mockReturnValue({
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue([]),
         }),
+        sort: jest.fn().mockReturnValue(mockLeanExec),
       });
 
       const result = await service.claimPromotion(playerDto);

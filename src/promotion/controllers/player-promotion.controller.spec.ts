@@ -139,9 +139,9 @@ describe('PlayerPromotionController', () => {
         endDate: new Date(),
       };
       const expectedResponse: EligiblePromotionsResponse = {
-        promotion: mockPromotion,
+        promotions: [mockPromotion],
       };
-      mockPlayerPromotionService.hasAvailablePromotions.mockResolvedValue(mockPromotion);
+      mockPlayerPromotionService.hasAvailablePromotions.mockResolvedValue([mockPromotion]);
 
       // Act
       const actualResult = await controller.checkEligibility(inputDto);
@@ -151,16 +151,16 @@ describe('PlayerPromotionController', () => {
       expect(actualResult).toEqual(expectedResponse);
     });
 
-    it('should return null when no eligible promotions', async () => {
+    it('should return empty array when no eligible promotions', async () => {
       // Arrange
-      mockPlayerPromotionService.hasAvailablePromotions.mockResolvedValue(null);
+      mockPlayerPromotionService.hasAvailablePromotions.mockResolvedValue([]);
 
       // Act
       const actualResult = await controller.checkEligibility(inputDto);
 
       // Assert
       expect(mockPlayerPromotionService.hasAvailablePromotions).toHaveBeenCalledWith(inputDto);
-      expect(actualResult).toEqual({ promotion: null });
+      expect(actualResult).toEqual({ promotions: [] });
     });
   });
 
