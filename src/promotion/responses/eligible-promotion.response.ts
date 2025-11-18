@@ -62,5 +62,5 @@ export class EligiblePromotionsResponse {
     description: 'List of eligible promotions',
     type: [EligiblePromotion],
   })
-  promotion: EligiblePromotion | null;
+  promotions: EligiblePromotion[];
 }

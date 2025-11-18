@@ -168,14 +168,12 @@ export class PlayerPromotionService {
    * @param playerDto Player information
    * @returns List of eligible promotions
    */
-  async hasAvailablePromotions(playerDto: PlayerDto): Promise<EligiblePromotion | null> {
+  async hasAvailablePromotions(playerDto: PlayerDto): Promise<EligiblePromotion[]> {
     const availablePromotions = await this.getAvailablePromotions(playerDto);
     if (!availablePromotions) {
-      return null;
+      return [];
     }
-    return (
-      availablePromotions.find(promotion => promotion.gameIds.includes(playerDto.gameId)) || null
-    );
+    return availablePromotions.filter(promotion => promotion.gameIds.includes(playerDto.gameId));
   }
 
   /**
@@ -447,6 +445,7 @@ export class PlayerPromotionService {
           },
         ],
       })
+      .sort({ endDate: 1 })
       .lean()
       .exec();
   }

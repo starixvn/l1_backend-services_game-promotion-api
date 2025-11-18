@@ -12,5 +12,5 @@ export interface EligiblePromotion {
 }
 
 export interface EligiblePromotionsResponse {
-  promotion: EligiblePromotion | null;
+  promotions: EligiblePromotion[];
 }
