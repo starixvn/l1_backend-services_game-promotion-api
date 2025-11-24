@@ -203,7 +203,7 @@ export class BonusWinsService {
           {
             $set: {
               minRequiredTurnover: {
-                $multiply: ['$totalWinAmount', '$turnoverMultiplier'],
+                $round: [{ $multiply: ['$totalWinAmount', '$turnoverMultiplier'] }, 2],
               },
               baseMinRequiredTurnover: {
                 $multiply: ['$baseTotalWinAmount', '$turnoverMultiplier'],
@@ -661,7 +661,7 @@ export class BonusWinsService {
   ): boolean {
     return (
       minRequiredTurnover > 0 &&
-      totalTurnover >= minRequiredTurnover &&
+      roundToFourDecimals(totalTurnover) >= roundToFourDecimals(minRequiredTurnover) &&
       totalWinAmount > 0 &&
       roundToFourDecimals(totalWinAmount) === roundToFourDecimals(actualWinAmount)
     );
