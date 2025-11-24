@@ -1031,8 +1031,9 @@ export class PlayerPromotionService {
         siteName,
         promotion._id,
       );
+      const maxRedemptionTimes = promotion.maxRedemptionTimes ?? 1;
 
-      if (redeemedCount >= promotion.maxRedemptionTimes && promotion.maxRedemptionTimes !== -1) {
+      if (redeemedCount >= maxRedemptionTimes && maxRedemptionTimes !== -1) {
         return this.createErrorResponse(PLAYER_PROMOTION_ERROR_CODES.INVALID_GIFT_CODE);
       }
 
