@@ -65,6 +65,7 @@ describe('BonusWinsService', () => {
           useValue: {
             create: jest.fn(),
             findOne: jest.fn(),
+            findOneAndUpdate: jest.fn(),
             deleteOne: jest.fn(),
           },
         },
@@ -107,6 +108,7 @@ describe('BonusWinsService', () => {
             findExistingPromotion: jest.fn(),
             findPlayerPromotion: jest.fn(),
             findUniquePlayerPromotion: jest.fn(),
+            getPromotionRedeemedCount: jest.fn(),
           },
         },
         {
@@ -1250,6 +1252,7 @@ describe('BonusWinsService', () => {
 
     it('should successfully claim bonus and log success', async () => {
       const mockPlayerPromotion = {
+        _id: new Types.ObjectId(),
         playerId: 'player1',
         operatorId: 'op1',
         siteName: 'site1',
@@ -1267,33 +1270,46 @@ describe('BonusWinsService', () => {
         claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
       };
 
-      // Mock getTOProgress
+      const mockFinishedPromotionId = new Types.ObjectId();
+      const mockFinishedPromotion = {
+        ...mockPlayerPromotion,
+        _id: mockFinishedPromotionId,
+        playerPromotionId: mockPlayerPromotion._id,
+        bonusClaimed: true,
+        claimedAt: new Date(),
+        seq: null,
+        redemptionCount: 1,
+      };
+
+      // Mock getTOProgress - findByPromotion call
       playerPromotionModel.findOne.mockReturnValue({
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
         }),
       } as any);
 
+      // Mock promotion lookup for getTOProgress
       promotionModel.findById.mockReturnValue({
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue(mockPromotion),
         }),
       } as any);
 
-      // Mock isClaimable
+      // Mock calculateTotalWin for getTOProgress and isClaimable
       promotionTicketService.calculateTotalWin.mockResolvedValue({
         totalWinAmount: 50,
         baseTotalWinAmount: 100,
       });
 
-      // Mock successful update (return with proper structure for lean+exec)
-      const updatedPromotion = {
-        ...mockPlayerPromotion,
-        bonusClaimed: true,
-        claimedAt: new Date(),
-      };
+      // Mock processBonusClaim dependencies
+      playerPromotionService.getPromotionRedeemedCount.mockResolvedValue(0);
 
-      playerPromotionModel.findOneAndUpdate.mockReturnValueOnce(updatedPromotion as any);
+      playerFinishedPromotionModel.findOneAndUpdate.mockResolvedValue(mockFinishedPromotion as any);
+
+      playerPromotionModel.deleteOne.mockResolvedValue({
+        acknowledged: true,
+        deletedCount: 1,
+      } as any);
 
       const result = await service.claimBonusWins('player1', 'op1', 'site1', 'promo1');
 
@@ -1302,6 +1318,36 @@ describe('BonusWinsService', () => {
       expect(result.totalTurnover).toBe(100);
       expect(result.totalWinAmount).toBe(50);
       expect(result.errorCode).toBeUndefined();
+      expect(result.playerFinishedPromotionId).toBe(mockFinishedPromotion._id);
+      expect(result.playerPromotionId).toBe(mockPlayerPromotion._id);
+
+      // Verify processBonusClaim was called correctly
+      expect(playerPromotionService.getPromotionRedeemedCount).toHaveBeenCalledWith(
+        'player1',
+        'op1',
+        'site1',
+        'promo1',
+      );
+
+      expect(playerFinishedPromotionModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { playerPromotionId: mockPlayerPromotion._id },
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            bonusClaimed: true,
+            claimedAt: expect.any(Date),
+          }),
+          $setOnInsert: {
+            seq: null,
+            redemptionCount: 1,
+          },
+        }),
+        {
+          upsert: true,
+          new: true,
+        },
+      );
+
+      expect(playerPromotionModel.deleteOne).toHaveBeenCalledWith({ _id: mockPlayerPromotion._id });
 
       // Verify LogBuilder was called for success
       expect(LogBuilder.create).toHaveBeenCalledWith(
@@ -1310,14 +1356,23 @@ describe('BonusWinsService', () => {
         expect.anything(),
         expect.anything(),
       );
-      const mockBuilderInstance = (LogBuilder.create as jest.Mock).mock.results[0].value;
+      const mockBuilderInstance = (LogBuilder.create as jest.Mock).mock.results[
+        (LogBuilder.create as jest.Mock).mock.results.length - 1
+      ].value;
       expect(mockBuilderInstance.withRequest).toHaveBeenCalledWith({
         operatorId: 'op1',
         playerId: 'player1',
         siteName: 'site1',
         promotionId: 'promo1',
       });
-      expect(mockBuilderInstance.withResponse).toHaveBeenCalled();
+      expect(mockBuilderInstance.withResponse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          claimedAmount: 50,
+          totalTurnover: 100,
+          minRequiredTurnover: 100,
+          totalWinAmount: 50,
+        }),
+      );
       expect(mockBuilderInstance.send).toHaveBeenCalled();
     });
 
@@ -1396,42 +1451,84 @@ describe('BonusWinsService', () => {
     });
 
     it('should log error when claim update fails', async () => {
-      const toProgressResult = {
+      const mockPlayerPromotion = {
+        _id: new Types.ObjectId(),
+        playerId: 'player4',
+        operatorId: 'op4',
+        siteName: 'site4',
+        promotionId: 'promo4',
         totalTurnover: 100,
         minRequiredTurnover: 100,
-        remainingTO: 0,
-        progressPercentage: 100,
-        canClaim: true,
         totalWinAmount: 50,
+        bonusClaimed: false,
+        claimedAt: null,
       };
 
-      // Mock getTOProgress to return success
-      jest.spyOn(service, 'getTOProgress').mockResolvedValueOnce(toProgressResult);
+      const mockPromotion = {
+        _id: 'promo4',
+        minTurnoverMultiplier: 2,
+        claimExpirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      };
 
-      // Mock isClaimable
-      promotionModel.findById.mockReturnValue({
+      // Mock getTOProgress - findByPromotion call
+      playerPromotionModel.findOne.mockReturnValue({
         lean: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue({
-            minTurnoverMultiplier: 2,
-          }),
+          exec: jest.fn().mockResolvedValue(mockPlayerPromotion),
         }),
       } as any);
 
+      // Mock promotion lookup for getTOProgress and isClaimable
+      promotionModel.findById.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockPromotion),
+        }),
+      } as any);
+
+      // Mock calculateTotalWin for getTOProgress and isClaimable
       promotionTicketService.calculateTotalWin.mockResolvedValue({
         totalWinAmount: 50,
         baseTotalWinAmount: 100,
       });
 
-      // Mock update failure (already claimed by another request)
-      playerPromotionModel.findOneAndUpdate.mockReturnValueOnce(null as any);
+      // Mock processBonusClaim to fail - findOneAndUpdate returns null
+      playerPromotionService.getPromotionRedeemedCount.mockResolvedValue(0);
+      playerFinishedPromotionModel.findOneAndUpdate.mockResolvedValue(null as any);
 
       const result = await service.claimBonusWins('player4', 'op4', 'site4', 'promo4');
 
-      // Verify error response
-      expect(result.errorCode).toBe('SB3026'); // CLAIM_UPDATE_FAILED
+      // Verify error response - should return the error from processBonusClaim
+      expect(result.errorCode).toBe('SB3036'); // MOVING_TO_FINISHED_PROMOTION_FAILED
       expect(result.claimedAmount).toBe(0);
+      expect(result.playerFinishedPromotionId).toBe('');
+      expect(result.playerPromotionId).toBe('');
 
-      // Verify LogBuilder was called with error
+      // Verify processBonusClaim was called
+      expect(playerPromotionService.getPromotionRedeemedCount).toHaveBeenCalledWith(
+        'player4',
+        'op4',
+        'site4',
+        'promo4',
+      );
+
+      expect(playerFinishedPromotionModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { playerPromotionId: mockPlayerPromotion._id },
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            bonusClaimed: true,
+            claimedAt: expect.any(Date),
+          }),
+          $setOnInsert: {
+            seq: null,
+            redemptionCount: 1,
+          },
+        }),
+        {
+          upsert: true,
+          new: true,
+        },
+      );
+
+      // Verify LogBuilder was called with error (logs SB3026 but returns SB3036)
       const mockBuilderInstance = (LogBuilder.create as jest.Mock).mock.results[
         (LogBuilder.create as jest.Mock).mock.calls.length - 1
       ].value;
@@ -1441,6 +1538,7 @@ describe('BonusWinsService', () => {
         'Failed to update promotion as claimed (promotion not found or already claimed)',
         expect.any(Object),
       );
+      expect(mockBuilderInstance.send).toHaveBeenCalled();
     });
 
     it('should log error when verification fails', async () => {

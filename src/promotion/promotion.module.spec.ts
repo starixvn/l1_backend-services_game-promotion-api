@@ -242,6 +242,18 @@ describe('PromotionModule (Integration)', () => {
       }),
     };
 
+    // Mock for the ActionLog model (required by the module)
+    const mockActionLogModel = {
+      create: jest.fn().mockResolvedValue({}),
+      insertMany: jest.fn().mockResolvedValue([]),
+      find: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+      }),
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [PromotionModule],
     })

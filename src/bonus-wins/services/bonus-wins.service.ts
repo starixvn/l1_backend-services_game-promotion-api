@@ -398,7 +398,8 @@ export class BonusWinsService {
     isManualClaim = false,
   ): Promise<ClaimBonusWinsResponse> {
     try {
-      const toRequirementResult = await this.getTOProgress(
+      // Step 1: Get and validate TO progress
+      const toProgress = await this.getTOProgress(
         playerId,
         operatorId,
         siteName,
@@ -406,189 +407,301 @@ export class BonusWinsService {
         isManualClaim,
       );
 
-      if (toRequirementResult.errorCode) {
-        const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_GET_TO_PROGRESS_FAILED;
-        await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
-          .withError(
-            toRequirementResult.errorCode,
-            toRequirementResult.errorMessage || errorConfig.message,
-            errorConfig.description,
-            {
-              totalTurnover: toRequirementResult.totalTurnover,
-              minRequiredTurnover: toRequirementResult.minRequiredTurnover,
-              progressPercentage: toRequirementResult.progressPercentage,
-              totalWinAmount: toRequirementResult.totalWinAmount,
-              remainingTO: toRequirementResult.remainingTO,
-              canClaim: toRequirementResult.canClaim,
-              claimExpirationDate: toRequirementResult.claimExpirationDate,
-            },
-          )
-          .send();
-
-        return {
-          playerFinishedPromotionId: '',
-          playerPromotionId: '',
-          claimedAmount: 0,
-          totalTurnover: 0,
-          minRequiredTurnover: 0,
-          totalWinAmount: 0,
-          errorCode: toRequirementResult.errorCode,
-        };
+      const toProgressError = await this.validateTOProgress(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        toProgress,
+      );
+      if (toProgressError) {
+        return toProgressError;
       }
 
-      const playerPromotion = await this.findByPromotion(
+      // Step 2: Get and validate player promotion
+      const playerPromotion = await this.validatePlayerPromotion(
         playerId,
         operatorId,
         siteName,
         promotionId,
       );
       if (!playerPromotion) {
-        return {
-          playerFinishedPromotionId: '',
-          playerPromotionId: '',
-          claimedAmount: 0,
-          totalTurnover: 0,
-          minRequiredTurnover: 0,
-          totalWinAmount: 0,
-          errorCode: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
-        };
+        return this.createErrorResponse(
+          PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
+        );
       }
 
-      const isClaimable = await this.isClaimable(
+      // Step 3: Validate claim conditions
+      const claimError = await this.validateClaimConditions(
         playerId,
         operatorId,
         siteName,
         promotionId,
-        toRequirementResult.totalTurnover,
-        playerPromotion._id,
-        toRequirementResult.totalWinAmount,
+        playerPromotion,
+        toProgress,
       );
-
-      if (!toRequirementResult.canClaim) {
-        const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_TO_REQUIREMENT_NOT_MET;
-        await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
-          .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
-            totalTurnover: toRequirementResult.totalTurnover,
-            minRequiredTurnover: toRequirementResult.minRequiredTurnover,
-            progressPercentage: toRequirementResult.progressPercentage,
-            totalWinAmount: toRequirementResult.totalWinAmount,
-            remainingTO: toRequirementResult.remainingTO,
-            canClaim: toRequirementResult.canClaim,
-            claimExpirationDate: toRequirementResult.claimExpirationDate,
-          })
-          .send();
-
-        return {
-          playerFinishedPromotionId: '',
-          playerPromotionId: '',
-          claimedAmount: 0,
-          totalTurnover: 0,
-          minRequiredTurnover: 0,
-          totalWinAmount: 0,
-          errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_TO_REQUIREMENT_NOT_MET.code,
-        };
+      if (claimError) {
+        return claimError;
+      }
+      // Step 4: Process the claim
+      const claimResult = await this.executeClaimProcess(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        playerPromotion,
+        toProgress,
+      );
+      if (claimResult.errorCode) {
+        return claimResult;
       }
 
-      if (!isClaimable) {
-        const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_VERIFICATION_FAILED;
-        await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
-          .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
-            totalTurnover: toRequirementResult.totalTurnover,
-            minRequiredTurnover: toRequirementResult.minRequiredTurnover,
-            progressPercentage: toRequirementResult.progressPercentage,
-            totalWinAmount: toRequirementResult.totalWinAmount,
-            remainingTO: toRequirementResult.remainingTO,
-            canClaim: toRequirementResult.canClaim,
-            claimExpirationDate: toRequirementResult.claimExpirationDate,
-          })
-          .send();
+      // Step 5: Log success and return
+      await this.logClaimSuccess(playerId, operatorId, siteName, promotionId, toProgress);
 
-        return {
-          playerFinishedPromotionId: '',
-          playerPromotionId: '',
-          claimedAmount: 0,
-          totalTurnover: 0,
-          minRequiredTurnover: 0,
-          totalWinAmount: 0,
-          errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_VERIFICATION_FAILED.code,
-        };
-      }
-      const { playerFinishedPromotion, errorCode: finishedPromotionErrorCode } =
-        await this.processBonusClaim(playerId, operatorId, siteName, promotionId, playerPromotion);
-      if (finishedPromotionErrorCode || !playerFinishedPromotion) {
+      return claimResult;
+    } catch (error) {
+      return this.handleClaimUnexpectedError(playerId, operatorId, siteName, promotionId, error);
+    }
+  }
+
+  /**
+   * Validate TO progress result
+   */
+  private async validateTOProgress(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+    toProgress: GetTOProgressResponse,
+  ): Promise<ClaimBonusWinsResponse | null> {
+    if (!toProgress.errorCode) {
+      return null;
+    }
+    const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_GET_TO_PROGRESS_FAILED;
+    await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
+      .withError(
+        toProgress.errorCode,
+        toProgress.errorMessage || errorConfig.message,
+        errorConfig.description,
+        {
+          totalTurnover: toProgress.totalTurnover,
+          minRequiredTurnover: toProgress.minRequiredTurnover,
+          progressPercentage: toProgress.progressPercentage,
+          totalWinAmount: toProgress.totalWinAmount,
+          remainingTO: toProgress.remainingTO,
+          canClaim: toProgress.canClaim,
+          claimExpirationDate: toProgress.claimExpirationDate,
+        },
+      )
+      .send();
+
+    return this.createErrorResponse(toProgress.errorCode);
+  }
+
+  /**
+   * Validate player promotion exists
+   */
+  private async validatePlayerPromotion(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+  ): Promise<PlayerPromotionDocument | null> {
+    return this.findByPromotion(playerId, operatorId, siteName, promotionId);
+  }
+
+  /**
+   * Validate claim conditions (canClaim and isClaimable)
+   */
+  private async validateClaimConditions(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+    playerPromotion: PlayerPromotionDocument,
+    toProgress: GetTOProgressResponse,
+  ): Promise<ClaimBonusWinsResponse | null> {
+    const isClaimable = await this.isClaimable(
+      playerId,
+      operatorId,
+      siteName,
+      promotionId,
+      toProgress.totalTurnover,
+      playerPromotion._id,
+      toProgress.totalWinAmount,
+    );
+
+    // Check if turnover requirement is met
+    if (!toProgress.canClaim) {
+      const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_TO_REQUIREMENT_NOT_MET;
+      await this.logClaimError(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        errorConfig,
+        toProgress,
+      );
+      return this.createErrorResponse(errorConfig.code);
+    }
+
+    // Check if claim verification passed
+    if (!isClaimable) {
+      const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_VERIFICATION_FAILED;
+      await this.logClaimError(
+        playerId,
+        operatorId,
+        siteName,
+        promotionId,
+        errorConfig,
+        toProgress,
+      );
+      return this.createErrorResponse(errorConfig.code);
+    }
+
+    return null;
+  }
+
+  /**
+   * Execute the claim process
+   */
+  private async executeClaimProcess(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+    playerPromotion: PlayerPromotionDocument,
+    toProgress: GetTOProgressResponse,
+  ): Promise<ClaimBonusWinsResponse> {
+    const { playerFinishedPromotion, errorCode } = await this.processBonusClaim(
+      playerId,
+      operatorId,
+      siteName,
+      promotionId,
+      playerPromotion,
+    );
+
+    if (errorCode || !playerFinishedPromotion) {
       const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_UPDATE_FAILED;
       await LogBuilder.create(
         operatorId,
-        'claim-bonus-win',
+        this.CLAIM_BONUS_WIN_ACTION,
         this.loggerService,
         this.actionLogService,
       )
-        .withRequest({
-          playerId,
-          siteName,
-          operatorId,
-          promotionId,
-        })
+        .withRequest({ playerId, siteName, operatorId, promotionId })
         .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
-          totalTurnover: toRequirementResult.totalTurnover,
-          minRequiredTurnover: toRequirementResult.minRequiredTurnover,
-          progressPercentage: toRequirementResult.progressPercentage,
-          totalWinAmount: toRequirementResult.totalWinAmount,
-          remainingTO: toRequirementResult.remainingTO,
-          canClaim: toRequirementResult.canClaim,
-          claimExpirationDate: toRequirementResult.claimExpirationDate,
+          totalTurnover: toProgress.totalTurnover,
+          minRequiredTurnover: toProgress.minRequiredTurnover,
+          progressPercentage: toProgress.progressPercentage,
+          totalWinAmount: toProgress.totalWinAmount,
+          remainingTO: toProgress.remainingTO,
+          canClaim: toProgress.canClaim,
+          claimExpirationDate: toProgress.claimExpirationDate,
         })
         .send();
 
-        return {
-          playerFinishedPromotionId: '',
-          playerPromotionId: '',
-          claimedAmount: 0,
-          totalTurnover: 0,
-          minRequiredTurnover: 0,
-          totalWinAmount: 0,
-          errorCode: finishedPromotionErrorCode,
-        };
-      }
-      // Log success
-        await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
-          .withResponse({
-            claimedAmount: totalWinAmount,
-            totalTurnover,
-            minRequiredTurnover,
-            totalWinAmount,
-            progressPercentage: toRequirementResult.progressPercentage,
-            remainingTO: toRequirementResult.remainingTO,
-            canClaim: toRequirementResult.canClaim,
-            claimExpirationDate: toRequirementResult.claimExpirationDate,
-          })
-          .send();
-      return {
-        playerFinishedPromotionId: playerFinishedPromotion._id,
-        playerPromotionId: playerPromotion._id,
-        claimedAmount: playerFinishedPromotion.totalWinAmount,
-        totalTurnover: playerFinishedPromotion.totalTurnover,
-        minRequiredTurnover: playerFinishedPromotion.minRequiredTurnover,
-        totalWinAmount: playerFinishedPromotion.totalWinAmount,
-      };
-    } catch (error) {
-      this.loggerService.error('Error in claimBonusWins', error.stack, {
-        playerId,
-        operatorId,
-        siteName,
-        promotionId,
-        error: error.message,
-      });
-      return {
-        playerFinishedPromotionId: '',
-        playerPromotionId: '',
-        claimedAmount: 0,
-        totalTurnover: 0,
-        minRequiredTurnover: 0,
-        totalWinAmount: 0,
-        errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_UNEXPECTED_ERROR.code,
-      };
+      return this.createErrorResponse(errorCode || errorConfig.code);
     }
+
+    return {
+      playerFinishedPromotionId: playerFinishedPromotion._id,
+      playerPromotionId: playerPromotion._id,
+      claimedAmount: playerFinishedPromotion.totalWinAmount,
+      totalTurnover: playerFinishedPromotion.totalTurnover,
+      minRequiredTurnover: playerFinishedPromotion.minRequiredTurnover,
+      totalWinAmount: playerFinishedPromotion.totalWinAmount,
+    };
+  }
+
+  /**
+   * Log claim error
+   */
+  private async logClaimError(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+    errorConfig: { code: string; message: string; description: string },
+    toProgress: GetTOProgressResponse,
+  ): Promise<void> {
+    await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
+      .withError(errorConfig.code, errorConfig.message, errorConfig.description, {
+        totalTurnover: toProgress.totalTurnover,
+        minRequiredTurnover: toProgress.minRequiredTurnover,
+        progressPercentage: toProgress.progressPercentage,
+        totalWinAmount: toProgress.totalWinAmount,
+        remainingTO: toProgress.remainingTO,
+        canClaim: toProgress.canClaim,
+        claimExpirationDate: toProgress.claimExpirationDate,
+      })
+      .send();
+  }
+
+  /**
+   * Log claim success
+   */
+  private async logClaimSuccess(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+    toProgress: GetTOProgressResponse,
+  ): Promise<void> {
+    await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
+      .withResponse({
+        claimedAmount: toProgress.totalWinAmount,
+        totalTurnover: toProgress.totalTurnover,
+        minRequiredTurnover: toProgress.minRequiredTurnover,
+        totalWinAmount: toProgress.totalWinAmount,
+        progressPercentage: toProgress.progressPercentage,
+        remainingTO: toProgress.remainingTO,
+        canClaim: toProgress.canClaim,
+        claimExpirationDate: toProgress.claimExpirationDate,
+      })
+      .send();
+  }
+
+  /**
+   * Handle unexpected error during claim
+   */
+  private async handleClaimUnexpectedError(
+    playerId: string,
+    operatorId: string,
+    siteName: string,
+    promotionId: string,
+    error: any,
+  ): Promise<ClaimBonusWinsResponse> {
+    const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_UNEXPECTED_ERROR;
+    await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
+      .withError(errorConfig.code, errorConfig.message, error.stack || error.message)
+      .send();
+
+    this.loggerService.error('Error in claimBonusWins', error.stack, {
+      playerId,
+      operatorId,
+      siteName,
+      promotionId,
+      error: error.message,
+    });
+
+    return this.createErrorResponse(PLAYER_PROMOTION_ERROR_CODES.CLAIM_UNEXPECTED_ERROR.code);
+  }
+
+  /**
+   * Create error response
+   */
+  private createErrorResponse(errorCode: string): ClaimBonusWinsResponse {
+    return {
+      playerFinishedPromotionId: '',
+      playerPromotionId: '',
+      claimedAmount: 0,
+      totalTurnover: 0,
+      minRequiredTurnover: 0,
+      totalWinAmount: 0,
+      errorCode,
+    };
   }
 
   async processBonusClaim(
@@ -652,11 +765,6 @@ export class BonusWinsService {
 
       return { playerFinishedPromotion };
     } catch (error) {
-    // Log unexpected error
-      const errorConfig = PLAYER_PROMOTION_ERROR_CODES.CLAIM_UNEXPECTED_ERROR;
-      await this.createClaimLogBuilder(playerId, operatorId, siteName, promotionId)
-        .withError(errorConfig.code, errorConfig.message, error.stack || error.message)
-        .send();
       this.loggerService.error('Error in processBonusClaim', error.stack, {
         playerId,
         operatorId,
@@ -888,7 +996,7 @@ export class BonusWinsService {
       promotionId,
       operatorId,
     });
-
+  }
 
   /**
    * Complete a promotion by setting isCompleted to true
