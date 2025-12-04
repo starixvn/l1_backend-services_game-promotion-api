@@ -70,4 +70,7 @@ export abstract class BasePlayerPromotion {
 
   @Prop({ type: Number, default: 0 })
   baseMinRequiredTurnover: number;
+
+  @Prop({ type: Date, default: null })
+  joinedAt: Date;
 }

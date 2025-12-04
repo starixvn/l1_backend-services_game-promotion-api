@@ -91,6 +91,7 @@ describe('PlayerPromotionController', () => {
           baseTotalWinAmount: 0,
           baseTotalTurnover: 0,
           baseMinRequiredTurnover: 0,
+          joinedAt: new Date(),
         },
       };
       mockPlayerPromotionService.claimPromotion.mockResolvedValue(expectedResponse);
@@ -313,6 +314,7 @@ describe('PlayerPromotionController', () => {
           baseTotalWinAmount: 0,
           baseTotalTurnover: 0,
           baseMinRequiredTurnover: 0,
+          joinedAt: new Date(),
         },
       };
       mockPlayerPromotionService.redeemPromotion.mockResolvedValue(expectedResponse);

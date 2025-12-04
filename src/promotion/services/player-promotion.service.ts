@@ -51,6 +51,7 @@ interface AggregationDocument {
   bonusClaimed: boolean;
   remainingBonusItems: number;
   initialBonusItem: number;
+  joinedAt: Date | null;
 }
 /**
  * Service for managing player promotions
@@ -518,6 +519,7 @@ export class PlayerPromotionService {
       baseTotalWinAmount: 0,
       baseTotalTurnover: 0,
       baseMinRequiredTurnover: 0,
+      joinedAt: new Date(),
     });
 
     return playerPromotion.save();
@@ -931,7 +933,7 @@ export class PlayerPromotionService {
       status: doc.calculatedStatus,
       siteName: doc.siteName,
       currency: doc.currency,
-      dateJoined: doc.createdAt.toISOString(),
+      dateJoined: doc.joinedAt?.toISOString() || doc.createdAt.toISOString(),
       bonusWin: doc.totalWinAmount,
       baseBonusWin: doc.baseTotalWinAmount || 0,
       turnover: doc.totalTurnover,
@@ -982,6 +984,7 @@ export class PlayerPromotionService {
       baseTotalWinAmount: playerPromotion.baseTotalWinAmount,
       baseTotalTurnover: playerPromotion.baseTotalTurnover,
       baseMinRequiredTurnover: playerPromotion.baseMinRequiredTurnover,
+      joinedAt: playerPromotion.joinedAt,
     };
 
     return {

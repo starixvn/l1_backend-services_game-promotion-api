@@ -523,7 +523,7 @@ export class BonusWinsService {
         siteName,
         promotionId,
       );
-      const { _id, ...restPromotionFields } = playerPromotion;
+      const { _id, joinedAt, ...restPromotionFields } = playerPromotion;
 
       const playerFinishedPromotion = await this.playerFinishedPromotionModel.findOneAndUpdate(
         {
@@ -538,6 +538,7 @@ export class BonusWinsService {
           $setOnInsert: {
             seq: null,
             redemptionCount: maxRedemptionCount + 1,
+            joinedAt,
           },
         },
         {
