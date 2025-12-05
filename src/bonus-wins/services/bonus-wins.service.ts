@@ -721,7 +721,7 @@ export class BonusWinsService {
         siteName,
         promotionId,
       );
-      const { _id, joinedAt, ...restPromotionFields } = playerPromotion;
+      const { _id, joinedAt, totalWinAmount, ...restPromotionFields } = playerPromotion;
 
       const playerFinishedPromotion = await this.playerFinishedPromotionModel.findOneAndUpdate(
         {
@@ -730,7 +730,7 @@ export class BonusWinsService {
         {
           $set: {
             ...restPromotionFields,
-            bonusClaimed: true,
+            bonusClaimed: totalWinAmount > 0,
             claimedAt: new Date(),
           },
           $setOnInsert: {
