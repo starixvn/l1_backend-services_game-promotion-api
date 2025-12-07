@@ -392,6 +392,8 @@ export class BonusWinsService {
     promotionId: string,
     isManualClaim = false,
   ): Promise<ClaimBonusWinsResponse> {
+    const logContext = { playerId, operatorId, siteName, promotionId, isManualClaim };
+
     try {
       const toRequirementResult = await this.getTOProgress(
         playerId,
@@ -402,6 +404,11 @@ export class BonusWinsService {
       );
 
       if (toRequirementResult.errorCode) {
+        this.loggerService.warn('claimBonusWins failed: getTOProgress returned error', {
+          ...logContext,
+          errorCode: toRequirementResult.errorCode,
+          toRequirementResult,
+        });
         return {
           playerFinishedPromotionId: '',
           playerPromotionId: '',
@@ -420,6 +427,10 @@ export class BonusWinsService {
         promotionId,
       );
       if (!playerPromotion) {
+        this.loggerService.warn('claimBonusWins failed: playerPromotion not found', {
+          ...logContext,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.PLAYER_PROMOTION_NOT_FOUND.code,
+        });
         return {
           playerFinishedPromotionId: '',
           playerPromotionId: '',
@@ -442,6 +453,15 @@ export class BonusWinsService {
       );
 
       if (!toRequirementResult.canClaim) {
+        this.loggerService.warn('claimBonusWins failed: TO requirement not met', {
+          ...logContext,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_TO_REQUIREMENT_NOT_MET.code,
+          playerPromotionId: playerPromotion._id,
+          totalTurnover: toRequirementResult.totalTurnover,
+          minRequiredTurnover: toRequirementResult.minRequiredTurnover,
+          totalWinAmount: toRequirementResult.totalWinAmount,
+          progressPercentage: toRequirementResult.progressPercentage,
+        });
         return {
           playerFinishedPromotionId: '',
           playerPromotionId: '',
@@ -454,6 +474,14 @@ export class BonusWinsService {
       }
 
       if (!isClaimable) {
+        this.loggerService.warn('claimBonusWins failed: claim verification failed', {
+          ...logContext,
+          errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_VERIFICATION_FAILED.code,
+          playerPromotionId: playerPromotion._id,
+          storedTotalWinAmount: toRequirementResult.totalWinAmount,
+          storedMinRequiredTurnover: toRequirementResult.minRequiredTurnover,
+          totalTurnover: toRequirementResult.totalTurnover,
+        });
         return {
           playerFinishedPromotionId: '',
           playerPromotionId: '',
@@ -464,9 +492,15 @@ export class BonusWinsService {
           errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_VERIFICATION_FAILED.code,
         };
       }
+
       const { playerFinishedPromotion, errorCode: finishedPromotionErrorCode } =
         await this.processBonusClaim(playerId, operatorId, siteName, promotionId, playerPromotion);
       if (finishedPromotionErrorCode || !playerFinishedPromotion) {
+        this.loggerService.warn('claimBonusWins failed: processBonusClaim returned error', {
+          ...logContext,
+          errorCode: finishedPromotionErrorCode,
+          playerPromotionId: playerPromotion._id,
+        });
         return {
           playerFinishedPromotionId: '',
           playerPromotionId: '',
@@ -477,6 +511,16 @@ export class BonusWinsService {
           errorCode: finishedPromotionErrorCode,
         };
       }
+
+      this.loggerService.log('claimBonusWins succeeded', false, {
+        ...logContext,
+        playerPromotionId: playerPromotion._id,
+        playerFinishedPromotionId: playerFinishedPromotion._id,
+        claimedAmount: playerFinishedPromotion.totalWinAmount,
+        totalTurnover: playerFinishedPromotion.totalTurnover,
+        minRequiredTurnover: playerFinishedPromotion.minRequiredTurnover,
+      });
+
       return {
         playerFinishedPromotionId: playerFinishedPromotion._id,
         playerPromotionId: playerPromotion._id,
@@ -486,11 +530,9 @@ export class BonusWinsService {
         totalWinAmount: playerFinishedPromotion.totalWinAmount,
       };
     } catch (error) {
-      this.loggerService.error('Error in claimBonusWins', error.stack, {
-        playerId,
-        operatorId,
-        siteName,
-        promotionId,
+      this.loggerService.error('claimBonusWins failed: unexpected error', error.stack, {
+        ...logContext,
+        errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_UNEXPECTED_ERROR.code,
         error: error.message,
       });
 
@@ -575,6 +617,7 @@ export class BonusWinsService {
         promotionId,
         error: error.message,
       });
+
       return { errorCode: PLAYER_PROMOTION_ERROR_CODES.CLAIM_UNEXPECTED_ERROR.code };
     }
   }
