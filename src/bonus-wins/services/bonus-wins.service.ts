@@ -680,12 +680,16 @@ export class BonusWinsService {
           promotionId,
           totalTurnover,
           minRequiredTurnover,
-          totalWinAmount: actualWinAmount.totalWinAmount,
+          storedTotalWinAmount: totalWinAmount,
+          calculatedActualWinAmount: actualWinAmount.totalWinAmount,
           turnoverMultiplier: promotion.minTurnoverMultiplier,
           reasons: {
             minRequiredTurnoverInvalid: minRequiredTurnover <= 0,
             turnoverNotMet: totalTurnover < minRequiredTurnover,
             noWinAmount: actualWinAmount.totalWinAmount <= 0,
+            winAmountMismatch:
+              roundToFourDecimals(totalWinAmount) !==
+              roundToFourDecimals(actualWinAmount.totalWinAmount),
           },
         },
       );
