@@ -395,6 +395,10 @@ export class BonusWinsService {
     const logContext = { playerId, operatorId, siteName, promotionId, isManualClaim };
 
     try {
+      this.loggerService.captureMessage(
+        `${playerId} claiming bonuswin for promotion ${promotionId} at ${new Date().toISOString()}`,
+      );
+
       const toRequirementResult = await this.getTOProgress(
         playerId,
         operatorId,
@@ -512,7 +516,7 @@ export class BonusWinsService {
         };
       }
 
-      this.loggerService.log('claimBonusWins succeeded', false, {
+      this.loggerService.log('claimBonusWins succeeded', true, {
         ...logContext,
         playerPromotionId: playerPromotion._id,
         playerFinishedPromotionId: playerFinishedPromotion._id,

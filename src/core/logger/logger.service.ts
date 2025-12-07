@@ -120,7 +120,7 @@ export class LoggerService {
    * @param sendToSentry - Whether to send to Sentry (default: false for info)
    * @param context - Additional context
    */
-  log(message: string, sendToSentry = false, context?: Record<string, any>): void {
+  log(message: string, sendToSentry = true, context?: Record<string, any>): void {
     // Log locally
     this.logger.log(message);
 
