@@ -703,6 +703,7 @@ export class BonusWinsService {
    * @param totalTurnover Current total turnover
    * @param minRequiredTurnover Minimum required turnover
    * @param totalWinAmount Total win amount from bonus items
+   * @param actualWinAmount Actual win amount recalculated from tickets
    * @returns Whether player can claim bonus wins
    */
   private canClaimBonusWins(
@@ -711,11 +712,17 @@ export class BonusWinsService {
     totalWinAmount: number,
     actualWinAmount: number,
   ): boolean {
+    if (roundToFourDecimals(totalWinAmount) !== roundToFourDecimals(actualWinAmount)) {
+      this.loggerService.warn('Win amount mismatch detected', {
+        storedTotalWinAmount: totalWinAmount,
+        calculatedActualWinAmount: actualWinAmount,
+      });
+    }
+
     return (
       minRequiredTurnover > 0 &&
       roundToFourDecimals(totalTurnover) >= roundToFourDecimals(minRequiredTurnover) &&
-      totalWinAmount > 0 &&
-      roundToFourDecimals(totalWinAmount) === roundToFourDecimals(actualWinAmount)
+      actualWinAmount > 0
     );
   }
 
